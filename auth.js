@@ -22,7 +22,7 @@ const Auth = {
 
   // Busca perfil completo do usuário logado (role, faixa, nome)
   async getProfile(userId) {
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from('profiles')
       .select('*')
       .eq('id', userId)
