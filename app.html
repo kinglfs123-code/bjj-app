@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#080808">
+  <title>Art of BJJ</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="app.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<!-- Loading inicial -->
+<div id="boot-loader" class="boot-loader">
+  <div class="boot-logo">ART OF <em>BJJ</em></div>
+  <div class="boot-status">Carregando...</div>
+</div>
+
+<!-- App -->
+<div class="app" id="APP" style="display:none">
+  <div class="topbar">
+    <div class="logo" id="logo-text">ART OF <em>BJJ</em></div>
+    <div class="user-area">
+      <span class="user-name" id="user-name"></span>
+      <span class="user-role" id="user-role"></span>
+      <button class="logout-btn" id="logout-btn" aria-label="Sair">
+        <i class="ti ti-logout" aria-hidden="true"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="nav-bar" id="nav-bar"></div>
+
+  <!-- Páginas -->
+  <div class="page on" id="page-schedule">
+    <div class="slabel">Semana atual</div>
+    <div class="stitle" id="sch-title">Grade de Aulas</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="leg">
+        <div class="li"><div class="ld" style="background:var(--txt)"></div>Gi</div>
+        <div class="li"><div class="ld" style="background:var(--txt3)"></div>No-Gi</div>
+        <div class="li"><div class="ld" style="background:var(--txt2)"></div>Kids</div>
+      </div>
+      <button class="fbtn prof-only" id="toggle-edit-btn" onclick="toggleScheduleEdit()">
+        <i class="ti ti-edit" aria-hidden="true"></i> Editar grade
+      </button>
+    </div>
+    <div id="view-mode">
+      <div class="wgrid" id="wgrid"></div>
+      <div class="slabel" style="margin-top:8px">Aulas de hoje</div>
+      <div id="today-classes"></div>
+    </div>
+    <div id="edit-mode" style="display:none">
+      <div class="info-banner">
+        <i class="ti ti-info-circle" aria-hidden="true"></i>
+        Adicione ou remova aulas por dia. As alterações são salvas automaticamente.
+      </div>
+      <div class="grade-editor" id="grade-editor"></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-presences">
+    <div class="slabel" id="pres-date-label">Hoje</div>
+    <div class="stitle" id="pres-title">Controle de Presenças</div>
+    <div class="dnav">
+      <button class="darrow" id="prev-day">‹</button>
+      <span class="ddate" id="cur-date-label"></span>
+      <button class="darrow" id="next-day">›</button>
+    </div>
+    <div class="scards" id="pres-stats"></div>
+    <div class="ctrl prof-only">
+      <input class="sinput" id="pres-search" placeholder="Buscar aluno...">
+      <button class="fbtn active" data-belt="all">Todos</button>
+      <button class="fbtn" data-belt="white">Branca</button>
+      <button class="fbtn" data-belt="blue">Azul</button>
+      <button class="fbtn" data-belt="purple">Roxa</button>
+      <button class="fbtn" data-belt="brown">Marrom</button>
+      <button class="fbtn" data-belt="black">Preta</button>
+    </div>
+    <div id="pres-content"></div>
+  </div>
+
+  <div class="page" id="page-videos">
+    <div class="slabel">Biblioteca técnica</div>
+    <div class="stitle">Vídeos Instrutivos</div>
+    <div class="ctrl" id="vid-filters">
+      <button class="fbtn active" data-cat="all">Todos</button>
+      <button class="fbtn" data-cat="guard">Guarda</button>
+      <button class="fbtn" data-cat="pass">Passagem</button>
+      <button class="fbtn" data-cat="sub">Finalização</button>
+      <button class="fbtn" data-cat="sweep">Raspagem</button>
+      <button class="fbtn" data-cat="position">Posição</button>
+      <button class="pbtn prof-only" onclick="openVidModal(null)"><i class="ti ti-plus" aria-hidden="true"></i> Adicionar</button>
+    </div>
+    <div class="vgrid" id="vgrid"></div>
+  </div>
+
+  <div class="page prof-only" id="page-students">
+    <div class="slabel">Gestão</div>
+    <div class="stitle">Alunos</div>
+    <div class="ctrl">
+      <input class="sinput" id="stu-search" placeholder="Buscar aluno...">
+      <button class="fbtn active" data-belt="all">Todos</button>
+      <button class="fbtn" data-belt="white">Branca</button>
+      <button class="fbtn" data-belt="blue">Azul</button>
+      <button class="fbtn" data-belt="purple">Roxa</button>
+      <button class="fbtn" data-belt="brown">Marrom</button>
+      <button class="fbtn" data-belt="black">Preta</button>
+      <button class="pbtn" onclick="openInviteModal()"><i class="ti ti-mail" aria-hidden="true"></i> Convidar Aluno</button>
+    </div>
+    <table class="tbl" id="stu-tbl">
+      <thead><tr><th>Nome</th><th>E-mail</th><th>Faixa</th><th>Presenças</th><th>Ações</th></tr></thead>
+      <tbody id="stu-body"></tbody>
+    </table>
+  </div>
+
+  <div class="page" id="page-settings">
+    <div class="slabel">Preferências</div>
+    <div class="stitle">Configurações</div>
+    <div class="scard prof-only">
+      <div class="scard-title">Nome da Academia</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="sinput" id="cfg-name" style="flex:1">
+        <button class="pbtn" onclick="saveName()">Salvar</button>
+      </div>
+    </div>
+    <div class="scard">
+      <div class="scard-title">Tema</div>
+      <div class="theme-opts">
+        <div class="theme-opt" id="opt-dark" onclick="setTheme('dark')">
+          <div style="font-size:22px"><i class="ti ti-moon" aria-hidden="true"></i></div>
+          <div class="theme-opt-lbl">Escuro</div>
+        </div>
+        <div class="theme-opt" id="opt-light" onclick="setTheme('light')">
+          <div style="font-size:22px"><i class="ti ti-sun" aria-hidden="true"></i></div>
+          <div class="theme-opt-lbl">Claro</div>
+        </div>
+      </div>
+    </div>
+    <div class="scard">
+      <div class="scard-title">Conta</div>
+      <div style="font-size:12px;color:var(--txt2);margin-bottom:10px" id="account-info"></div>
+      <button class="fbtn" onclick="Auth.logout()"><i class="ti ti-logout" aria-hidden="true"></i> Sair</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modais -->
+<div class="mlay" id="modal-aula" style="display:none">
+  <div class="mbox">
+    <div class="mhead">
+      <span class="mtitle">Nova Aula</span>
+      <button class="mclose" onclick="closeModal('modal-aula')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="mrow"><label class="mlabel">Dia da semana</label>
+        <select class="mselect" id="aula-day">
+          <option value="1">Segunda-feira</option><option value="2">Terça-feira</option>
+          <option value="3">Quarta-feira</option><option value="4">Quinta-feira</option>
+          <option value="5">Sexta-feira</option><option value="6">Sábado</option>
+          <option value="0">Domingo</option>
+        </select>
+      </div>
+      <div class="mrow"><label class="mlabel">Horário</label>
+        <input class="sinput" id="aula-time" type="time" style="width:100%">
+      </div>
+      <div class="mrow"><label class="mlabel">Nome da aula</label>
+        <input class="sinput" id="aula-name" placeholder="Ex: Fundamentos Gi" style="width:100%">
+      </div>
+      <div class="mrow"><label class="mlabel">Tipo</label>
+        <select class="mselect" id="aula-type">
+          <option value="gi">Gi (Kimono)</option><option value="nogi">No-Gi</option><option value="kids">Kids</option>
+        </select>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="fbtn" onclick="closeModal('modal-aula')">Cancelar</button>
+      <button class="pbtn" onclick="saveAula()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="mlay" id="modal-invite" style="display:none">
+  <div class="mbox">
+    <div class="mhead">
+      <span class="mtitle">Convidar Aluno</span>
+      <button class="mclose" onclick="closeModal('modal-invite')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="info-banner" style="margin-bottom:12px">
+        <i class="ti ti-info-circle" aria-hidden="true"></i>
+        O aluno receberá um e-mail para definir a senha de acesso.
+      </div>
+      <div class="mrow"><label class="mlabel">Nome completo</label>
+        <input class="sinput" id="inv-name" placeholder="Ex: Rafael Souza" style="width:100%">
+      </div>
+      <div class="mrow"><label class="mlabel">E-mail</label>
+        <input class="sinput" id="inv-email" type="email" placeholder="aluno@exemplo.com" style="width:100%">
+      </div>
+      <div class="mrow"><label class="mlabel">Faixa</label>
+        <select class="mselect" id="inv-belt">
+          <option value="white">Branca</option><option value="blue">Azul</option>
+          <option value="purple">Roxa</option><option value="brown">Marrom</option><option value="black">Preta</option>
+        </select>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="fbtn" onclick="closeModal('modal-invite')">Cancelar</button>
+      <button class="pbtn" onclick="inviteStudent()">Enviar Convite</button>
+    </div>
+  </div>
+</div>
+
+<div class="mlay" id="modal-stu" style="display:none">
+  <div class="mbox">
+    <div class="mhead">
+      <span class="mtitle">Editar Aluno</span>
+      <button class="mclose" onclick="closeModal('modal-stu')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="mrow"><label class="mlabel">Nome completo</label>
+        <input class="sinput" id="stu-name" style="width:100%">
+      </div>
+      <div class="mrow"><label class="mlabel">Faixa</label>
+        <select class="mselect" id="stu-belt">
+          <option value="white">Branca</option><option value="blue">Azul</option>
+          <option value="purple">Roxa</option><option value="brown">Marrom</option><option value="black">Preta</option>
+        </select>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="fbtn" onclick="closeModal('modal-stu')">Cancelar</button>
+      <button class="pbtn" onclick="saveStudent()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="mlay" id="modal-vid" style="display:none">
+  <div class="mbox">
+    <div class="mhead">
+      <span class="mtitle" id="vid-modal-title">Vídeo</span>
+      <button class="mclose" onclick="closeModal('modal-vid')">✕</button>
+    </div>
+    <div id="vid-modal-content"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script src="db.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

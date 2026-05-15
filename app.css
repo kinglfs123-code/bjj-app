@@ -1,0 +1,310 @@
+/* ───────────────────────────────────────────────────────────────────────
+   APP DE JIU-JITSU — CSS
+   Mobile-first, suporte a tema escuro/claro
+   ─────────────────────────────────────────────────────────────────────── */
+
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --b:#080808;--surf:#141414;--surf2:#1c1c1c;
+  --border:#2a2a2a;--border2:#383838;
+  --txt:#f0f0f0;--txt2:#aaaaaa;--txt3:#666;
+  --btn-bg:#f0f0f0;--btn-txt:#080808;
+  --danger:#c04040;--ok:#3a8a50;
+}
+body.light{
+  --b:#f4f4f2;--surf:#ffffff;--surf2:#ebebeb;
+  --border:#dedede;--border2:#c8c8c8;
+  --txt:#101010;--txt2:#555;--txt3:#999;
+  --btn-bg:#101010;--btn-txt:#f4f4f2;
+}
+body{
+  background:var(--b);color:var(--txt);
+  font-family:'DM Sans',system-ui,sans-serif;font-size:13px;
+  transition:background .2s,color .2s;
+  min-height:100vh;
+}
+
+/* ─── BOOT LOADER ──────────────────────────────────────────── */
+.boot-loader{
+  position:fixed;inset:0;background:var(--b);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:1000;
+}
+.boot-logo{
+  font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:6px;
+  color:var(--txt);margin-bottom:14px;
+}
+.boot-logo em{font-style:normal;color:var(--txt2)}
+.boot-status{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--txt3)}
+
+/* ─── LOGIN PAGE ───────────────────────────────────────────── */
+.login-page{display:flex;align-items:center;justify-content:center;padding:20px}
+.login-wrap{width:100%;max-width:380px}
+.login-box{
+  background:var(--surf);border:0.5px solid var(--border);
+  border-radius:4px;padding:32px 24px;
+}
+.login-logo{
+  font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:6px;
+  color:var(--txt);text-align:center;
+}
+.login-logo em{font-style:normal;color:var(--txt2)}
+.login-sub{
+  font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--txt3);
+  text-align:center;margin-top:6px;margin-bottom:28px;
+}
+.form-row{margin-bottom:14px}
+.form-label{
+  display:block;font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--txt3);margin-bottom:6px;
+}
+.form-input{
+  width:100%;background:var(--b);border:0.5px solid var(--border);
+  border-radius:2px;padding:11px 13px;color:var(--txt);
+  font-family:'DM Sans',sans-serif;font-size:13px;outline:none;
+  transition:border-color .15s;
+}
+.form-input:focus{border-color:var(--border2)}
+.form-input::placeholder{color:var(--txt3)}
+.form-submit{
+  width:100%;background:var(--btn-bg);color:var(--btn-txt);border:none;
+  border-radius:2px;padding:12px;margin-top:8px;
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;
+  letter-spacing:2px;text-transform:uppercase;cursor:pointer;
+  transition:opacity .15s;
+}
+.form-submit:hover{opacity:.85}
+.form-submit:disabled{opacity:.5;cursor:wait}
+.form-err{
+  color:#e05050;font-size:12px;text-align:center;margin:8px 0;
+  min-height:18px;
+}
+.login-hint{
+  margin-top:20px;font-size:11px;color:var(--txt3);text-align:center;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+}
+
+/* ─── APP TOPBAR ───────────────────────────────────────────── */
+.app{min-height:100vh;display:flex;flex-direction:column}
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:13px 18px;border-bottom:0.5px solid var(--border);
+  background:var(--b);flex-shrink:0;
+}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:5px;color:var(--txt)}
+.logo em{font-style:normal;color:var(--txt2)}
+.user-area{display:flex;align-items:center;gap:10px}
+.user-name{font-size:12px;color:var(--txt);font-weight:500}
+.user-role{
+  font-size:9px;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--txt3);padding:2px 7px;border:0.5px solid var(--border);border-radius:2px;
+}
+.logout-btn{
+  background:none;border:0.5px solid var(--border);border-radius:2px;
+  padding:6px 9px;color:var(--txt2);cursor:pointer;font-size:14px;
+  transition:all .15s;
+}
+.logout-btn:hover{color:var(--txt);border-color:var(--border2)}
+
+/* ─── NAV BAR ──────────────────────────────────────────────── */
+.nav-bar{
+  display:flex;gap:3px;padding:10px 18px;
+  border-bottom:0.5px solid var(--border);overflow-x:auto;
+  scrollbar-width:none;
+}
+.nav-bar::-webkit-scrollbar{display:none}
+.nb{
+  background:none;border:0.5px solid transparent;color:var(--txt2);
+  font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:2px;
+  text-transform:uppercase;padding:7px 12px;cursor:pointer;
+  border-radius:2px;transition:all .15s;white-space:nowrap;
+}
+.nb:hover{color:var(--txt);border-color:var(--border2)}
+.nb.active{color:var(--btn-txt);background:var(--btn-bg);border-color:var(--btn-bg)}
+
+/* ─── PAGES ────────────────────────────────────────────────── */
+.page{display:none;padding:18px;flex:1}
+.page.on{display:block}
+.slabel{font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--txt3);margin-bottom:5px}
+.stitle{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:3px;line-height:1;margin-bottom:14px;color:var(--txt)}
+
+/* ─── CONTROLS ─────────────────────────────────────────────── */
+.ctrl{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.sinput{
+  flex:1;min-width:140px;background:var(--surf);
+  border:0.5px solid var(--border);border-radius:2px;
+  padding:9px 12px;color:var(--txt);
+  font-family:'DM Sans',sans-serif;font-size:12px;outline:none;
+  transition:border-color .15s;
+}
+.sinput:focus{border-color:var(--border2)}
+.sinput::placeholder{color:var(--txt3)}
+.mselect{
+  width:100%;background:var(--surf);border:0.5px solid var(--border);
+  border-radius:2px;padding:9px 12px;color:var(--txt);
+  font-family:'DM Sans',sans-serif;font-size:12px;outline:none;
+}
+.fbtn{
+  background:none;border:0.5px solid var(--border);border-radius:2px;
+  padding:8px 11px;color:var(--txt2);font-family:'DM Sans',sans-serif;
+  font-size:10px;letter-spacing:1.5px;text-transform:uppercase;
+  cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.fbtn:hover{color:var(--txt);border-color:var(--border2)}
+.fbtn.active{color:var(--btn-txt);background:var(--btn-bg);border-color:var(--btn-bg)}
+.pbtn{
+  background:var(--btn-bg);border:none;border-radius:2px;
+  padding:9px 13px;color:var(--btn-txt);
+  font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:1.5px;
+  text-transform:uppercase;cursor:pointer;font-weight:500;
+  transition:opacity .15s;white-space:nowrap;
+}
+.pbtn:hover{opacity:.85}
+.ibtn,.dbtn{
+  background:none;border:0.5px solid var(--border);border-radius:2px;
+  padding:6px 10px;color:var(--txt3);font-size:12px;cursor:pointer;
+  transition:all .15s;
+}
+.ibtn:hover{border-color:var(--border2);color:var(--txt)}
+.dbtn:hover{border-color:#c04040;color:#e05050}
+
+/* ─── TABLE ────────────────────────────────────────────────── */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);padding:9px 12px;text-align:left;border-bottom:0.5px solid var(--border)}
+.tbl td{padding:10px 12px;border-bottom:0.5px solid var(--surf2);vertical-align:middle}
+.tbl tr:hover td{background:var(--surf)}
+
+/* ─── BELT ─────────────────────────────────────────────────── */
+.belt{display:inline-block;width:22px;height:6px;border-radius:1px;margin-right:7px;vertical-align:middle}
+.belt.white{background:#ddd}
+.belt.blue{background:#777}
+.belt.purple{background:#555}
+.belt.brown{background:#3a3030}
+.belt.black{background:#181818;border:1px solid var(--border2)}
+body.light .belt.black{background:#222;border-color:#888}
+
+/* ─── CHECK ────────────────────────────────────────────────── */
+.ck{
+  width:30px;height:30px;border-radius:2px;border:0.5px solid var(--border);
+  background:none;cursor:pointer;transition:all .15s;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.ck.on{background:var(--surf2);border-color:var(--border2)}
+.ck:hover{border-color:var(--txt2)}
+
+/* ─── STAT CARDS ───────────────────────────────────────────── */
+.scards{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:14px}
+@media(min-width:600px){.scards{grid-template-columns:repeat(4,1fr)}}
+.sc{background:var(--surf);border:0.5px solid var(--border);border-radius:2px;padding:11px 12px}
+.scv{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--txt);line-height:1}
+.scl{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);margin-top:2px}
+
+/* ─── WEEK GRID (visualização) ──────────────────────────────── */
+.wgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:14px}
+.dcol{background:var(--surf);border:0.5px solid var(--border);border-radius:2px;overflow:hidden;min-height:80px}
+.dhead{background:var(--surf2);padding:5px 3px;text-align:center;border-bottom:0.5px solid var(--border)}
+.dname{font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--txt3)}
+.dnum{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--txt);line-height:1.1}
+.dnum.td{background:var(--btn-bg);color:var(--btn-txt);border-radius:2px;padding:0 3px}
+.cpill{padding:3px 4px;margin:3px 3px 0;border-radius:2px;border-left:1.5px solid var(--border2);background:var(--surf2)}
+.cpill:last-child{margin-bottom:3px}
+.cpill.gi{border-color:var(--txt)}
+.cpill.nogi{border-color:var(--txt3)}
+.cpill.kids{border-color:var(--txt2)}
+.ctime{font-size:8px;color:var(--txt3);display:block}
+.cname{font-size:9px;color:var(--txt);font-weight:500;line-height:1.2}
+
+#today-classes{display:grid;grid-template-columns:1fr;gap:7px;margin-top:9px}
+@media(min-width:600px){#today-classes{grid-template-columns:1fr 1fr}}
+
+/* ─── LEGENDA ──────────────────────────────────────────────── */
+.leg{display:flex;gap:12px;flex-wrap:wrap}
+.li{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--txt3)}
+.ld{width:10px;height:2px;border-radius:1px}
+
+/* ─── DATE NAV ─────────────────────────────────────────────── */
+.dnav{display:flex;align-items:center;gap:9px;margin-bottom:11px}
+.darrow{background:none;border:0.5px solid var(--border);border-radius:2px;padding:5px 10px;color:var(--txt3);cursor:pointer;font-size:14px;transition:all .15s}
+.darrow:hover{border-color:var(--border2);color:var(--txt)}
+.ddate{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:var(--txt)}
+
+/* ─── VIDEO GRID ───────────────────────────────────────────── */
+.vgrid{display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width:500px){.vgrid{grid-template-columns:1fr 1fr}}
+@media(min-width:800px){.vgrid{grid-template-columns:repeat(3,1fr)}}
+.vc{background:var(--surf);border:0.5px solid var(--border);border-radius:2px;overflow:hidden;cursor:pointer;transition:border-color .15s}
+.vc:hover{border-color:var(--border2)}
+.vthumb{height:130px;background:var(--surf2);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.vplay{width:34px;height:34px;border:0.5px solid var(--border2);border-radius:50%;display:flex;align-items:center;justify-content:center;z-index:1}
+.vbadge{position:absolute;top:6px;left:6px;font-size:8px;letter-spacing:1.5px;text-transform:uppercase;padding:2px 5px;border-radius:1px;background:var(--surf);color:var(--txt2);border:0.5px solid var(--border2)}
+.yt-thumb{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.vinfo{padding:9px 11px}
+.vtitle{font-size:12px;font-weight:500;color:var(--txt);margin-bottom:3px;line-height:1.3}
+.vmeta{font-size:10px;color:var(--txt3)}
+
+/* ─── MODAL ────────────────────────────────────────────────── */
+.mlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}
+body.light .mlay{background:rgba(0,0,0,.55)}
+.mbox{background:var(--surf);border:0.5px solid var(--border);border-radius:3px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto}
+.mhead{padding:14px 18px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.mtitle{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--txt)}
+.mclose{background:none;border:none;color:var(--txt3);cursor:pointer;font-size:17px;padding:2px 6px;transition:color .15s}
+.mclose:hover{color:var(--txt)}
+.mbody{padding:16px 18px}
+.mrow{margin-bottom:12px}
+.mlabel{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);margin-bottom:5px;display:block}
+.mfoot{padding:12px 18px;border-top:0.5px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+
+/* ─── GRADE EDITOR ─────────────────────────────────────────── */
+.info-banner{
+  background:var(--surf2);border:0.5px solid var(--border);
+  border-radius:2px;padding:10px 13px;margin-bottom:13px;
+  font-size:12px;color:var(--txt2);display:flex;align-items:center;gap:7px;
+}
+.grade-editor{display:flex;flex-direction:column;gap:8px}
+.grade-day-block{background:var(--surf);border:0.5px solid var(--border);border-radius:2px;overflow:hidden}
+.grade-day-header{display:flex;align-items:center;justify-content:space-between;padding:10px 13px;background:var(--surf2);border-bottom:0.5px solid var(--border)}
+.grade-day-name{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:3px;color:var(--txt)}
+.grade-add-btn{display:flex;align-items:center;gap:5px;background:var(--btn-bg);color:var(--btn-txt);border:none;border-radius:2px;padding:6px 11px;font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;font-weight:500}
+.grade-add-btn:hover{opacity:.85}
+.grade-aulas{padding:7px 9px;display:flex;flex-direction:column;gap:5px}
+.grade-aula-row{display:flex;align-items:center;gap:9px;background:var(--surf2);border:0.5px solid var(--border);border-left:3px solid var(--border2);border-radius:2px;padding:8px 11px}
+.grade-aula-row.gi{border-left-color:var(--txt)}
+.grade-aula-row.nogi{border-left-color:var(--txt3)}
+.grade-aula-row.kids{border-left-color:var(--txt2)}
+.grade-aula-time{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--txt);min-width:46px;line-height:1}
+.grade-aula-info{flex:1}
+.grade-aula-name{font-size:12px;font-weight:500;color:var(--txt)}
+.grade-aula-type{font-size:10px;color:var(--txt3);letter-spacing:1.5px;text-transform:uppercase;margin-top:2px}
+.grade-aula-del{background:none;border:0.5px solid var(--border);border-radius:2px;padding:5px 9px;color:var(--txt3);font-size:11px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:4px}
+.grade-aula-del:hover{border-color:#c04040;color:#e05050}
+.grade-empty{padding:12px;font-size:11px;color:var(--txt3);text-align:center}
+
+/* ─── SETTINGS CARDS ──────────────────────────────────────── */
+.scard{background:var(--surf);border:0.5px solid var(--border);border-radius:2px;padding:16px 18px;margin-bottom:12px}
+.scard-title{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);margin-bottom:12px}
+.theme-opts{display:flex;gap:8px}
+.theme-opt{flex:1;border:0.5px solid var(--border);border-radius:2px;padding:12px;cursor:pointer;transition:all .15s;text-align:center}
+.theme-opt:hover{border-color:var(--border2)}
+.theme-opt.active{border-color:var(--txt);background:var(--surf2)}
+.theme-opt-lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--txt2);margin-top:5px}
+
+/* ─── TOAST ────────────────────────────────────────────────── */
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--surf);border:0.5px solid var(--border2);border-radius:2px;padding:9px 16px;font-size:12px;color:var(--txt);z-index:300;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw}
+.toast.err{border-color:#c04040;color:#e05050}
+.toast.show{opacity:1}
+
+/* ─── VIDEO PREVIEW NO MODAL ──────────────────────────────── */
+.vpre{height:200px;background:var(--surf2);position:relative;overflow:hidden;border-bottom:0.5px solid var(--border)}
+.vpre iframe,.vpre video{position:absolute;inset:0;width:100%;height:100%;border:none}
+.vid-src-tabs{display:flex;margin-bottom:10px;border:0.5px solid var(--border);border-radius:2px;overflow:hidden}
+.vs-tab{flex:1;padding:8px;text-align:center;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;color:var(--txt3);background:none;border:none;font-family:'DM Sans',sans-serif;transition:all .15s}
+.vs-tab:first-child{border-right:0.5px solid var(--border)}
+.vs-tab.active{background:var(--btn-bg);color:var(--btn-txt)}
+.upzone{border:0.5px dashed var(--border2);border-radius:2px;padding:18px;text-align:center;cursor:pointer;transition:border-color .15s;color:var(--txt3)}
+.upzone:hover{border-color:var(--txt2)}
+.tag{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:3px 6px;border:0.5px solid var(--border);border-radius:1px;color:var(--txt3)}
+.tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+
+/* ─── OCULTAR ELEMENTOS DE PROFESSOR PARA ALUNO ──────────── */
+body.role-aluno .prof-only{display:none !important}
