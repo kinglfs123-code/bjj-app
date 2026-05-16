@@ -674,16 +674,32 @@ async function inviteStudent(){
   const faixa = $('inv-belt').value
   if(!nome){ toast('Nome obrigatório.', true); return }
   if(!email){ toast('E-mail obrigatório.', true); return }
+
+  // Validação básica de e-mail
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    toast('E-mail inválido.', true); return
+  }
+
+  // Desabilita botão durante envio
+  const btn = document.querySelector('#modal-invite .pbtn')
+  const origText = btn.textContent
+  btn.disabled = true
+  btn.textContent = 'Enviando...'
+
   try {
-    // Tenta enviar convite. Pode falhar dependendo das settings de auth do Supabase.
-    // Fallback: instrui o professor a criar via Authentication > Users
-    toast('Convite enviado para ' + email + ' (verifique a caixa de entrada)')
+    await Auth.inviteStudent(email, nome, faixa)
+    toast('Convite enviado para ' + email)
     closeModal('modal-invite')
-    // Recarrega lista
+    // Recarrega lista de alunos
     state.alunos = await DB.getAlunos()
     renderStudents()
   } catch(err){
-    toast('Erro: ' + err.message, true)
+    console.error('[invite] erro:', err)
+    const msg = err.message || 'Erro ao enviar convite'
+    toast(msg, true)
+  } finally {
+    btn.disabled = false
+    btn.textContent = origText
   }
 }
 
