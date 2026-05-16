@@ -42,13 +42,13 @@ const Auth = {
     return profile
   },
 
-  // Professor cria conta de aluno (sem expor senha — Supabase envia e-mail)
+  // Professor convida aluno via Edge Function (servidor seguro)
   async inviteStudent(email, nome, faixa) {
-    // Cria usuário via admin API — o aluno recebe e-mail para definir senha
-    const { data, error } = await sb.auth.admin.inviteUserByEmail(email, {
-      data: { nome, faixa, role: 'aluno' }
+    const { data, error } = await sb.functions.invoke('invite-aluno', {
+      body: { email, nome, faixa: faixa || 'white' }
     })
     if (error) throw error
+    if (data?.error) throw new Error(data.error)
     return data
   },
 
