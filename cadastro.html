@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#080808">
+  <title>Cadastro — Art of BJJ</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="app.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="login-page">
+  <div class="login-wrap">
+    <div class="login-box">
+      <div class="login-logo">ART OF <em>BJJ</em></div>
+      <div class="login-sub">Cadastro de aluno</div>
+
+      <form id="signup-form" autocomplete="on">
+        <div class="form-row">
+          <label class="form-label" for="nome">Nome completo</label>
+          <input class="form-input" type="text" id="nome" required autocomplete="name" placeholder="Seu nome completo">
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="email">E-mail</label>
+          <input class="form-input" type="email" id="email" required autocomplete="email" placeholder="seu@email.com">
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="password">Crie uma senha</label>
+          <input class="form-input" type="password" id="password" required minlength="6" autocomplete="new-password" placeholder="Mínimo 6 caracteres">
+        </div>
+        <div class="form-err" id="err-msg"></div>
+        <div class="form-ok" id="ok-msg" style="color:#7ac890;font-size:12px;text-align:center;margin:8px 0;min-height:18px"></div>
+        <button class="form-submit" type="submit" id="submit-btn">Cadastrar</button>
+      </form>
+
+      <div class="login-hint">
+        <i class="ti ti-info-circle" aria-hidden="true"></i>
+        Já tem conta? <a href="/" style="color:var(--txt2);text-decoration:underline;margin-left:4px">Entrar</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+  (function() {
+    'use strict';
+
+    const errEl = document.getElementById('err-msg');
+    const okEl = document.getElementById('ok-msg');
+    const submitBtn = document.getElementById('submit-btn');
+    const form = document.getElementById('signup-form');
+
+    // Aguarda o sb ficar pronto
+    function waitForSb(maxTries = 50) {
+      return new Promise((resolve, reject) => {
+        let tries = 0;
+        const check = () => {
+          if (window.sb && window.sb.auth) return resolve(window.sb);
+          tries++;
+          if (tries >= maxTries) return reject(new Error('Supabase não inicializou'));
+          setTimeout(check, 100);
+        };
+        check();
+      });
+    }
+
+    async function init() {
+      try {
+        const sb = await waitForSb();
+
+        // Se já está logado, redireciona pro app
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) {
+          window.location.href = '/app.html';
+          return;
+        }
+
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          errEl.textContent = '';
+          okEl.textContent = '';
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Cadastrando...';
+
+          const nome = document.getElementById('nome').value.trim();
+          const email = document.getElementById('email').value.trim();
+          const password = document.getElementById('password').value;
+
+          try {
+            const { data, error } = await sb.auth.signUp({
+              email,
+              password,
+              options: {
+                data: {
+                  nome,
+                  faixa: 'white',
+                  role: 'aluno'
+                }
+              }
+            });
+
+            if (error) throw error;
+
+            // Se tem sessão = entrou direto
+            if (data.session) {
+              window.location.href = '/app.html';
+              return;
+            }
+
+            // Sem sessão = precisa confirmar e-mail
+            okEl.textContent = 'Cadastro feito! Verifique seu e-mail para confirmar e fazer login.';
+            form.reset();
+            submitBtn.textContent = 'Cadastrar';
+            submitBtn.disabled = false;
+          } catch (err) {
+            console.error('[signup] erro:', err);
+            const msg = err.message || '';
+            if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('user already')) {
+              errEl.textContent = 'Este e-mail já está cadastrado. Faça login.';
+            } else if (msg.toLowerCase().includes('password')) {
+              errEl.textContent = 'A senha precisa ter no mínimo 6 caracteres.';
+            } else {
+              errEl.textContent = 'Erro: ' + msg;
+            }
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Cadastrar';
+          }
+        });
+      } catch (err) {
+        errEl.textContent = 'Erro ao carregar. Recarregue a página.';
+      }
+    }
+
+    init();
+  })();
+  </script>
+</body>
+</html>
