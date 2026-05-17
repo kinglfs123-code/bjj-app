@@ -111,7 +111,7 @@
       <button class="fbtn" data-belt="purple">Roxa</button>
       <button class="fbtn" data-belt="brown">Marrom</button>
       <button class="fbtn" data-belt="black">Preta</button>
-      <button class="pbtn" onclick="openInviteModal()"><i class="ti ti-mail" aria-hidden="true"></i> Convidar Aluno</button>
+      <button class="pbtn" onclick="openInviteModal()"><i class="ti ti-share" aria-hidden="true"></i> Compartilhar Link</button>
     </div>
     <table class="tbl" id="stu-tbl">
       <thead><tr><th>Nome</th><th>E-mail</th><th>Faixa</th><th>Presenças</th><th>Ações</th></tr></thead>
@@ -188,30 +188,33 @@
 <div class="mlay" id="modal-invite" style="display:none">
   <div class="mbox">
     <div class="mhead">
-      <span class="mtitle">Convidar Aluno</span>
+      <span class="mtitle">Compartilhar Link de Cadastro</span>
       <button class="mclose" onclick="closeModal('modal-invite')">✕</button>
     </div>
     <div class="mbody">
-      <div class="info-banner" style="margin-bottom:12px">
+      <div class="info-banner" style="margin-bottom:14px">
         <i class="ti ti-info-circle" aria-hidden="true"></i>
-        O aluno receberá um e-mail para definir a senha de acesso.
+        Compartilhe este link com seus alunos. Eles se cadastram sozinhos e aparecem aqui automaticamente.
       </div>
-      <div class="mrow"><label class="mlabel">Nome completo</label>
-        <input class="sinput" id="inv-name" placeholder="Ex: Rafael Souza" style="width:100%">
+
+      <div class="mrow">
+        <label class="mlabel">Link de cadastro</label>
+        <div style="display:flex;gap:6px">
+          <input class="sinput" id="invite-link" readonly style="flex:1;font-family:'JetBrains Mono',monospace;font-size:11px" value="">
+          <button class="pbtn" onclick="copyInviteLink()" id="copy-btn"><i class="ti ti-copy" aria-hidden="true"></i> Copiar</button>
+        </div>
       </div>
-      <div class="mrow"><label class="mlabel">E-mail</label>
-        <input class="sinput" id="inv-email" type="email" placeholder="aluno@exemplo.com" style="width:100%">
-      </div>
-      <div class="mrow"><label class="mlabel">Faixa</label>
-        <select class="mselect" id="inv-belt">
-          <option value="white">Branca</option><option value="blue">Azul</option>
-          <option value="purple">Roxa</option><option value="brown">Marrom</option><option value="black">Preta</option>
-        </select>
+
+      <div class="mrow" style="margin-top:14px">
+        <label class="mlabel">Compartilhar via</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="fbtn" onclick="shareWhatsApp()" style="flex:1;min-width:120px"><i class="ti ti-brand-whatsapp" aria-hidden="true"></i> WhatsApp</button>
+          <button class="fbtn" onclick="shareNative()" style="flex:1;min-width:120px"><i class="ti ti-share" aria-hidden="true"></i> Compartilhar</button>
+        </div>
       </div>
     </div>
     <div class="mfoot">
-      <button class="fbtn" onclick="closeModal('modal-invite')">Cancelar</button>
-      <button class="pbtn" onclick="inviteStudent()">Enviar Convite</button>
+      <button class="fbtn" onclick="closeModal('modal-invite')">Fechar</button>
     </div>
   </div>
 </div>
