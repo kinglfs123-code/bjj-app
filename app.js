@@ -662,44 +662,49 @@ function renderStudents(){
 }
 
 function openInviteModal(){
-  $('inv-name').value = ''
-  $('inv-email').value = ''
-  $('inv-belt').value = 'white'
+  const link = window.location.origin + '/cadastro.html'
+  $('invite-link').value = link
   $('modal-invite').style.display = 'flex'
 }
 
-async function inviteStudent(){
-  const nome = $('inv-name').value.trim()
-  const email = $('inv-email').value.trim()
-  const faixa = $('inv-belt').value
-  if(!nome){ toast('Nome obrigatório.', true); return }
-  if(!email){ toast('E-mail obrigatório.', true); return }
-
-  // Validação básica de e-mail
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
-    toast('E-mail inválido.', true); return
-  }
-
-  // Desabilita botão durante envio
-  const btn = document.querySelector('#modal-invite .pbtn')
-  const origText = btn.textContent
-  btn.disabled = true
-  btn.textContent = 'Enviando...'
-
+async function copyInviteLink(){
+  const link = $('invite-link').value
   try {
-    await Auth.inviteStudent(email, nome, faixa)
-    toast('Convite enviado para ' + email)
-    closeModal('modal-invite')
-    // Recarrega lista de alunos
-    state.alunos = await DB.getAlunos()
-    renderStudents()
+    await navigator.clipboard.writeText(link)
+    const btn = $('copy-btn')
+    const orig = btn.innerHTML
+    btn.innerHTML = '<i class="ti ti-check" aria-hidden="true"></i> Copiado!'
+    setTimeout(() => { btn.innerHTML = orig }, 2000)
+    toast('Link copiado!')
   } catch(err){
-    console.error('[invite] erro:', err)
-    const msg = err.message || 'Erro ao enviar convite'
-    toast(msg, true)
-  } finally {
-    btn.disabled = false
-    btn.textContent = origText
+    // Fallback: seleciona o texto
+    $('invite-link').select()
+    document.execCommand('copy')
+    toast('Link copiado!')
+  }
+}
+
+function shareWhatsApp(){
+  const link = $('invite-link').value
+  const msg = `🥋 *Art of BJJ* — cadastre-se no app da academia:\n\n${link}`
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
+}
+
+async function shareNative(){
+  const link = $('invite-link').value
+  if(navigator.share){
+    try {
+      await navigator.share({
+        title: 'Art of BJJ',
+        text: 'Cadastre-se no app da academia:',
+        url: link
+      })
+    } catch(err){
+      // Usuário cancelou — tudo bem
+    }
+  } else {
+    // Sem API de compartilhamento (desktop) → copia
+    copyInviteLink()
   }
 }
 
