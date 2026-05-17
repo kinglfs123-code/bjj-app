@@ -42,15 +42,8 @@ const Auth = {
     return profile
   },
 
-  // Professor convida aluno via Edge Function (servidor seguro)
-  async inviteStudent(email, nome, faixa) {
-    const { data, error } = await sb.functions.invoke('invite-aluno', {
-      body: { email, nome, faixa: faixa || 'white' }
-    })
-    if (error) throw error
-    if (data?.error) throw new Error(data.error)
-    return data
-  },
+  // O cadastro de alunos é feito pela página /cadastro.html
+  // Professor compartilha o link pelos meios dele (WhatsApp, etc.)
 
   isProfessor() {
     return this.currentProfile?.role === 'professor'
