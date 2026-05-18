@@ -1,558 +1,1085 @@
-/* ════════════════════════════════════════════════════════════════════════
-   ART OF BJJ — DESIGN SYSTEM (inspirado em AOJ)
-   Minimalista: preto/branco, espaçamentos generosos,
-   tipografia imponente em uppercase, linhas finas.
-   ════════════════════════════════════════════════════════════════════════ */
+// ════════════════════════════════════════════════════════════════════════
+// APP PRINCIPAL — Lógica do app conectada ao Supabase
+// ════════════════════════════════════════════════════════════════════════
 
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+// ─── CONSTANTES ─────────────────────────────────────────────────────────
+const DAYS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
+const DAYS_FULL = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado']
+const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+const BELT_PT = {white:'Branca',blue:'Azul',purple:'Roxa',brown:'Marrom',black:'Preta'}
+const CAT_LABELS = {guard:'Guarda',pass:'Passagem',sub:'Finalização',sweep:'Raspagem',position:'Posição'}
+const TYPE_PT = {gi:'Gi · Kimono',nogi:'No-Gi',kids:'Kids'}
+const PATS = ['◈ ◈ ◈','▲  ▲','◉ ◈ ◉','▲ ◈ ▲','◈ ◉ ◈','◉ ◉ ◉']
 
-:root{
-  --b:#0a0a0a;
-  --surf:#141414;
-  --surf2:#1c1c1c;
-  --surf3:#222;
-  --border:#252525;
-  --border2:#3a3a3a;
-  --txt:#f5f5f5;
-  --txt2:#a8a8a8;
-  --txt3:#606060;
-  --btn-bg:#f5f5f5;
-  --btn-txt:#0a0a0a;
-  --accent:#7ac890;
-  --danger:#c04040;
-
-  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px;
-  --sp-5:20px; --sp-6:24px; --sp-7:32px; --sp-8:48px;
-
-  --letter-xs:1.5px; --letter-s:2px; --letter-m:3px;
-  --letter-l:4px; --letter-xl:6px;
-}
-
-body.light{
-  --b:#fafaf8;
-  --surf:#ffffff;
-  --surf2:#f0f0ee;
-  --surf3:#e8e8e6;
-  --border:#e0e0de;
-  --border2:#c0c0be;
-  --txt:#0a0a0a;
-  --txt2:#555;
-  --txt3:#909090;
-  --btn-bg:#0a0a0a;
-  --btn-txt:#fafaf8;
-  --accent:#3a8a50;
-  --danger:#a03030;
+// ─── ESTADO ─────────────────────────────────────────────────────────────
+const state = {
+  alunos: [],
+  videos: [],
+  schedule: {},
+  config: { nome_academia: 'Art of BJJ', tema: 'dark' },
+  presencas: {},        // {alunoId: true}
+  totaisPresenca: {},   // {alunoId: count}
+  minhasConfirmacoes: {}, // {'aulaId_data': true} para o aluno logado
+  confirmadosNoDia: {}, // {alunoId: true} - quem confirmou em alguma aula no dia atual (pro professor)
+  curDate: new Date(),
+  filters: { presBelt:'all', stuBelt:'all', vid:'all', search:'' },
+  editMode: false,
+  editingStuId: null,
+  editingVidId: null,
+  vidSrcTab: 'youtube',
+  pendingFile: null,
 }
 
-body{
-  background:var(--b);color:var(--txt);
-  font-family:'DM Sans',system-ui,-apple-system,sans-serif;
-  font-size:13px;line-height:1.5;
-  transition:background .25s,color .25s;
-  min-height:100vh;
-  -webkit-font-smoothing:antialiased;
-  -moz-osx-font-smoothing:grayscale;
+// ─── UTILS ──────────────────────────────────────────────────────────────
+function dateKey(d){ return d.toISOString().slice(0,10) }
+function $(id){ return document.getElementById(id) }
+function toast(msg, err=false){
+  const t = $('toast')
+  t.textContent = msg
+  t.className = 'toast show' + (err?' err':'')
+  setTimeout(()=>t.className='toast', 2400)
+}
+function ytEmbedUrl(raw){
+  if(!raw) return null
+  let id = null
+  try {
+    const u = new URL(raw)
+    if(u.hostname.includes('youtu.be')) id = u.pathname.slice(1)
+    else if(u.searchParams.get('v')) id = u.searchParams.get('v')
+    else if(u.pathname.includes('/embed/')) id = u.pathname.split('/embed/')[1].split('?')[0]
+  } catch {
+    const m = raw.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/)
+    if(m) id = m[1]
+  }
+  return id ? `https://www.youtube.com/embed/${id}` : null
 }
 
-/* ─── BOOT LOADER ─────────────────────────────────────────────────────── */
-.boot-loader{
-  position:fixed;inset:0;background:var(--b);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  z-index:1000;
-}
-.boot-logo{
-  font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:var(--letter-xl);
-  color:var(--txt);margin-bottom:var(--sp-4);
-}
-.boot-logo em{font-style:normal;color:var(--txt2)}
-.boot-status{font-size:10px;letter-spacing:var(--letter-m);text-transform:uppercase;color:var(--txt3)}
+// ─── BOOT ───────────────────────────────────────────────────────────────
+async function boot(){
+  try {
+    // 1. Verifica sessão
+    const profile = await Auth.init()
+    if(!profile){
+      window.location.href = '/index.html'
+      return
+    }
 
-/* ─── LOGIN / CADASTRO ────────────────────────────────────────────────── */
-.login-page{display:flex;align-items:center;justify-content:center;padding:var(--sp-6) var(--sp-5);min-height:100vh}
-.login-wrap{width:100%;max-width:400px}
-.login-box{
-  background:var(--surf);border:0.5px solid var(--border);
-  border-radius:2px;padding:var(--sp-8) var(--sp-6);
-}
-.login-logo{
-  font-family:'Bebas Neue',sans-serif;
-  font-size:30px;letter-spacing:var(--letter-xl);
-  color:var(--txt);text-align:center;line-height:1;
-}
-.login-logo em{font-style:normal;color:var(--txt2)}
-.login-sub{
-  font-size:10px;letter-spacing:var(--letter-m);text-transform:uppercase;
-  color:var(--txt3);text-align:center;
-  margin-top:var(--sp-2);margin-bottom:var(--sp-7);
-}
-.form-row{margin-bottom:var(--sp-4)}
-.form-label{
-  display:block;font-size:9px;letter-spacing:var(--letter-s);
-  text-transform:uppercase;color:var(--txt3);margin-bottom:var(--sp-2);
-}
-.form-input{
-  width:100%;background:var(--b);
-  border:0.5px solid var(--border);border-radius:2px;
-  padding:13px 14px;color:var(--txt);
-  font-family:'DM Sans',sans-serif;font-size:13px;
-  outline:none;transition:border-color .2s;
-}
-.form-input:focus{border-color:var(--txt2)}
-.form-input::placeholder{color:var(--txt3)}
-.form-submit{
-  width:100%;background:var(--btn-bg);color:var(--btn-txt);
-  border:none;border-radius:2px;padding:14px;
-  margin-top:var(--sp-3);
-  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;
-  letter-spacing:var(--letter-s);text-transform:uppercase;
-  cursor:pointer;transition:opacity .15s;
-}
-.form-submit:hover{opacity:.85}
-.form-submit:disabled{opacity:.5;cursor:wait}
-.form-err{color:#e05050;font-size:12px;text-align:center;margin:var(--sp-2) 0;min-height:18px}
-.login-hint{
-  margin-top:var(--sp-6);font-size:11px;color:var(--txt3);text-align:center;
-  display:flex;align-items:center;justify-content:center;gap:5px;
-}
+    // 2. Aplica role no body (CSS esconde .prof-only se for aluno)
+    document.body.classList.add('role-' + profile.role)
 
-/* ─── APP TOPBAR ──────────────────────────────────────────────────────── */
-.app{min-height:100vh;display:flex;flex-direction:column}
-.topbar{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:var(--sp-4) var(--sp-5);
-  border-bottom:0.5px solid var(--border);
-  background:var(--b);flex-shrink:0;
-  position:sticky;top:0;z-index:10;
-  backdrop-filter:blur(8px);
-}
-.logo{
-  font-family:'Bebas Neue',sans-serif;
-  font-size:22px;letter-spacing:var(--letter-l);
-  color:var(--txt);line-height:1;
-}
-.logo em{font-style:normal;color:var(--txt2)}
-.user-area{display:flex;align-items:center;gap:var(--sp-3)}
-.user-name{font-size:12px;color:var(--txt);font-weight:500;white-space:nowrap}
-.user-role{
-  font-size:9px;letter-spacing:var(--letter-xs);text-transform:uppercase;
-  color:var(--txt3);padding:3px 8px;border:0.5px solid var(--border);
-  border-radius:2px;white-space:nowrap;
-}
-.logout-btn{
-  background:none;border:0.5px solid var(--border);border-radius:2px;
-  padding:7px 10px;color:var(--txt2);cursor:pointer;font-size:14px;
-  transition:all .15s;
-}
-.logout-btn:hover{color:var(--txt);border-color:var(--border2)}
+    // 3. Mostra info do usuário
+    $('user-name').textContent = profile.nome
+    $('user-role').textContent = profile.role === 'professor' ? 'Professor' : 'Aluno'
+    $('account-info').textContent = `${profile.nome} · ${profile.email}`
 
-/* ─── NAV BAR ─────────────────────────────────────────────────────────── */
-.nav-bar{
-  display:flex;gap:var(--sp-1);padding:var(--sp-3) var(--sp-5);
-  border-bottom:0.5px solid var(--border);
-  overflow-x:auto;scrollbar-width:none;
-}
-.nav-bar::-webkit-scrollbar{display:none}
-.nb{
-  background:none;border:0.5px solid transparent;color:var(--txt2);
-  font-family:'DM Sans',sans-serif;
-  font-size:10px;letter-spacing:var(--letter-s);text-transform:uppercase;
-  padding:9px 14px;cursor:pointer;
-  border-radius:2px;transition:all .15s;white-space:nowrap;
-}
-.nb:hover{color:var(--txt);border-color:var(--border2)}
-.nb.active{color:var(--btn-txt);background:var(--btn-bg);border-color:var(--btn-bg)}
+    // 4. Carrega dados em paralelo
+    const [alunos, videos, schedule, config, totais] = await Promise.all([
+      DB.getAlunos(),
+      DB.getVideos(),
+      DB.getSchedule(),
+      DB.getConfig(),
+      DB.getTotaisPresenca()
+    ])
+    state.alunos = alunos
+    state.videos = videos
+    state.schedule = schedule
+    state.config = config
+    state.totaisPresenca = totais
 
-/* ─── PAGES ───────────────────────────────────────────────────────────── */
-.page{display:none;padding:var(--sp-6) var(--sp-5);flex:1;max-width:1200px;width:100%;margin:0 auto}
-.page.on{display:block}
-.slabel{
-  font-size:9px;letter-spacing:var(--letter-l);text-transform:uppercase;
-  color:var(--txt3);margin-bottom:var(--sp-2);
-}
-.stitle{
-  font-family:'Bebas Neue',sans-serif;
-  font-size:34px;letter-spacing:var(--letter-m);
-  line-height:1;margin-bottom:var(--sp-5);color:var(--txt);
+    // 5. Carrega presenças de hoje
+    await loadPresences(state.curDate)
+
+    // 5.1. Carrega confirmações relevantes
+    await loadConfirmacoes()
+
+    // 6. Monta nav
+    setupNav()
+
+    // 7. Aplica config
+    applyTheme(state.config.tema)
+    applyName()
+    applyLogo()
+
+    // 8. Renderiza tudo
+    renderAll()
+
+    // 9. Setup event listeners
+    setupListeners()
+
+    // 10. Esconde loader, mostra app
+    $('boot-loader').style.display = 'none'
+    $('APP').style.display = 'flex'
+  } catch (err) {
+    console.error('Erro no boot:', err)
+    $('boot-loader').innerHTML = `
+      <div style="color:#e05050;font-size:13px;text-align:center;padding:20px">
+        Erro ao carregar.<br><br>
+        <span style="font-size:11px;color:#888">${err.message}</span><br><br>
+        <button onclick="Auth.logout()" style="background:none;border:0.5px solid #444;color:#aaa;padding:8px 14px;border-radius:2px;cursor:pointer;font-size:11px;letter-spacing:2px;text-transform:uppercase">Sair</button>
+      </div>`
+  }
 }
 
-/* ─── CONTROLS ────────────────────────────────────────────────────────── */
-.ctrl{display:flex;gap:var(--sp-2);margin-bottom:var(--sp-5);flex-wrap:wrap;align-items:center}
-.sinput{
-  flex:1;min-width:140px;background:var(--surf);border:0.5px solid var(--border);
-  border-radius:2px;padding:10px 13px;color:var(--txt);
-  font-family:'DM Sans',sans-serif;font-size:12px;outline:none;transition:border-color .15s;
-}
-.sinput:focus{border-color:var(--border2)}
-.sinput::placeholder{color:var(--txt3)}
-.mselect{
-  width:100%;background:var(--surf);border:0.5px solid var(--border);
-  border-radius:2px;padding:10px 13px;color:var(--txt);
-  font-family:'DM Sans',sans-serif;font-size:12px;outline:none;
-}
-.fbtn{
-  background:none;border:0.5px solid var(--border);border-radius:2px;
-  padding:9px 13px;color:var(--txt2);font-family:'DM Sans',sans-serif;
-  font-size:10px;letter-spacing:var(--letter-xs);text-transform:uppercase;
-  cursor:pointer;transition:all .15s;white-space:nowrap;
-  display:inline-flex;align-items:center;gap:5px;
-}
-.fbtn:hover{color:var(--txt);border-color:var(--border2)}
-.fbtn.active{color:var(--btn-txt);background:var(--btn-bg);border-color:var(--btn-bg)}
-.pbtn{
-  background:var(--btn-bg);border:none;border-radius:2px;
-  padding:10px 15px;color:var(--btn-txt);
-  font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:var(--letter-xs);
-  text-transform:uppercase;cursor:pointer;font-weight:500;
-  transition:opacity .15s;white-space:nowrap;
-  display:inline-flex;align-items:center;gap:5px;
-}
-.pbtn:hover{opacity:.85}
-.ibtn,.dbtn{
-  background:none;border:0.5px solid var(--border);border-radius:2px;
-  padding:7px 11px;color:var(--txt3);font-size:12px;cursor:pointer;transition:all .15s;
-}
-.ibtn:hover{border-color:var(--border2);color:var(--txt)}
-.dbtn:hover{border-color:#c04040;color:#e05050}
+// ─── NAV ────────────────────────────────────────────────────────────────
+function setupNav(){
+  const isProf = Auth.isProfessor()
+  const items = [
+    { id:'schedule', label:'Aulas' },
+    { id:'presences', label:'Presenças' },
+    { id:'videos', label:'Vídeos' },
+  ]
+  if(isProf) items.push({ id:'students', label:'Alunos' })
+  items.push({ id:'settings', label:'⚙️', isIcon:true })
 
-/* ─── TABLE ───────────────────────────────────────────────────────────── */
-.tbl{width:100%;border-collapse:collapse}
-.tbl th{
-  font-size:9px;letter-spacing:var(--letter-s);text-transform:uppercase;
-  color:var(--txt3);padding:11px 14px;text-align:left;border-bottom:0.5px solid var(--border);
-}
-.tbl td{padding:13px 14px;border-bottom:0.5px solid var(--surf2);vertical-align:middle}
-.tbl tr:hover td{background:var(--surf)}
+  $('nav-bar').innerHTML = items.map((it, i) => `
+    <button class="nb ${i===0?'active':''}" data-page="${it.id}">
+      ${it.isIcon ? '<i class="ti ti-settings" aria-hidden="true"></i>' : it.label}
+    </button>
+  `).join('')
 
-/* ─── BELT ────────────────────────────────────────────────────────────── */
-.belt{display:inline-block;width:24px;height:7px;border-radius:1px;margin-right:8px;vertical-align:middle}
-.belt.white{background:#e8e8e8}
-.belt.blue{background:#5b7090}
-.belt.purple{background:#503e60}
-.belt.brown{background:#3a2820}
-.belt.black{background:#0a0a0a;border:1px solid var(--border2)}
-body.light .belt.white{background:#f8f8f8;border:1px solid #ddd}
-body.light .belt.black{background:#222}
-
-/* ─── CHECK ───────────────────────────────────────────────────────────── */
-.ck{
-  width:34px;height:34px;border-radius:2px;
-  border:0.5px solid var(--border);background:none;cursor:pointer;
-  transition:all .15s;display:inline-flex;align-items:center;justify-content:center;
-}
-.ck.on{background:var(--txt);border-color:var(--txt)}
-.ck.on i{color:var(--b)}
-.ck:hover{border-color:var(--txt2)}
-
-/* ─── STAT CARDS ──────────────────────────────────────────────────────── */
-.scards{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--sp-2);margin-bottom:var(--sp-5)}
-@media(min-width:600px){.scards{grid-template-columns:repeat(4,1fr)}}
-.sc{background:var(--surf);border:0.5px solid var(--border);border-radius:2px;padding:var(--sp-4)}
-.scv{font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--txt);line-height:1;letter-spacing:1px}
-.scl{font-size:9px;letter-spacing:var(--letter-s);text-transform:uppercase;color:var(--txt3);margin-top:var(--sp-1)}
-
-/* ─── WEEK GRID ───────────────────────────────────────────────────────── */
-.wgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:var(--sp-5)}
-.dcol{background:var(--surf);border:0.5px solid var(--border);border-radius:2px;overflow:hidden;min-height:90px}
-.dhead{background:var(--surf2);padding:6px 3px;text-align:center;border-bottom:0.5px solid var(--border)}
-.dname{font-size:8px;letter-spacing:var(--letter-xs);text-transform:uppercase;color:var(--txt3)}
-.dnum{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--txt);line-height:1.1}
-.dnum.td{background:var(--btn-bg);color:var(--btn-txt);border-radius:2px;padding:0 4px;display:inline-block}
-.cpill{
-  padding:4px 5px;margin:3px 3px 0;border-radius:2px;
-  border-left:2px solid var(--border2);background:var(--surf2);
-  cursor:pointer;transition:background .15s;
-}
-.cpill:last-child{margin-bottom:3px}
-.cpill:hover{background:var(--surf3)}
-.cpill.gi{border-color:var(--txt)}
-.cpill.nogi{border-color:var(--txt3)}
-.cpill.kids{border-color:var(--txt2)}
-.cpill.confirmed{background:#15211a;border-left-color:var(--accent)}
-body.light .cpill.confirmed{background:#e3f0e8;border-left-color:var(--accent)}
-.ctime{font-size:8px;color:var(--txt3);display:block;letter-spacing:0.5px}
-.cname{font-size:9px;color:var(--txt);font-weight:500;line-height:1.2}
-
-#today-classes{display:grid;grid-template-columns:1fr;gap:var(--sp-2);margin-top:var(--sp-3)}
-@media(min-width:600px){#today-classes{grid-template-columns:1fr 1fr}}
-
-/* ─── LEGENDA ─────────────────────────────────────────────────────────── */
-.leg{display:flex;gap:var(--sp-4);flex-wrap:wrap}
-.li{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--txt3);letter-spacing:0.5px}
-.ld{width:12px;height:2px;border-radius:1px}
-
-/* ─── DATE NAV ────────────────────────────────────────────────────────── */
-.dnav{display:flex;align-items:center;gap:var(--sp-3);margin-bottom:var(--sp-4)}
-.darrow{
-  background:none;border:0.5px solid var(--border);border-radius:2px;
-  padding:6px 12px;color:var(--txt3);cursor:pointer;font-size:14px;transition:all .15s;
-}
-.darrow:hover{border-color:var(--border2);color:var(--txt)}
-.ddate{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:var(--letter-s);color:var(--txt)}
-
-/* ─── VIDEO GRID ──────────────────────────────────────────────────────── */
-.vgrid{display:grid;grid-template-columns:1fr;gap:var(--sp-3)}
-@media(min-width:500px){.vgrid{grid-template-columns:1fr 1fr}}
-@media(min-width:800px){.vgrid{grid-template-columns:repeat(3,1fr)}}
-.vc{background:var(--surf);border:0.5px solid var(--border);border-radius:2px;overflow:hidden;cursor:pointer;transition:border-color .15s}
-.vc:hover{border-color:var(--border2)}
-.vthumb{height:140px;background:var(--surf2);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
-.vplay{
-  width:38px;height:38px;border:0.5px solid var(--border2);border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  z-index:1;background:rgba(10,10,10,.6);backdrop-filter:blur(4px);
-}
-.vbadge{
-  position:absolute;top:8px;left:8px;font-size:8px;
-  letter-spacing:var(--letter-xs);text-transform:uppercase;
-  padding:3px 7px;border-radius:1px;background:var(--surf);
-  color:var(--txt2);border:0.5px solid var(--border2);
-}
-.yt-thumb{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
-.vinfo{padding:var(--sp-3) var(--sp-3) var(--sp-4)}
-.vtitle{font-size:13px;font-weight:500;color:var(--txt);margin-bottom:4px;line-height:1.3}
-.vmeta{font-size:10px;color:var(--txt3)}
-
-/* ─── MODAL ───────────────────────────────────────────────────────────── */
-.mlay{
-  position:fixed;inset:0;background:rgba(0,0,0,.85);
-  display:flex;align-items:center;justify-content:center;
-  z-index:200;padding:var(--sp-4);backdrop-filter:blur(6px);
-}
-body.light .mlay{background:rgba(0,0,0,.55)}
-.mbox{
-  background:var(--surf);border:0.5px solid var(--border);
-  border-radius:3px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto;
-}
-.mhead{
-  padding:var(--sp-4) var(--sp-5);border-bottom:0.5px solid var(--border);
-  display:flex;align-items:center;justify-content:space-between;
-}
-.mtitle{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:var(--letter-s);color:var(--txt)}
-.mclose{
-  background:none;border:none;color:var(--txt3);cursor:pointer;
-  font-size:18px;padding:2px 6px;transition:color .15s;
-}
-.mclose:hover{color:var(--txt)}
-.mbody{padding:var(--sp-5)}
-.mrow{margin-bottom:var(--sp-3)}
-.mlabel{
-  font-size:9px;letter-spacing:var(--letter-s);text-transform:uppercase;
-  color:var(--txt3);margin-bottom:6px;display:block;
-}
-.mfoot{
-  padding:var(--sp-4) var(--sp-5);border-top:0.5px solid var(--border);
-  display:flex;gap:var(--sp-2);justify-content:flex-end;
+  $('nav-bar').querySelectorAll('.nb').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $('nav-bar').querySelectorAll('.nb').forEach(b => b.classList.remove('active'))
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('on'))
+      btn.classList.add('active')
+      $('page-' + btn.dataset.page).classList.add('on')
+    })
+  })
 }
 
-/* ─── GRADE EDITOR ────────────────────────────────────────────────────── */
-.info-banner{
-  background:var(--surf2);border:0.5px solid var(--border);
-  border-radius:2px;padding:11px 14px;margin-bottom:var(--sp-4);
-  font-size:12px;color:var(--txt2);
-  display:flex;align-items:center;gap:8px;line-height:1.5;
-}
-.grade-editor{display:flex;flex-direction:column;gap:var(--sp-2)}
-.grade-day-block{background:var(--surf);border:0.5px solid var(--border);border-radius:2px;overflow:hidden}
-.grade-day-header{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:var(--sp-3) var(--sp-4);background:var(--surf2);
-  border-bottom:0.5px solid var(--border);
-}
-.grade-day-name{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:var(--letter-m);color:var(--txt)}
-.grade-add-btn{
-  display:flex;align-items:center;gap:5px;
-  background:var(--btn-bg);color:var(--btn-txt);border:none;
-  border-radius:2px;padding:7px 12px;
-  font-family:'DM Sans',sans-serif;font-size:10px;
-  letter-spacing:var(--letter-xs);text-transform:uppercase;
-  cursor:pointer;font-weight:500;
-}
-.grade-add-btn:hover{opacity:.85}
-.grade-aulas{padding:var(--sp-2) var(--sp-3);display:flex;flex-direction:column;gap:6px}
-.grade-aula-row{
-  display:flex;align-items:center;gap:var(--sp-3);
-  background:var(--surf2);border:0.5px solid var(--border);
-  border-left:3px solid var(--border2);border-radius:2px;padding:10px 14px;
-}
-.grade-aula-row.gi{border-left-color:var(--txt)}
-.grade-aula-row.nogi{border-left-color:var(--txt3)}
-.grade-aula-row.kids{border-left-color:var(--txt2)}
-.grade-aula-time{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--txt);min-width:50px;line-height:1}
-.grade-aula-info{flex:1}
-.grade-aula-name{font-size:13px;font-weight:500;color:var(--txt)}
-.grade-aula-type{font-size:10px;color:var(--txt3);letter-spacing:var(--letter-xs);text-transform:uppercase;margin-top:2px}
-.grade-aula-del{
-  background:none;border:0.5px solid var(--border);border-radius:2px;
-  padding:6px 10px;color:var(--txt3);font-size:11px;cursor:pointer;
-  transition:all .15s;display:flex;align-items:center;gap:4px;
-}
-.grade-aula-del:hover{border-color:#c04040;color:#e05050}
-.grade-empty{padding:var(--sp-4);font-size:11px;color:var(--txt3);text-align:center}
+// ─── LISTENERS ──────────────────────────────────────────────────────────
+function setupListeners(){
+  $('logout-btn').addEventListener('click', () => Auth.logout())
 
-/* ─── SETTINGS CARDS ──────────────────────────────────────────────────── */
-.scard{background:var(--surf);border:0.5px solid var(--border);border-radius:2px;padding:var(--sp-5);margin-bottom:var(--sp-3)}
-.scard-title{font-size:10px;letter-spacing:var(--letter-s);text-transform:uppercase;color:var(--txt3);margin-bottom:var(--sp-4)}
-.theme-opts{display:flex;gap:var(--sp-2)}
-.theme-opt{
-  flex:1;border:0.5px solid var(--border);border-radius:2px;
-  padding:var(--sp-4);cursor:pointer;transition:all .15s;text-align:center;
-}
-.theme-opt:hover{border-color:var(--border2)}
-.theme-opt.active{border-color:var(--txt);background:var(--surf2)}
-.theme-opt-lbl{font-size:10px;letter-spacing:var(--letter-s);text-transform:uppercase;color:var(--txt2);margin-top:6px}
+  // Filtros de presença
+  document.querySelectorAll('#page-presences .fbtn[data-belt]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#page-presences .fbtn[data-belt]').forEach(b => b.classList.remove('active'))
+      btn.classList.add('active')
+      state.filters.presBelt = btn.dataset.belt
+      renderPresContent()
+    })
+  })
+  $('pres-search')?.addEventListener('input', e => {
+    state.filters.search = e.target.value.toLowerCase()
+    renderPresContent()
+  })
 
-/* ─── DETALHE DA AULA ─────────────────────────────────────────────────── */
-.aula-info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-2);margin-bottom:var(--sp-4)}
-.aula-info-cell{background:var(--surf2);border:0.5px solid var(--border);border-radius:2px;padding:11px 13px}
-.aula-info-lbl{font-size:9px;letter-spacing:var(--letter-xs);text-transform:uppercase;color:var(--txt3);margin-bottom:4px}
-.aula-info-val{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--txt);line-height:1;letter-spacing:1px}
-.aula-confirm-info{
-  background:var(--surf2);border:0.5px solid var(--border);border-radius:2px;
-  padding:13px 16px;margin-bottom:var(--sp-4);
-  display:flex;align-items:center;gap:var(--sp-3);
-}
-.aula-confirm-num{font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--txt);line-height:1;min-width:34px;text-align:center}
-.aula-confirm-txt{flex:1;font-size:12px;color:var(--txt2);line-height:1.4}
-.aula-confirm-list{
-  max-height:200px;overflow-y:auto;
-  background:var(--surf2);border:0.5px solid var(--border);
-  border-radius:2px;margin-bottom:var(--sp-2);
-}
-.aula-confirm-item{display:flex;align-items:center;gap:10px;padding:10px 13px;border-bottom:0.5px solid var(--border)}
-.aula-confirm-item:last-child{border-bottom:none}
-.aula-confirm-name{font-size:12px;color:var(--txt);font-weight:500;flex:1}
-.btn-confirm-big{
-  width:100%;background:var(--btn-bg);color:var(--btn-txt);
-  border:none;border-radius:2px;padding:13px;
-  font-family:'DM Sans',sans-serif;font-size:11px;
-  letter-spacing:var(--letter-s);text-transform:uppercase;
-  cursor:pointer;font-weight:500;transition:opacity .15s;
-  display:inline-flex;align-items:center;justify-content:center;gap:6px;
-}
-.btn-confirm-big:hover{opacity:.85}
-.btn-confirm-big.confirmed{background:transparent;color:#e05050;border:0.5px solid #c04040}
-.btn-confirm-big.confirmed:hover{background:#c04040;color:white;opacity:1}
-.btn-confirm-big:disabled{opacity:.4;cursor:not-allowed}
+  // Date nav
+  $('prev-day').addEventListener('click', async () => {
+    state.curDate.setDate(state.curDate.getDate() - 1)
+    await loadPresences(state.curDate)
+    await loadConfirmacoes()
+    updateDateLabel(); renderPresContent()
+  })
+  $('next-day').addEventListener('click', async () => {
+    state.curDate.setDate(state.curDate.getDate() + 1)
+    await loadPresences(state.curDate)
+    await loadConfirmacoes()
+    updateDateLabel(); renderPresContent()
+  })
 
-.pres-confirmed-badge{
-  display:inline-flex;align-items:center;gap:3px;font-size:9px;
-  letter-spacing:1px;text-transform:uppercase;color:var(--accent);margin-left:8px;
-}
-.pres-confirmed-badge i{font-size:11px}
+  // Filtros de vídeo
+  document.querySelectorAll('#vid-filters .fbtn[data-cat]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#vid-filters .fbtn[data-cat]').forEach(b => b.classList.remove('active'))
+      btn.classList.add('active')
+      state.filters.vid = btn.dataset.cat
+      renderVideos()
+    })
+  })
 
-/* ─── TOAST ───────────────────────────────────────────────────────────── */
-.toast{
-  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
-  background:var(--surf);border:0.5px solid var(--border2);
-  border-radius:2px;padding:11px 18px;font-size:12px;color:var(--txt);
-  z-index:300;opacity:0;transition:opacity .25s;pointer-events:none;
-  max-width:90vw;letter-spacing:0.3px;
-  box-shadow:0 4px 12px rgba(0,0,0,.3);
-}
-.toast.err{border-color:#c04040;color:#e05050}
-.toast.show{opacity:1}
+  // Filtros de alunos
+  document.querySelectorAll('#page-students .fbtn[data-belt]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#page-students .fbtn[data-belt]').forEach(b => b.classList.remove('active'))
+      btn.classList.add('active')
+      state.filters.stuBelt = btn.dataset.belt
+      renderStudents()
+    })
+  })
+  $('stu-search')?.addEventListener('input', () => renderStudents())
 
-/* ─── VIDEO PREVIEW ──────────────────────────────────────────────────── */
-.vpre{height:220px;background:var(--surf2);position:relative;overflow:hidden;border-bottom:0.5px solid var(--border)}
-.vpre iframe,.vpre video{position:absolute;inset:0;width:100%;height:100%;border:none}
-.vid-src-tabs{display:flex;margin-bottom:var(--sp-3);border:0.5px solid var(--border);border-radius:2px;overflow:hidden}
-.vs-tab{
-  flex:1;padding:9px;text-align:center;font-size:10px;
-  letter-spacing:var(--letter-xs);text-transform:uppercase;
-  cursor:pointer;color:var(--txt3);background:none;border:none;
-  font-family:'DM Sans',sans-serif;transition:all .15s;
-}
-.vs-tab:first-child{border-right:0.5px solid var(--border)}
-.vs-tab.active{background:var(--btn-bg);color:var(--btn-txt)}
-.upzone{border:0.5px dashed var(--border2);border-radius:2px;padding:var(--sp-5);text-align:center;cursor:pointer;transition:border-color .15s;color:var(--txt3)}
-.upzone:hover{border-color:var(--txt2)}
-.tag{font-size:9px;letter-spacing:var(--letter-xs);text-transform:uppercase;padding:3px 7px;border:0.5px solid var(--border);border-radius:1px;color:var(--txt3)}
-.tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:var(--sp-2)}
+  // Config
+  $('cfg-name').value = state.config.nome_academia
 
-/* ─── OCULTAR PARA ALUNOS ─────────────────────────────────────────────── */
-body.role-aluno .prof-only{display:none !important}
-
-/* ════════════════════════════════════════════════════════════════════════
-   MOBILE (até 600px)
-   ════════════════════════════════════════════════════════════════════════ */
-@media (max-width:600px){
-  .topbar{padding:var(--sp-3) var(--sp-4)}
-  .logo{font-size:18px;letter-spacing:3px}
-  .user-name{display:none}
-  .user-role{font-size:8px;padding:2px 6px}
-  .logout-btn{padding:6px 8px}
-
-  .nav-bar{padding:var(--sp-2) var(--sp-4);gap:2px}
-  .nb{padding:8px 11px;font-size:10px;letter-spacing:1.5px}
-
-  .page{padding:var(--sp-4)}
-  .stitle{font-size:26px;letter-spacing:2px;margin-bottom:var(--sp-4)}
-  .slabel{font-size:8px;letter-spacing:3px}
-
-  .wgrid{gap:2px}
-  .dcol{min-height:70px}
-  .dhead{padding:4px 2px}
-  .dname{font-size:7px}
-  .dnum{font-size:14px}
-  .cpill{padding:3px 4px;margin:2px 2px 0}
-  .ctime{font-size:7px}
-  .cname{font-size:8px}
-
-  .scards{gap:6px}
-  .sc{padding:var(--sp-3)}
-  .scv{font-size:24px}
-  .scl{font-size:8px}
-
-  .tbl th{padding:8px 10px;font-size:8px}
-  .tbl td{padding:10px}
-
-  .mlay{padding:var(--sp-3);align-items:flex-end}
-  .mbox{max-height:92vh;border-radius:8px 8px 2px 2px}
-  .mhead{padding:var(--sp-4)}
-  .mbody{padding:var(--sp-4)}
-  .mfoot{padding:var(--sp-3) var(--sp-4);flex-wrap:wrap}
-  .mfoot .fbtn,.mfoot .pbtn,.mfoot .btn-confirm-big{flex:1;justify-content:center;text-align:center}
-  .mtitle{font-size:18px}
-
-  .form-input,.sinput,.mselect{font-size:14px;padding:12px 14px}
-  .form-submit{padding:14px;font-size:11px}
-  .pbtn,.fbtn{padding:10px 13px;font-size:10px}
-  .ck{width:38px;height:38px}
-
-  .aula-info-cell{padding:9px 10px}
-  .aula-info-val{font-size:15px}
-  .aula-info-lbl{font-size:8px}
-
-  .grade-day-header{padding:var(--sp-3)}
-  .grade-day-name{font-size:14px;letter-spacing:2px}
-  .grade-add-btn{padding:6px 10px;font-size:9px;letter-spacing:1px}
-  .grade-aula-row{padding:9px 11px;gap:var(--sp-2)}
-  .grade-aula-time{font-size:17px;min-width:42px}
-  .grade-aula-name{font-size:12px}
-  .grade-aula-type{font-size:9px}
-  .grade-aula-del{padding:5px 8px;font-size:10px}
-
-  .vthumb{height:120px}
-  .vinfo{padding:var(--sp-2) var(--sp-3) var(--sp-3)}
-
-  .scard{padding:var(--sp-4)}
-  .ddate{font-size:15px}
-
-  .login-box{padding:var(--sp-6) var(--sp-5)}
-  .login-logo{font-size:26px;letter-spacing:5px}
-  .login-sub{margin-bottom:var(--sp-5)}
+  // Modal: fechar ao clicar fora
+  document.querySelectorAll('.mlay').forEach(m => {
+    m.addEventListener('click', e => { if(e.target === m){ m.style.display = 'none'; state.pendingFile = null } })
+  })
 }
 
-/* Telas muito pequenas */
-@media (max-width:380px){
-  .stitle{font-size:22px}
-  .wgrid{gap:1px}
-  .dcol{min-height:60px}
-  .nb{padding:7px 9px;font-size:9px}
+// ─── LOAD DATA ──────────────────────────────────────────────────────────
+async function loadPresences(date){
+  const key = dateKey(date)
+  const rows = await DB.getPresencas(key)
+  state.presencas = {}
+  rows.forEach(r => { if(r.presente) state.presencas[r.aluno_id] = true })
 }
 
-/* Safe area iOS */
-@supports(padding:max(0px)){
-  .topbar{padding-top:max(var(--sp-4),env(safe-area-inset-top))}
-  body{padding-bottom:env(safe-area-inset-bottom)}
+async function loadConfirmacoes(){
+  try {
+    if(Auth.isAluno()){
+      // Aluno: carrega as próprias confirmações dos próximos 14 dias
+      const myId = Auth.currentProfile.id
+      const hoje = new Date()
+      const fim = new Date(); fim.setDate(fim.getDate() + 14)
+      const rows = await DB.getMinhasConfirmacoes(myId, dateKey(hoje), dateKey(fim))
+      state.minhasConfirmacoes = {}
+      rows.forEach(r => { state.minhasConfirmacoes[r.aula_id + '_' + r.data] = true })
+    } else if(Auth.isProfessor()){
+      // Professor: carrega confirmações do dia selecionado
+      const rows = await DB.getAlunosConfirmadosNoDia(dateKey(state.curDate))
+      state.confirmadosNoDia = {}
+      rows.forEach(r => { state.confirmadosNoDia[r.aluno_id] = true })
+    }
+  } catch(err){
+    console.error('[confirmacoes]', err)
+    state.minhasConfirmacoes = {}
+    state.confirmadosNoDia = {}
+  }
 }
+
+function renderAll(){
+  renderSchedule()
+  renderGradeEditor()
+  renderPresContent()
+  renderVideos()
+  if(Auth.isProfessor()) renderStudents()
+  updateDateLabel()
+}
+
+// ─── THEME ──────────────────────────────────────────────────────────────
+function applyTheme(t){
+  state.config.tema = t
+  document.body.classList.toggle('light', t === 'light')
+  $('opt-dark').classList.toggle('active', t === 'dark')
+  $('opt-light').classList.toggle('active', t === 'light')
+}
+async function setTheme(t){
+  applyTheme(t)
+  if(Auth.isProfessor()){
+    try { await DB.saveConfig({ tema: t }) } catch(e){}
+  }
+  toast(t === 'light' ? 'Tema claro ativado!' : 'Tema escuro ativado!')
+}
+
+function applyName(){
+  const n = state.config.nome_academia || 'Art of BJJ'
+  const parts = n.split(' ')
+  const last = parts.pop()
+  $('logo-text').innerHTML = parts.join(' ') + ' <em>' + last + '</em>'
+  $('sch-title').textContent = 'Grade — ' + n
+}
+
+async function saveName(){
+  const v = $('cfg-name').value.trim()
+  if(!v){ toast('Nome não pode ser vazio.', true); return }
+  try {
+    await DB.saveConfig({ nome_academia: v })
+    state.config.nome_academia = v
+    applyName()
+    toast('Nome salvo!')
+  } catch(err) {
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+// ─── LOGO ───────────────────────────────────────────────────────────────
+
+function applyLogo(){
+  const url = state.config.logo_url
+  const imgEl = $('logo-img')
+  const previewEl = $('logo-preview')
+  const removeBtn = $('logo-remove-btn')
+
+  if(url){
+    // Topbar
+    if(imgEl){
+      imgEl.src = url
+      imgEl.style.display = 'block'
+    }
+    // Preview na config
+    if(previewEl){
+      previewEl.innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:contain">`
+    }
+    // Botão remover
+    if(removeBtn) removeBtn.style.display = 'inline-flex'
+  } else {
+    if(imgEl){
+      imgEl.style.display = 'none'
+      imgEl.src = ''
+    }
+    if(previewEl){
+      previewEl.innerHTML = '<i class="ti ti-photo" style="font-size:24px;color:var(--txt3)" aria-hidden="true"></i>'
+    }
+    if(removeBtn) removeBtn.style.display = 'none'
+  }
+}
+
+// Comprime a imagem antes de fazer upload (max 512px, ~80KB)
+async function compressImage(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = e => {
+      const img = new Image()
+      img.onload = () => {
+        const MAX = 512
+        let w = img.width, h = img.height
+        if(w > MAX || h > MAX){
+          if(w > h){ h = h * MAX / w; w = MAX }
+          else { w = w * MAX / h; h = MAX }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = w; canvas.height = h
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, w, h)
+        canvas.toBlob(
+          blob => {
+            if(!blob) return reject(new Error('Erro ao processar imagem'))
+            // Cria um File do blob (preserva nome)
+            const compressed = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), { type: 'image/jpeg' })
+            resolve(compressed)
+          },
+          'image/jpeg',
+          0.85
+        )
+      }
+      img.onerror = () => reject(new Error('Arquivo inválido'))
+      img.src = e.target.result
+    }
+    reader.onerror = () => reject(new Error('Erro ao ler arquivo'))
+    reader.readAsDataURL(file)
+  })
+}
+
+async function onLogoFileSelected(event){
+  const file = event.target.files[0]
+  if(!file) return
+
+  // Validações
+  if(!file.type.startsWith('image/')){
+    toast('Selecione um arquivo de imagem.', true)
+    return
+  }
+  if(file.size > 5 * 1024 * 1024){
+    toast('Arquivo muito grande (máximo 5 MB).', true)
+    return
+  }
+
+  toast('Processando imagem...')
+
+  try {
+    // Comprimir
+    const compressed = await compressImage(file)
+
+    // Se já existe logo, deletar a antiga primeiro
+    if(state.config.logo_url){
+      try { await DB.removeLogoFile(state.config.logo_url) } catch(e){ /* ignora */ }
+    }
+
+    // Upload da nova
+    const url = await DB.uploadLogo(compressed)
+
+    // Salvar no config
+    await DB.saveConfig({ logo_url: url })
+    state.config.logo_url = url
+
+    applyLogo()
+    toast('Logo atualizada!')
+  } catch(err){
+    console.error('[logo upload]', err)
+    toast('Erro: ' + (err.message || 'falha no upload'), true)
+  } finally {
+    // Limpa o input pra permitir re-upload do mesmo arquivo
+    event.target.value = ''
+  }
+}
+
+async function removeLogo(){
+  if(!confirm('Remover a logo da academia?')) return
+  try {
+    if(state.config.logo_url){
+      try { await DB.removeLogoFile(state.config.logo_url) } catch(e){ /* ignora se falhar */ }
+    }
+    await DB.saveConfig({ logo_url: null })
+    state.config.logo_url = null
+    applyLogo()
+    toast('Logo removida.')
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+// ─── SCHEDULE (visualização) ────────────────────────────────────────────
+function renderSchedule(){
+  const today = new Date()
+  const dow = today.getDay()
+  let h = ''
+  for(let i = 0; i < 7; i++){
+    const d = new Date(today); d.setDate(today.getDate() - dow + i)
+    const dn = d.getDay()
+    const cls = state.schedule[dn] || []
+    const isT = dn === dow
+    const dateStr = dateKey(d)
+    h += `<div class="dcol">
+      <div class="dhead">
+        <div class="dname">${DAYS[i]}</div>
+        <div class="dnum ${isT ? 'td' : ''}">${d.getDate()}</div>
+      </div>
+      ${cls.map(c => {
+        const confirmed = Auth.isAluno() && state.minhasConfirmacoes[c.id + '_' + dateStr]
+        return `<div class="cpill ${c.tipo}${confirmed ? ' confirmed' : ''}" onclick="openAulaDetail('${c.id}','${dateStr}')" style="cursor:pointer">
+          <span class="ctime">${c.horario.slice(0,5)}${confirmed ? ' <i class="ti ti-check" style="color:#7ac890" aria-hidden="true"></i>' : ''}</span>
+          <span class="cname">${c.nome}</span>
+        </div>`
+      }).join('') || '<div style="padding:8px 5px;font-size:9px;color:var(--border2);text-align:center">—</div>'}
+    </div>`
+  }
+  $('wgrid').innerHTML = h
+
+  const tc = state.schedule[dow] || []
+  const todayStr = dateKey(today)
+  $('today-classes').innerHTML = tc.length
+    ? tc.map(c => {
+        const confirmed = Auth.isAluno() && state.minhasConfirmacoes[c.id + '_' + todayStr]
+        return `<div onclick="openAulaDetail('${c.id}','${todayStr}')" style="background:var(--surf);border:0.5px solid var(--border);border-radius:2px;padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;${confirmed ? 'border-left:3px solid #7ac890' : ''}">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--txt);line-height:1">${c.horario.slice(0,5)}</div>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:500;color:var(--txt)">${c.nome}</div>
+            <div style="font-size:9px;color:var(--txt3);letter-spacing:1.5px;text-transform:uppercase">${TYPE_PT[c.tipo] || c.tipo}</div>
+          </div>
+          ${confirmed ? '<i class="ti ti-circle-check-filled" style="color:#7ac890;font-size:18px"></i>' : '<i class="ti ti-chevron-right" style="color:var(--txt3)"></i>'}
+        </div>`
+      }).join('')
+    : '<div style="color:var(--txt3);font-size:12px">Sem aulas hoje.</div>'
+}
+
+// ─── DETALHE DE AULA + CONFIRMAÇÃO ──────────────────────────────────────
+
+async function openAulaDetail(aulaId, dateStr){
+  // Acha a aula no schedule
+  let aula = null
+  for(const dn in state.schedule){
+    const found = state.schedule[dn].find(a => a.id === aulaId)
+    if(found){ aula = found; break }
+  }
+  if(!aula){ toast('Aula não encontrada.', true); return }
+
+  const d = new Date(dateStr + 'T00:00:00')
+  const dateDisplay = `${DAYS_FULL[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]}`
+
+  // Verifica se a aula já passou
+  const now = new Date()
+  const aulaStart = new Date(dateStr + 'T' + aula.horario)
+  const yaEmpezou = aulaStart < now
+
+  $('aula-detail-title').textContent = aula.nome
+  const body = $('aula-detail-body')
+  const foot = $('aula-detail-foot')
+
+  // ──────── ALUNO ────────
+  if(Auth.isAluno()){
+    const myId = Auth.currentProfile.id
+    const isConfirmed = !!state.minhasConfirmacoes[aulaId + '_' + dateStr]
+
+    // Carrega quantos confirmaram (público pro aluno também — info motivacional)
+    let totalConfirmados = 0
+    try {
+      const conf = await DB.getConfirmacoesAula(aulaId, dateStr)
+      totalConfirmados = conf.length
+    } catch(e){ /* ignora */ }
+
+    body.innerHTML = `
+      <div class="aula-info-grid">
+        <div class="aula-info-cell">
+          <div class="aula-info-lbl">Dia</div>
+          <div class="aula-info-val" style="font-size:14px;letter-spacing:1px">${DAYS_FULL[d.getDay()].slice(0,3).toUpperCase()}</div>
+        </div>
+        <div class="aula-info-cell">
+          <div class="aula-info-lbl">Horário</div>
+          <div class="aula-info-val">${aula.horario.slice(0,5)}</div>
+        </div>
+        <div class="aula-info-cell">
+          <div class="aula-info-lbl">Tipo</div>
+          <div class="aula-info-val" style="font-size:13px;letter-spacing:1px">${(TYPE_PT[aula.tipo] || aula.tipo).split(' ')[0].toUpperCase()}</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--txt3);text-align:center;margin-bottom:12px">${dateDisplay}</div>
+      <div class="aula-confirm-info">
+        <div class="aula-confirm-num">${totalConfirmados}</div>
+        <div class="aula-confirm-txt">${totalConfirmados === 1 ? 'aluno confirmou presença' : 'alunos confirmaram presença'} nessa aula</div>
+      </div>
+    `
+
+    if(yaEmpezou){
+      foot.innerHTML = `
+        <div style="flex:1;font-size:11px;color:var(--txt3);text-align:center;padding:8px">Esta aula já começou ou terminou.</div>
+        <button class="fbtn" onclick="closeModal('modal-aula-detail')">Fechar</button>
+      `
+    } else if(isConfirmed){
+      foot.innerHTML = `
+        <button class="fbtn" onclick="closeModal('modal-aula-detail')">Fechar</button>
+        <button class="btn-confirm-big confirmed" onclick="cancelarConfirmacao('${aulaId}','${dateStr}')" style="flex:1;margin-left:8px"><i class="ti ti-x"></i> Cancelar confirmação</button>
+      `
+    } else {
+      foot.innerHTML = `
+        <button class="fbtn" onclick="closeModal('modal-aula-detail')">Fechar</button>
+        <button class="btn-confirm-big" onclick="confirmarPresenca('${aulaId}','${dateStr}')" style="flex:1;margin-left:8px"><i class="ti ti-check"></i> Confirmar presença</button>
+      `
+    }
+  }
+
+  // ──────── PROFESSOR ────────
+  else if(Auth.isProfessor()){
+    body.innerHTML = `
+      <div class="aula-info-grid">
+        <div class="aula-info-cell">
+          <div class="aula-info-lbl">Dia</div>
+          <div class="aula-info-val" style="font-size:14px;letter-spacing:1px">${DAYS_FULL[d.getDay()].slice(0,3).toUpperCase()}</div>
+        </div>
+        <div class="aula-info-cell">
+          <div class="aula-info-lbl">Horário</div>
+          <div class="aula-info-val">${aula.horario.slice(0,5)}</div>
+        </div>
+        <div class="aula-info-cell">
+          <div class="aula-info-lbl">Tipo</div>
+          <div class="aula-info-val" style="font-size:13px;letter-spacing:1px">${(TYPE_PT[aula.tipo] || aula.tipo).split(' ')[0].toUpperCase()}</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--txt3);text-align:center;margin-bottom:12px">${dateDisplay}</div>
+      <div class="slabel" style="margin-bottom:6px">Alunos confirmados</div>
+      <div id="confirm-list-area">
+        <div style="padding:14px;text-align:center;color:var(--txt3);font-size:11px">Carregando...</div>
+      </div>
+    `
+
+    foot.innerHTML = `<button class="fbtn" onclick="closeModal('modal-aula-detail')">Fechar</button>`
+
+    // Carrega lista assíncrona
+    try {
+      const rows = await DB.getConfirmacoesAula(aulaId, dateStr)
+      const area = $('confirm-list-area')
+      if(rows.length === 0){
+        area.innerHTML = '<div style="padding:14px;text-align:center;color:var(--txt3);font-size:11px">Nenhum aluno confirmou ainda.</div>'
+      } else {
+        area.innerHTML = '<div class="aula-confirm-list">' + rows.map(r => `
+          <div class="aula-confirm-item">
+            <span class="belt ${r.profiles?.faixa || 'white'}"></span>
+            <span class="aula-confirm-name">${r.profiles?.nome || '?'}</span>
+            <span style="font-size:10px;color:var(--txt3)">${BELT_PT[r.profiles?.faixa] || ''}</span>
+          </div>`).join('') + '</div>' + 
+          `<div style="font-size:10px;color:var(--txt3);text-align:center;margin-top:8px">Total: ${rows.length} ${rows.length === 1 ? 'aluno' : 'alunos'}</div>`
+      }
+    } catch(err){
+      $('confirm-list-area').innerHTML = `<div style="padding:14px;color:#e05050;font-size:11px">Erro ao carregar: ${err.message}</div>`
+    }
+  }
+
+  $('modal-aula-detail').style.display = 'flex'
+}
+
+async function confirmarPresenca(aulaId, dateStr){
+  const myId = Auth.currentProfile.id
+  try {
+    await DB.confirmarAula(myId, aulaId, dateStr)
+    state.minhasConfirmacoes[aulaId + '_' + dateStr] = true
+    toast('Presença confirmada!')
+    closeModal('modal-aula-detail')
+    renderSchedule()
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+async function cancelarConfirmacao(aulaId, dateStr){
+  const myId = Auth.currentProfile.id
+  try {
+    await DB.cancelarConfirmacao(myId, aulaId, dateStr)
+    delete state.minhasConfirmacoes[aulaId + '_' + dateStr]
+    toast('Confirmação cancelada.')
+    closeModal('modal-aula-detail')
+    renderSchedule()
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+// ─── GRADE EDITOR (professor) ───────────────────────────────────────────
+function renderGradeEditor(){
+  if(!Auth.isProfessor()) return
+  const ORDER = [1,2,3,4,5,6,0]
+  $('grade-editor').innerHTML = ORDER.map(dn => {
+    const aulas = state.schedule[dn] || []
+    return `<div class="grade-day-block">
+      <div class="grade-day-header">
+        <span class="grade-day-name">${DAYS_FULL[dn]}</span>
+        <button class="grade-add-btn" onclick="openAulaModal(${dn})">
+          <i class="ti ti-plus" aria-hidden="true"></i> Adicionar aula
+        </button>
+      </div>
+      <div class="grade-aulas">
+        ${aulas.length ? aulas.map(a => `
+          <div class="grade-aula-row ${a.tipo}">
+            <div class="grade-aula-time">${a.horario.slice(0,5)}</div>
+            <div class="grade-aula-info">
+              <div class="grade-aula-name">${a.nome}</div>
+              <div class="grade-aula-type">${TYPE_PT[a.tipo] || a.tipo}</div>
+            </div>
+            <button class="grade-aula-del" onclick="deleteAula('${a.id}')">
+              <i class="ti ti-trash" aria-hidden="true"></i> Remover
+            </button>
+          </div>`).join('')
+        : `<div class="grade-empty">Nenhuma aula cadastrada</div>`}
+      </div>
+    </div>`
+  }).join('')
+}
+
+function toggleScheduleEdit(){
+  state.editMode = !state.editMode
+  $('view-mode').style.display = state.editMode ? 'none' : 'block'
+  $('edit-mode').style.display = state.editMode ? 'block' : 'none'
+  const btn = $('toggle-edit-btn')
+  btn.innerHTML = state.editMode
+    ? '<i class="ti ti-eye" aria-hidden="true"></i> Ver grade'
+    : '<i class="ti ti-edit" aria-hidden="true"></i> Editar grade'
+  btn.classList.toggle('active', state.editMode)
+  if(!state.editMode) renderSchedule()
+}
+
+function openAulaModal(day){
+  $('aula-day').value = String(day)
+  $('aula-time').value = '06:00'
+  $('aula-name').value = ''
+  $('aula-type').value = 'gi'
+  $('modal-aula').style.display = 'flex'
+}
+
+async function saveAula(){
+  const day = parseInt($('aula-day').value)
+  const horario = $('aula-time').value
+  const nome = $('aula-name').value.trim()
+  const tipo = $('aula-type').value
+  if(!nome){ toast('Nome da aula obrigatório.', true); return }
+  if(!horario){ toast('Horário obrigatório.', true); return }
+  try {
+    const nova = await DB.addAula({ dia_semana: day, horario, nome, tipo })
+    if(!state.schedule[day]) state.schedule[day] = []
+    state.schedule[day].push(nova)
+    state.schedule[day].sort((a,b) => a.horario.localeCompare(b.horario))
+    closeModal('modal-aula')
+    renderGradeEditor()
+    toast('Aula adicionada!')
+  } catch(err) {
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+async function deleteAula(id){
+  try {
+    await DB.deleteAula(id)
+    for(const day in state.schedule){
+      state.schedule[day] = state.schedule[day].filter(a => a.id !== id)
+    }
+    renderGradeEditor()
+    toast('Aula removida.')
+  } catch(err) {
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+// ─── PRESENÇAS ──────────────────────────────────────────────────────────
+function updateDateLabel(){
+  const d = state.curDate
+  const isT = dateKey(d) === dateKey(new Date())
+  $('cur-date-label').textContent = `${DAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]}`
+  $('pres-date-label').textContent = isT ? 'Hoje' : 'Data selecionada'
+}
+
+function renderPresContent(){
+  if(Auth.isProfessor()){
+    renderPresContentProfessor()
+  } else {
+    renderPresContentAluno()
+  }
+}
+
+// Professor vê tabela com checkboxes para todos
+function renderPresContentProfessor(){
+  const total = state.alunos.length
+  const present = Object.values(state.presencas).filter(Boolean).length
+  const pct = total ? Math.round(present/total*100) : 0
+  const bc = {}
+  state.alunos.filter(s => state.presencas[s.id]).forEach(s => bc[s.faixa] = (bc[s.faixa] || 0) + 1)
+  const top = Object.entries(bc).sort((a,b) => b[1]-a[1])[0]
+
+  $('pres-stats').innerHTML = `
+    <div class="sc"><div class="scv">${total}</div><div class="scl">Alunos</div></div>
+    <div class="sc"><div class="scv">${present}</div><div class="scl">Presentes</div></div>
+    <div class="sc"><div class="scv">${pct}%</div><div class="scl">Taxa</div></div>
+    <div class="sc"><div class="scv">${top ? BELT_PT[top[0]] : '—'}</div><div class="scl">Faixa líder</div></div>
+  `
+
+  const q = state.filters.search
+  const bf = state.filters.presBelt
+  const filtered = state.alunos.filter(s => {
+    if(bf !== 'all' && s.faixa !== bf) return false
+    if(q && !s.nome.toLowerCase().includes(q)) return false
+    return true
+  })
+
+  $('pres-content').innerHTML = filtered.length ? `
+    <table class="tbl">
+      <thead><tr><th>Aluno</th><th>Faixa</th><th>Presenças</th><th>Hoje</th></tr></thead>
+      <tbody>
+        ${filtered.map(s => {
+          const confirmou = state.confirmadosNoDia[s.id]
+          return `<tr>
+            <td style="font-weight:500;color:var(--txt)">
+              ${s.nome}
+              ${confirmou ? '<span class="pres-confirmed-badge"><i class="ti ti-circle-check-filled"></i> confirmou</span>' : ''}
+            </td>
+            <td><span class="belt ${s.faixa}"></span><span style="font-size:10px;color:var(--txt3)">${BELT_PT[s.faixa] || s.faixa}</span></td>
+            <td><span style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--txt)">${state.totaisPresenca[s.id] || 0}</span></td>
+            <td><button class="ck ${state.presencas[s.id] ? 'on' : ''}" onclick="togglePres('${s.id}')">${state.presencas[s.id] ? '<i class="ti ti-check"></i>' : '<i class="ti ti-plus" style="color:var(--txt3)"></i>'}</button></td>
+          </tr>`
+        }).join('')}
+      </tbody>
+    </table>
+  ` : '<div style="text-align:center;padding:30px;color:var(--txt3);font-size:13px">Nenhum aluno encontrado.</div>'
+}
+
+// Aluno vê apenas o próprio histórico
+async function renderPresContentAluno(){
+  const myId = Auth.currentProfile.id
+  const total = state.totaisPresenca[myId] || 0
+  const presenteHoje = state.presencas[myId] ? 'Sim' : 'Não'
+
+  $('pres-stats').innerHTML = `
+    <div class="sc"><div class="scv">${total}</div><div class="scl">Total presenças</div></div>
+    <div class="sc"><div class="scv">${presenteHoje}</div><div class="scl">Presente hoje?</div></div>
+  `
+
+  try {
+    const historico = await DB.getHistoricoAluno(myId)
+    $('pres-content').innerHTML = historico.length ? `
+      <div class="slabel" style="margin-bottom:10px">Histórico</div>
+      <table class="tbl">
+        <thead><tr><th>Data</th></tr></thead>
+        <tbody>
+          ${historico.map(h => {
+            const d = new Date(h.data + 'T00:00:00')
+            return `<tr><td>${DAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}</td></tr>`
+          }).join('')}
+        </tbody>
+      </table>
+    ` : '<div style="text-align:center;padding:30px;color:var(--txt3);font-size:13px">Nenhuma presença registrada ainda.</div>'
+  } catch(err){
+    $('pres-content').innerHTML = `<div style="color:#e05050;padding:20px;font-size:12px">Erro ao carregar histórico.</div>`
+  }
+}
+
+async function togglePres(alunoId){
+  const presente = !state.presencas[alunoId]
+  try {
+    await DB.togglePresenca(alunoId, dateKey(state.curDate), presente)
+    if(presente){
+      state.presencas[alunoId] = true
+      state.totaisPresenca[alunoId] = (state.totaisPresenca[alunoId] || 0) + 1
+    } else {
+      delete state.presencas[alunoId]
+      state.totaisPresenca[alunoId] = Math.max(0, (state.totaisPresenca[alunoId] || 0) - 1)
+    }
+    renderPresContent()
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+// ─── VÍDEOS ─────────────────────────────────────────────────────────────
+function renderVideos(){
+  const f = state.videos.filter(v => state.filters.vid === 'all' || v.categoria === state.filters.vid)
+  const grid = $('vgrid')
+  if(!f.length){
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--txt3)">Nenhum vídeo nesta categoria.</div>'
+    return
+  }
+  grid.innerHTML = f.map((v, i) => {
+    const ytId = v.src_type === 'youtube' && v.src_url
+      ? (v.src_url.includes('/embed/') ? v.src_url.split('/embed/')[1].split('?')[0] : null) : null
+    const thumb = ytId
+      ? `<img class="yt-thumb" src="https://img.youtube.com/vi/${ytId}/mqdefault.jpg" alt="" onerror="this.style.display='none'">`
+      : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:7px;color:var(--surf2)">${PATS[i%PATS.length]}</div>`
+    return `<div class="vc" onclick="openVidDetail('${v.id}')">
+      <div class="vthumb">${thumb}
+        <span class="vbadge">${CAT_LABELS[v.categoria] || v.categoria}</span>
+        <div class="vplay"><i class="ti ti-player-play" style="color:var(--txt2);margin-left:2px" aria-hidden="true"></i></div>
+      </div>
+      <div class="vinfo"><div class="vtitle">${v.titulo}</div><div class="vmeta"><i class="ti ti-clock" style="font-size:10px;vertical-align:-1px;margin-right:3px" aria-hidden="true"></i>${v.duracao || '00:00'}</div></div>
+    </div>`
+  }).join('')
+}
+
+function openVidDetail(id){
+  const v = state.videos.find(x => x.id === id)
+  if(!v) return
+  $('vid-modal-title').textContent = v.titulo
+
+  let preHtml = ''
+  if(v.src_type === 'youtube' && v.src_url){
+    preHtml = `<iframe src="${v.src_url}?rel=0" allowfullscreen></iframe>`
+  } else if(v.src_type === 'file' && v.src_url){
+    preHtml = `<video controls style="width:100%;height:100%;object-fit:contain;background:#000"><source src="${v.src_url}"></video>`
+  } else {
+    preHtml = `<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column">
+      <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--txt3);margin-bottom:10px">Sem mídia</div>
+      <div style="width:44px;height:44px;border:0.5px solid var(--border2);border-radius:50%;display:flex;align-items:center;justify-content:center"><i class="ti ti-player-play" style="font-size:16px;color:var(--txt2);margin-left:2px" aria-hidden="true"></i></div>
+    </div>`
+  }
+
+  const profButtons = Auth.isProfessor() ? `
+    <button class="ibtn" onclick="openVidModal('${v.id}')"><i class="ti ti-edit" aria-hidden="true"></i> Editar</button>
+    <button class="dbtn" onclick="deleteVideo('${v.id}')"><i class="ti ti-trash" aria-hidden="true"></i> Excluir</button>
+  ` : ''
+
+  $('vid-modal-content').innerHTML = `
+    <div class="vpre">${preHtml}</div>
+    <div class="mbody">
+      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);margin-bottom:6px">${CAT_LABELS[v.categoria] || v.categoria} · ${v.duracao || ''}</div>
+      <p style="color:var(--txt2);font-size:12px;line-height:1.7;margin-bottom:10px">${v.descricao || ''}</p>
+      <div class="tags">${(v.tags || []).map(t => `<span class="tag">${t}</span>`).join('')}</div>
+    </div>
+    <div class="mfoot">
+      ${profButtons}
+      <button class="fbtn" onclick="closeModal('modal-vid')">Fechar</button>
+    </div>`
+  $('modal-vid').style.display = 'flex'
+}
+
+function openVidModal(id){
+  state.editingVidId = id
+  const v = id ? state.videos.find(x => x.id === id) : null
+  state.vidSrcTab = v?.src_type === 'file' ? 'file' : 'youtube'
+  $('vid-modal-title').textContent = v ? 'Editar Vídeo' : 'Novo Vídeo'
+  renderVidForm(v)
+  $('modal-vid').style.display = 'flex'
+}
+
+function renderVidForm(v){
+  $('vid-modal-content').innerHTML = `
+    <div class="mbody">
+      <div class="mrow"><label class="mlabel">Título</label><input class="sinput" id="vid-title" value="${v?v.titulo:''}" placeholder="Ex: Armlock da guarda" style="width:100%"></div>
+      <div class="mrow"><label class="mlabel">Categoria</label>
+        <select class="mselect" id="vid-cat">${Object.entries(CAT_LABELS).map(([k,l])=>`<option value="${k}"${v&&v.categoria===k?' selected':''}>${l}</option>`).join('')}</select>
+      </div>
+      <div class="mrow"><label class="mlabel">Duração</label><input class="sinput" id="vid-dur" value="${v?v.duracao||'':''}" placeholder="08:30" style="width:100%"></div>
+      <div class="mrow"><label class="mlabel">Descrição</label><textarea class="sinput" id="vid-desc" rows="2" style="width:100%;resize:vertical">${v?v.descricao||'':''}</textarea></div>
+      <div class="mrow"><label class="mlabel">Tags (separadas por vírgula)</label><input class="sinput" id="vid-tags" value="${v?(v.tags||[]).join(', '):''}" placeholder="Ex: Berimbolo, De La Riva" style="width:100%"></div>
+      <div class="mrow"><label class="mlabel">Mídia</label>
+        <div class="vid-src-tabs">
+          <button class="vs-tab ${state.vidSrcTab==='youtube'?'active':''}" onclick="switchVidTab('youtube')"><i class="ti ti-brand-youtube" aria-hidden="true"></i> YouTube</button>
+          <button class="vs-tab ${state.vidSrcTab==='file'?'active':''}" onclick="switchVidTab('file')"><i class="ti ti-link" aria-hidden="true"></i> URL direta</button>
+        </div>
+        <div id="vid-src-area"></div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="fbtn" onclick="closeModal('modal-vid')">Cancelar</button>
+      <button class="pbtn" onclick="saveVideo()">Salvar</button>
+    </div>`
+  renderVidSrcArea(v)
+}
+
+function switchVidTab(tab){
+  state.vidSrcTab = tab
+  document.querySelectorAll('.vs-tab').forEach((t,i) => {
+    t.classList.toggle('active', (tab==='youtube'&&i===0) || (tab==='file'&&i===1))
+  })
+  renderVidSrcArea(state.editingVidId ? state.videos.find(x => x.id === state.editingVidId) : null)
+}
+
+function renderVidSrcArea(v){
+  const area = $('vid-src-area')
+  if(!area) return
+  if(state.vidSrcTab === 'youtube'){
+    const val = v && v.src_type === 'youtube' ? v.src_url : ''
+    area.innerHTML = `<input class="sinput" id="vid-yt-url" value="${val}" placeholder="https://youtube.com/watch?v=..." style="width:100%;margin-top:7px">
+      <div style="font-size:10px;color:var(--txt3);margin-top:5px">Cole a URL do YouTube — o player é incorporado automaticamente.</div>`
+  } else {
+    const val = v && v.src_type === 'file' ? v.src_url : ''
+    area.innerHTML = `<input class="sinput" id="vid-file-url" value="${val}" placeholder="https://exemplo.com/video.mp4" style="width:100%;margin-top:7px">
+      <div style="font-size:10px;color:var(--txt3);margin-top:5px">Cole a URL direta de um arquivo MP4/WebM.</div>`
+  }
+}
+
+async function saveVideo(){
+  const titulo = $('vid-title').value.trim()
+  const categoria = $('vid-cat').value
+  const duracao = $('vid-dur').value.trim() || '00:00'
+  const descricao = $('vid-desc').value.trim()
+  const tags = $('vid-tags').value.split(',').map(t => t.trim()).filter(Boolean)
+  if(!titulo){ toast('Título obrigatório.', true); return }
+
+  let src_type = 'none', src_url = ''
+  if(state.vidSrcTab === 'youtube'){
+    const raw = $('vid-yt-url')?.value.trim() || ''
+    if(raw){
+      const em = ytEmbedUrl(raw)
+      if(!em){ toast('URL do YouTube inválida.', true); return }
+      src_type = 'youtube'; src_url = em
+    }
+  } else {
+    const raw = $('vid-file-url')?.value.trim() || ''
+    if(raw){ src_type = 'file'; src_url = raw }
+  }
+
+  const fields = { titulo, categoria, descricao, duracao, src_type, src_url, tags }
+  try {
+    if(state.editingVidId){
+      await DB.updateVideo(state.editingVidId, fields)
+      const i = state.videos.findIndex(v => v.id === state.editingVidId)
+      if(i > -1) state.videos[i] = { ...state.videos[i], ...fields }
+      toast('Vídeo atualizado!')
+    } else {
+      const novo = await DB.addVideo(fields)
+      state.videos.unshift(novo)
+      toast('Vídeo adicionado!')
+    }
+    closeModal('modal-vid')
+    renderVideos()
+    state.editingVidId = null
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+async function deleteVideo(id){
+  if(!confirm('Remover este vídeo?')) return
+  try {
+    await DB.deleteVideo(id)
+    state.videos = state.videos.filter(v => v.id !== id)
+    closeModal('modal-vid')
+    renderVideos()
+    toast('Vídeo removido.')
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+// ─── ALUNOS ─────────────────────────────────────────────────────────────
+function renderStudents(){
+  if(!Auth.isProfessor()) return
+  const q = ($('stu-search')?.value || '').toLowerCase()
+  const bf = state.filters.stuBelt
+  const filtered = state.alunos.filter(s => {
+    if(bf !== 'all' && s.faixa !== bf) return false
+    if(q && !s.nome.toLowerCase().includes(q)) return false
+    return true
+  })
+  $('stu-body').innerHTML = filtered.length ? filtered.map(s => `<tr>
+    <td style="font-weight:500;color:var(--txt)">${s.nome}</td>
+    <td style="font-size:11px;color:var(--txt3)">${s.email || '—'}</td>
+    <td><span class="belt ${s.faixa}"></span><span style="font-size:10px;color:var(--txt3)">${BELT_PT[s.faixa] || s.faixa}</span></td>
+    <td><span style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--txt)">${state.totaisPresenca[s.id] || 0}</span></td>
+    <td style="display:flex;gap:6px">
+      <button class="ibtn" onclick="openStuModal('${s.id}')"><i class="ti ti-edit" aria-hidden="true"></i></button>
+      <button class="dbtn" onclick="deleteStudent('${s.id}')"><i class="ti ti-trash" aria-hidden="true"></i></button>
+    </td>
+  </tr>`).join('') : `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--txt3)">Nenhum aluno encontrado.</td></tr>`
+}
+
+function openInviteModal(){
+  const link = window.location.origin + '/cadastro.html'
+  $('invite-link').value = link
+  $('modal-invite').style.display = 'flex'
+}
+
+async function copyInviteLink(){
+  const link = $('invite-link').value
+  try {
+    await navigator.clipboard.writeText(link)
+    const btn = $('copy-btn')
+    const orig = btn.innerHTML
+    btn.innerHTML = '<i class="ti ti-check" aria-hidden="true"></i> Copiado!'
+    setTimeout(() => { btn.innerHTML = orig }, 2000)
+    toast('Link copiado!')
+  } catch(err){
+    // Fallback: seleciona o texto
+    $('invite-link').select()
+    document.execCommand('copy')
+    toast('Link copiado!')
+  }
+}
+
+function shareWhatsApp(){
+  const link = $('invite-link').value
+  const msg = `🥋 *Art of BJJ* — cadastre-se no app da academia:\n\n${link}`
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
+}
+
+async function shareNative(){
+  const link = $('invite-link').value
+  if(navigator.share){
+    try {
+      await navigator.share({
+        title: 'Art of BJJ',
+        text: 'Cadastre-se no app da academia:',
+        url: link
+      })
+    } catch(err){
+      // Usuário cancelou — tudo bem
+    }
+  } else {
+    // Sem API de compartilhamento (desktop) → copia
+    copyInviteLink()
+  }
+}
+
+function openStuModal(id){
+  state.editingStuId = id
+  const s = state.alunos.find(x => x.id === id)
+  if(!s) return
+  $('stu-name').value = s.nome
+  $('stu-belt').value = s.faixa
+  $('modal-stu').style.display = 'flex'
+}
+
+async function saveStudent(){
+  const nome = $('stu-name').value.trim()
+  const faixa = $('stu-belt').value
+  if(!nome){ toast('Nome obrigatório.', true); return }
+  try {
+    await DB.updateAluno(state.editingStuId, { nome, faixa })
+    const s = state.alunos.find(x => x.id === state.editingStuId)
+    if(s){ s.nome = nome; s.faixa = faixa }
+    closeModal('modal-stu')
+    renderStudents()
+    renderPresContent()
+    toast('Aluno atualizado!')
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+async function deleteStudent(id){
+  if(!confirm('Remover este aluno? Esta ação não pode ser desfeita.')) return
+  try {
+    await DB.deleteAluno(id)
+    state.alunos = state.alunos.filter(s => s.id !== id)
+    renderStudents()
+    renderPresContent()
+    toast('Aluno removido.')
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+// ─── MODAL ──────────────────────────────────────────────────────────────
+function closeModal(id){
+  $(id).style.display = 'none'
+  state.pendingFile = null
+}
+
+// ─── BOOT ───────────────────────────────────────────────────────────────
+boot()
