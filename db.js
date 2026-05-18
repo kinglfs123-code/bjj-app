@@ -178,5 +178,89 @@ const DB = {
       .from('config')
       .upsert({ id: 1, ...fields })
     if (error) throw error
+  },
+
+  // ── LOGO DA ACADEMIA ──────────────────────────────────────────────────────
+
+  async uploadLogo(file) {
+    // Nome único pra evitar cache: logo-{timestamp}.{ext}
+    const ext = (file.name.split('.').pop() || 'png').toLowerCase()
+    const filename = `logo-${Date.now()}.${ext}`
+
+    const { error: upErr } = await sb.storage
+      .from('academia-assets')
+      .upload(filename, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type
+      })
+    if (upErr) throw upErr
+
+    // Pegar URL pública
+    const { data } = sb.storage
+      .from('academia-assets')
+      .getPublicUrl(filename)
+
+    return data.publicUrl
+  },
+
+  async removeLogoFile(url) {
+    // Extrai o nome do arquivo da URL pública
+    const filename = url.split('/').pop()
+    if (!filename) return
+    await sb.storage.from('academia-assets').remove([filename])
+  },
+
+  // ── CONFIRMAÇÕES DE PRESENÇA ──────────────────────────────────────────────
+
+  // Confirmar/cancelar — usa upsert + delete
+  async confirmarAula(alunoId, aulaId, data) {
+    const { error } = await sb
+      .from('confirmacoes')
+      .upsert({ aluno_id: alunoId, aula_id: aulaId, data })
+    if (error) throw error
+  },
+
+  async cancelarConfirmacao(alunoId, aulaId, data) {
+    const { error } = await sb
+      .from('confirmacoes')
+      .delete()
+      .eq('aluno_id', alunoId)
+      .eq('aula_id', aulaId)
+      .eq('data', data)
+    if (error) throw error
+  },
+
+  // Buscar confirmações do aluno logado (pra exibir status na grade)
+  async getMinhasConfirmacoes(alunoId, dataInicio, dataFim) {
+    const { data, error } = await sb
+      .from('confirmacoes')
+      .select('aula_id, data')
+      .eq('aluno_id', alunoId)
+      .gte('data', dataInicio)
+      .lte('data', dataFim)
+    if (error) throw error
+    return data || []
+  },
+
+  // Lista de alunos confirmados em uma aula específica (para o professor)
+  async getConfirmacoesAula(aulaId, data) {
+    const { data: rows, error } = await sb
+      .from('confirmacoes')
+      .select('aluno_id, profiles(nome, faixa)')
+      .eq('aula_id', aulaId)
+      .eq('data', data)
+    if (error) throw error
+    return rows || []
+  },
+
+  // Lista de alunos que confirmaram em alguma aula de uma data (pra destacar na lista de presenças)
+  async getAlunosConfirmadosNoDia(data) {
+    const { data: rows, error } = await sb
+      .from('confirmacoes')
+      .select('aluno_id, aula_id')
+      .eq('data', data)
+    if (error) throw error
+    return rows || []
   }
 }
