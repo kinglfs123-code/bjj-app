@@ -24,7 +24,10 @@
 <!-- App -->
 <div class="app" id="APP" style="display:none">
   <div class="topbar">
-    <div class="logo" id="logo-text">ART OF <em>BJJ</em></div>
+    <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+      <img id="logo-img" src="" alt="" style="display:none;height:32px;width:32px;border-radius:3px;object-fit:contain;flex-shrink:0">
+      <div class="logo" id="logo-text">ART OF <em>BJJ</em></div>
+    </div>
     <div class="user-area">
       <span class="user-name" id="user-name"></span>
       <span class="user-role" id="user-role"></span>
@@ -129,6 +132,24 @@
         <button class="pbtn" onclick="saveName()">Salvar</button>
       </div>
     </div>
+    <div class="scard prof-only">
+      <div class="scard-title">Logo da Academia</div>
+      <div id="logo-preview-area" style="display:flex;align-items:center;gap:14px;margin-bottom:12px">
+        <div id="logo-preview" style="width:80px;height:80px;background:var(--surf2);border:0.5px solid var(--border);border-radius:3px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+          <i class="ti ti-photo" style="font-size:24px;color:var(--txt3)" aria-hidden="true"></i>
+        </div>
+        <div style="font-size:11px;color:var(--txt3);line-height:1.5">
+          Faça upload de PNG ou JPG.<br>
+          Será usada no topo do app e na tela de login.<br>
+          Imagem quadrada funciona melhor.
+        </div>
+      </div>
+      <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="onLogoFileSelected(event)">
+      <div style="display:flex;gap:6px">
+        <button class="pbtn" onclick="document.getElementById('logo-file-input').click()"><i class="ti ti-upload" aria-hidden="true"></i> Enviar logo</button>
+        <button class="fbtn" id="logo-remove-btn" onclick="removeLogo()" style="display:none"><i class="ti ti-trash" aria-hidden="true"></i> Remover</button>
+      </div>
+    </div>
     <div class="scard">
       <div class="scard-title">Tema</div>
       <div class="theme-opts">
@@ -151,6 +172,22 @@
 </div>
 
 <!-- Modais -->
+<!-- Modal: Detalhe da aula (clicado da grade) -->
+<div class="mlay" id="modal-aula-detail" style="display:none">
+  <div class="mbox">
+    <div class="mhead">
+      <span class="mtitle" id="aula-detail-title">Aula</span>
+      <button class="mclose" onclick="closeModal('modal-aula-detail')">✕</button>
+    </div>
+    <div class="mbody" id="aula-detail-body">
+      <!-- Conteúdo preenchido dinamicamente -->
+    </div>
+    <div class="mfoot" id="aula-detail-foot">
+      <!-- Botões preenchidos dinamicamente -->
+    </div>
+  </div>
+</div>
+
 <div class="mlay" id="modal-aula" style="display:none">
   <div class="mbox">
     <div class="mhead">
