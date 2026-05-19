@@ -126,9 +126,11 @@ function setupNav(){
   const items = [
     { id:'schedule', label:'Aulas' },
     { id:'presences', label:'Presenças' },
+    { id:'comunicacao', label:'Comunicação' },
     { id:'videos', label:'Vídeos' },
   ]
   if(isProf) items.push({ id:'students', label:'Alunos' })
+  if(!isProf) items.push({ id:'perfil', label:'Perfil' })
   items.push({ id:'settings', label:'⚙️', isIcon:true })
 
   $('nav-bar').innerHTML = items.map((it, i) => `
@@ -143,6 +145,9 @@ function setupNav(){
       document.querySelectorAll('.page').forEach(p => p.classList.remove('on'))
       btn.classList.add('active')
       $('page-' + btn.dataset.page).classList.add('on')
+      // Carrega conteúdo da página
+      if(btn.dataset.page === 'comunicacao') renderComunicacao()
+      if(btn.dataset.page === 'perfil') openPerfilSelf()
     })
   })
 }
@@ -977,14 +982,14 @@ function renderStudents(){
     if(q && !s.nome.toLowerCase().includes(q)) return false
     return true
   })
-  $('stu-body').innerHTML = filtered.length ? filtered.map(s => `<tr>
-    <td style="font-weight:500;color:var(--txt)">${s.nome}</td>
+  $('stu-body').innerHTML = filtered.length ? filtered.map(s => `<tr class="stu-row-clickable">
+    <td style="font-weight:500;color:var(--txt)" onclick="openPerfilAluno('${s.id}', true)"><i class="ti ti-user" style="color:var(--txt3);margin-right:6px"></i>${s.nome}</td>
     <td style="font-size:11px;color:var(--txt3)">${s.email || '—'}</td>
-    <td><span class="belt ${s.faixa}"></span><span style="font-size:10px;color:var(--txt3)">${BELT_PT[s.faixa] || s.faixa}</span></td>
+    <td><span class="belt ${s.faixa}"></span><span style="font-size:10px;color:var(--txt3)">${BELT_PT[s.faixa] || s.faixa}${s.grau > 0 ? ' ' + s.grau + 'º' : ''}</span></td>
     <td><span style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--txt)">${state.totaisPresenca[s.id] || 0}</span></td>
     <td style="display:flex;gap:6px">
-      <button class="ibtn" onclick="openStuModal('${s.id}')"><i class="ti ti-edit" aria-hidden="true"></i></button>
-      <button class="dbtn" onclick="deleteStudent('${s.id}')"><i class="ti ti-trash" aria-hidden="true"></i></button>
+      <button class="ibtn" onclick="event.stopPropagation();openStuModal('${s.id}')"><i class="ti ti-edit" aria-hidden="true"></i></button>
+      <button class="dbtn" onclick="event.stopPropagation();deleteStudent('${s.id}')"><i class="ti ti-trash" aria-hidden="true"></i></button>
     </td>
   </tr>`).join('') : `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--txt3)">Nenhum aluno encontrado.</td></tr>`
 }
@@ -1079,6 +1084,830 @@ async function deleteStudent(id){
 function closeModal(id){
   $(id).style.display = 'none'
   state.pendingFile = null
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// FASE 3: COMUNICAÇÃO (Mural + Eventos) + GRADUAÇÃO + NOTIFICAÇÕES
+// ════════════════════════════════════════════════════════════════════════
+
+let comTab = 'mural'
+let perfilAlunoId = null
+
+async function renderComunicacao(){
+  const isProf = Auth.isProfessor()
+  $('page-comunicacao').innerHTML = `
+    <div class="slabel">Avisos da academia</div>
+    <div class="stitle">Comunicação</div>
+    <div class="com-tabs">
+      <button class="com-tab ${comTab==='mural'?'active':''}" onclick="switchComTab('mural')"><i class="ti ti-pin"></i> Mural</button>
+      <button class="com-tab ${comTab==='eventos'?'active':''}" onclick="switchComTab('eventos')"><i class="ti ti-calendar-event"></i> Eventos</button>
+      <button class="com-tab ${comTab==='notif'?'active':''}" onclick="switchComTab('notif')"><i class="ti ti-bell"></i> Notificações</button>
+    </div>
+    <div id="com-content"></div>
+  `
+  if(comTab === 'mural') await renderMural()
+  else if(comTab === 'eventos') await renderEventos()
+  else if(comTab === 'notif') await renderNotificacoes()
+}
+
+function switchComTab(tab){
+  comTab = tab
+  renderComunicacao()
+}
+
+async function renderMural(){
+  const isProf = Auth.isProfessor()
+  try {
+    const recados = await DB.getRecados()
+    const c = $('com-content')
+    c.innerHTML = `
+      <div class="mural-header">
+        <div class="mural-count">${recados.length} ${recados.length===1?'recado':'recados'}</div>
+        ${isProf ? '<button class="pbtn" onclick="openRecadoModal()"><i class="ti ti-plus"></i> Novo recado</button>' : ''}
+      </div>
+      <div class="recado-list">
+        ${recados.length === 0 ? '<div class="empty-state"><div class="empty-icon"><i class="ti ti-pin"></i></div><div class="empty-title">Nenhum recado</div><div class="empty-text">Os recados aparecerão aqui.</div></div>' :
+        recados.map(r => `
+          <div class="recado ${r.fixado?'fixed':''}">
+            <div class="recado-head">
+              <div class="recado-title-area">
+                <div class="recado-title">${escapeHtml(r.titulo)}</div>
+                <div class="recado-meta">
+                  ${r.fixado ? '<span class="recado-pin"><i class="ti ti-pin-filled"></i> Fixado</span><span>·</span>' : ''}
+                  <span>${formatDate(r.criado_em)}</span>
+                </div>
+              </div>
+              ${isProf ? `<div class="recado-actions">
+                <button class="ibtn" onclick='openRecadoModal(${JSON.stringify(r).replace(/'/g,"&#39;")})'><i class="ti ti-edit"></i></button>
+                <button class="dbtn" onclick="deleteRecado('${r.id}')"><i class="ti ti-trash"></i></button>
+              </div>` : ''}
+            </div>
+            <div class="recado-text">${escapeHtml(r.texto)}</div>
+          </div>
+        `).join('')}
+      </div>
+    `
+  } catch(err){
+    $('com-content').innerHTML = `<div style="padding:20px;color:#e05050">Erro: ${err.message}</div>`
+  }
+}
+
+function openRecadoModal(recado){
+  const isEdit = !!recado
+  const html = `
+    <div class="mlay" id="modal-recado" style="display:flex">
+      <div class="mbox">
+        <div class="mhead">
+          <span class="mtitle">${isEdit?'Editar Recado':'Novo Recado'}</span>
+          <button class="mclose" onclick="closeModal('modal-recado')">✕</button>
+        </div>
+        <div class="mbody">
+          <div class="form-row">
+            <label class="form-label">Título</label>
+            <input class="form-input" id="rec-titulo" value="${isEdit?escapeHtml(recado.titulo):''}">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Mensagem</label>
+            <textarea class="form-textarea" id="rec-texto">${isEdit?escapeHtml(recado.texto):''}</textarea>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-pin">
+              <i class="ti ti-pin-filled toggle-pin-icon"></i>
+              <div>
+                <div class="toggle-pin-title">Fixar no topo</div>
+                <div class="toggle-pin-desc">Recado aparece destacado</div>
+              </div>
+            </div>
+            <div class="switch ${isEdit&&recado.fixado?'on':''}" id="rec-fixado" onclick="this.classList.toggle('on')"></div>
+          </div>
+        </div>
+        <div class="mfoot">
+          <button class="fbtn" onclick="closeModal('modal-recado')">Cancelar</button>
+          <button class="pbtn" onclick="saveRecado('${isEdit?recado.id:''}')"><i class="ti ti-check"></i> Salvar</button>
+        </div>
+      </div>
+    </div>
+  `
+  // remove modal antigo se existir
+  const old = $('modal-recado'); if(old) old.remove()
+  document.body.insertAdjacentHTML('beforeend', html)
+}
+
+async function saveRecado(id){
+  const titulo = $('rec-titulo').value.trim()
+  const texto = $('rec-texto').value.trim()
+  const fixado = $('rec-fixado').classList.contains('on')
+  if(!titulo || !texto){ toast('Preencha título e mensagem.', true); return }
+  try {
+    if(id) await DB.updateRecado(id, titulo, texto, fixado)
+    else await DB.createRecado(titulo, texto, fixado)
+    closeModal('modal-recado'); $('modal-recado').remove()
+    toast(id?'Recado atualizado.':'Recado criado.')
+    renderMural()
+  } catch(err){ toast('Erro: '+err.message, true) }
+}
+
+async function deleteRecado(id){
+  if(!confirm('Excluir este recado?')) return
+  try { await DB.deleteRecado(id); toast('Recado excluído.'); renderMural() }
+  catch(err){ toast('Erro: '+err.message, true) }
+}
+
+// ─── EVENTOS ────────────────────────────────────────────────────────────
+
+async function renderEventos(){
+  const isProf = Auth.isProfessor()
+  try {
+    const eventos = await DB.getEventos()
+    $('com-content').innerHTML = `
+      <div class="mural-header">
+        <div class="mural-count">${eventos.length} ${eventos.length===1?'evento':'eventos'}</div>
+        ${isProf ? '<button class="pbtn" onclick="openEventoModal()"><i class="ti ti-plus"></i> Novo evento</button>' : ''}
+      </div>
+      <div class="recado-list">
+        ${eventos.length === 0 ? '<div class="empty-state"><div class="empty-icon"><i class="ti ti-calendar-event"></i></div><div class="empty-title">Nenhum evento</div><div class="empty-text">Seminários e campeonatos aparecerão aqui.</div></div>' :
+        eventos.map(e => `
+          <div class="recado">
+            <div class="recado-head">
+              <div class="recado-title-area">
+                <div class="recado-title">${escapeHtml(e.titulo)}</div>
+                <div class="recado-meta">
+                  <span style="text-transform:uppercase;letter-spacing:1px;color:var(--gold,#c8b89a)">${formatDate(e.data_evento)}</span>
+                  ${e.horario ? '<span>·</span><span>'+e.horario.slice(0,5)+'</span>' : ''}
+                  ${e.local ? '<span>·</span><span>'+escapeHtml(e.local)+'</span>' : ''}
+                </div>
+              </div>
+              ${isProf ? `<div class="recado-actions">
+                <button class="ibtn" onclick='openEventoModal(${JSON.stringify(e).replace(/'/g,"&#39;")})'><i class="ti ti-edit"></i></button>
+                <button class="dbtn" onclick="deleteEvento('${e.id}')"><i class="ti ti-trash"></i></button>
+              </div>` : ''}
+            </div>
+            ${e.descricao ? '<div class="recado-text">'+escapeHtml(e.descricao)+'</div>' : ''}
+          </div>
+        `).join('')}
+      </div>
+    `
+  } catch(err){
+    $('com-content').innerHTML = `<div style="padding:20px;color:#e05050">Erro: ${err.message}</div>`
+  }
+}
+
+function openEventoModal(ev){
+  const isEdit = !!ev
+  const html = `
+    <div class="mlay" id="modal-evento" style="display:flex">
+      <div class="mbox">
+        <div class="mhead">
+          <span class="mtitle">${isEdit?'Editar Evento':'Novo Evento'}</span>
+          <button class="mclose" onclick="closeModal('modal-evento')">✕</button>
+        </div>
+        <div class="mbody">
+          <div class="form-row">
+            <label class="form-label">Título</label>
+            <input class="form-input" id="ev-titulo" value="${isEdit?escapeHtml(ev.titulo):''}" placeholder="Ex: Seminário com Alexandre Vieira">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Data</label>
+            <input class="form-input" type="date" id="ev-data" value="${isEdit?ev.data_evento:''}">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Horário (opcional)</label>
+            <input class="form-input" type="time" id="ev-hora" value="${isEdit&&ev.horario?ev.horario.slice(0,5):''}">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Local (opcional)</label>
+            <input class="form-input" id="ev-local" value="${isEdit&&ev.local?escapeHtml(ev.local):''}" placeholder="Ex: Academia ou Ginásio Municipal">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Descrição</label>
+            <textarea class="form-textarea" id="ev-desc">${isEdit&&ev.descricao?escapeHtml(ev.descricao):''}</textarea>
+          </div>
+        </div>
+        <div class="mfoot">
+          <button class="fbtn" onclick="closeModal('modal-evento')">Cancelar</button>
+          <button class="pbtn" onclick="saveEvento('${isEdit?ev.id:''}')"><i class="ti ti-check"></i> Salvar</button>
+        </div>
+      </div>
+    </div>
+  `
+  const old = $('modal-evento'); if(old) old.remove()
+  document.body.insertAdjacentHTML('beforeend', html)
+}
+
+async function saveEvento(id){
+  const data = {
+    titulo: $('ev-titulo').value.trim(),
+    data_evento: $('ev-data').value,
+    horario: $('ev-hora').value || null,
+    local: $('ev-local').value.trim() || null,
+    descricao: $('ev-desc').value.trim() || null
+  }
+  if(!data.titulo || !data.data_evento){ toast('Título e data obrigatórios.', true); return }
+  try {
+    if(id) await DB.updateEvento(id, data)
+    else await DB.createEvento(data)
+    closeModal('modal-evento'); $('modal-evento').remove()
+    toast(id?'Evento atualizado.':'Evento criado.')
+    renderEventos()
+  } catch(err){ toast('Erro: '+err.message, true) }
+}
+
+async function deleteEvento(id){
+  if(!confirm('Excluir este evento?')) return
+  try { await DB.deleteEvento(id); toast('Evento excluído.'); renderEventos() }
+  catch(err){ toast('Erro: '+err.message, true) }
+}
+
+// ─── NOTIFICAÇÕES ────────────────────────────────────────────────────────
+
+async function renderNotificacoes(){
+  if(!Auth.currentProfile){ return }
+  try {
+    const notifs = await DB.getMinhasNotificacoes(Auth.currentProfile.id)
+    const naoLidas = notifs.filter(n => !n.lida).length
+    $('com-content').innerHTML = `
+      <div class="mural-header">
+        <div class="mural-count">${notifs.length} ${notifs.length===1?'notificação':'notificações'}${naoLidas?' · <strong style="color:var(--accent)">'+naoLidas+' não lida(s)</strong>':''}</div>
+        ${naoLidas ? '<button class="fbtn" onclick="marcarTodasLidas()"><i class="ti ti-check"></i> Marcar todas como lidas</button>' : ''}
+      </div>
+      <div class="recado-list">
+        ${notifs.length === 0 ? '<div class="empty-state"><div class="empty-icon"><i class="ti ti-bell"></i></div><div class="empty-title">Sem notificações</div><div class="empty-text">Você será notificado sobre promoções e novidades.</div></div>' :
+        notifs.map(n => `
+          <div class="recado ${!n.lida?'fixed':''}" onclick="marcarLida('${n.id}')" style="cursor:pointer">
+            <div class="recado-head">
+              <div class="recado-title-area">
+                <div class="recado-title">${escapeHtml(n.titulo)}</div>
+                <div class="recado-meta">
+                  ${!n.lida ? '<span class="recado-pin"><i class="ti ti-circle-filled" style="font-size:8px"></i> Nova</span><span>·</span>' : ''}
+                  <span>${formatDate(n.criado_em)}</span>
+                </div>
+              </div>
+            </div>
+            ${n.texto ? '<div class="recado-text">'+escapeHtml(n.texto)+'</div>' : ''}
+          </div>
+        `).join('')}
+      </div>
+    `
+  } catch(err){
+    $('com-content').innerHTML = `<div style="padding:20px;color:#e05050">Erro: ${err.message}</div>`
+  }
+}
+
+async function marcarLida(id){
+  try { await DB.marcarNotifLida(id); renderNotificacoes() } catch(e){}
+}
+async function marcarTodasLidas(){
+  try { await DB.marcarTodasLidas(Auth.currentProfile.id); toast('Marcadas como lidas.'); renderNotificacoes() } catch(e){}
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// PERFIL DO ALUNO + GRADUAÇÃO
+// ═════════════════════════════════════════════════════════════════════════
+
+const FAIXAS = [
+  { id:'white', nome:'Branca' },
+  { id:'blue', nome:'Azul' },
+  { id:'purple', nome:'Roxa' },
+  { id:'brown', nome:'Marrom' },
+  { id:'black', nome:'Preta' }
+]
+
+async function openPerfilAluno(alunoId){
+  perfilAlunoId = alunoId
+  // Esconde todas as páginas e mostra a do perfil
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'))
+  let pageEl = $('page-perfil')
+  if(!pageEl){
+    document.querySelector('.app').insertAdjacentHTML('beforeend', '<div class="page" id="page-perfil"></div>')
+    pageEl = $('page-perfil')
+  }
+  pageEl.classList.add('on')
+  pageEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--txt3)">Carregando...</div>'
+
+  try {
+    const aluno = state.alunos.find(a => a.id === alunoId) || Auth.currentProfile
+    const [historico, totalAulas] = await Promise.all([
+      DB.getHistoricoAluno(alunoId),
+      DB.getTotalAulasAluno(alunoId)
+    ])
+
+    const isProf = Auth.isProfessor()
+    const isSelf = Auth.currentProfile && Auth.currentProfile.id === alunoId
+    const ultimaPromocao = historico[0]
+    const aulasDesdeUltimaPromocao = ultimaPromocao ? totalAulas - (ultimaPromocao.aulas_acumuladas || 0) : totalAulas
+    const initials = (aluno.nome || '?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()
+    const faixaAtual = aluno.faixa || 'white'
+    const grauAtual = aluno.grau || 0
+    const faixaNome = FAIXAS.find(f=>f.id===faixaAtual)?.nome || 'Branca'
+
+    pageEl.innerHTML = `
+      ${isProf ? '<button class="back-btn" onclick="voltarParaAlunos()"><i class="ti ti-arrow-left"></i> Voltar</button>' : ''}
+      <div class="slabel">${isSelf?'Meu Perfil':'Perfil do Aluno'}</div>
+
+      <div class="perfil-header">
+        <div class="perfil-avatar">${initials}</div>
+        <div class="perfil-info">
+          <div class="perfil-nome">${escapeHtml(aluno.nome || '?')}</div>
+          <div class="perfil-email">${escapeHtml(aluno.email || '')}</div>
+          <div class="perfil-faixa-atual">
+            <div class="perfil-faixa-display">
+              <div class="belt ${faixaAtual}">${grauAtual>0?'<div class="belt-graus">'+'<span></span>'.repeat(grauAtual)+'</div>':''}</div>
+              <div>
+                <div class="perfil-faixa-nome">FAIXA ${faixaNome.toUpperCase()}</div>
+                <div class="perfil-faixa-grau">${grauAtual>0?grauAtual+'º grau · ':''}${ultimaPromocao?'desde '+formatDate(ultimaPromocao.data):''}</div>
+              </div>
+            </div>
+          </div>
+          ${isProf && !isSelf ? `<div class="perfil-actions"><button class="pbtn" onclick="openPromoverModal()"><i class="ti ti-arrow-up"></i> Promover</button></div>` : ''}
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-cell">
+          <div class="stat-num">${totalAulas}</div>
+          <div class="stat-label">Total de aulas</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-num">${aulasDesdeUltimaPromocao}</div>
+          <div class="stat-label">Desde última promoção</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-num">${historico.length}</div>
+          <div class="stat-label">Promoções</div>
+        </div>
+      </div>
+
+      <div class="timeline-header">
+        <div class="timeline-title">Histórico de Graduação</div>
+      </div>
+      <div class="timeline">
+        ${historico.length === 0 ? '<div style="padding:20px;text-align:center;color:var(--txt3);font-size:12px">Nenhuma promoção registrada ainda.</div>' :
+        `<div class="timeline-list">
+          ${historico.map((h, i) => {
+            const fnome = FAIXAS.find(f=>f.id===h.faixa)?.nome || h.faixa
+            return `<div class="tl-item">
+              <div class="tl-marker ${i===0?'current':''}"><i class="ti ti-${i===0?'circle-check-filled':'arrow-up'}"></i></div>
+              <div class="tl-content">
+                <div class="tl-faixa">
+                  <div class="belt ${h.faixa}"></div>
+                  <span class="tl-faixa-name">FAIXA ${fnome.toUpperCase()}</span>
+                  ${h.grau>0?'<span class="tl-faixa-grau">· '+h.grau+'º grau</span>':''}
+                  ${i===0?'<span class="tl-faixa-grau">(atual)</span>':''}
+                </div>
+                <div class="tl-date">${formatDate(h.data)}</div>
+                ${h.nota?'<div class="tl-note">"'+escapeHtml(h.nota)+'"</div>':''}
+                <div class="tl-aulas">${h.aulas_acumuladas||0} aulas acumuladas</div>
+              </div>
+            </div>`
+          }).join('')}
+        </div>`}
+      </div>
+    `
+  } catch(err){
+    pageEl.innerHTML = `<div style="padding:20px;color:#e05050">Erro: ${err.message}</div>`
+  }
+}
+
+function voltarParaAlunos(){
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'))
+  $('page-students').classList.add('on')
+  $('nav-bar').querySelectorAll('.nb').forEach(b => {
+    b.classList.toggle('active', b.dataset.page === 'students')
+  })
+}
+
+function openPerfilSelf(){
+  if(Auth.currentProfile) openPerfilAluno(Auth.currentProfile.id)
+}
+
+// Modal de promoção
+let promoSel = { faixa:'white', grau:0 }
+
+function openPromoverModal(){
+  const aluno = state.alunos.find(a => a.id === perfilAlunoId)
+  if(!aluno) return
+  promoSel = { faixa: aluno.faixa || 'white', grau: aluno.grau || 0 }
+  const today = new Date().toISOString().slice(0,10)
+  const html = `
+    <div class="mlay" id="modal-promover" style="display:flex">
+      <div class="mbox">
+        <div class="mhead">
+          <span class="mtitle">Promover ${escapeHtml(aluno.nome)}</span>
+          <button class="mclose" onclick="closeModal('modal-promover')">✕</button>
+        </div>
+        <div class="mbody">
+          <div class="form-row">
+            <label class="form-label">Nova faixa</label>
+            <div class="promo-faixas" id="promo-faixas">
+              ${FAIXAS.map(f => `
+                <div class="promo-faixa-opt ${f.id===promoSel.faixa?'active':''}" data-faixa="${f.id}" onclick="selectPromoFaixa('${f.id}')">
+                  <div class="belt ${f.id}"></div>
+                  <div class="promo-faixa-opt-name">${f.nome}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          <div class="form-row">
+            <label class="form-label">Novo grau</label>
+            <div class="promo-grau-row" id="promo-graus">
+              ${[0,1,2,3,4].map(g => `
+                <button class="promo-grau-btn ${g===promoSel.grau?'active':''}" data-grau="${g}" onclick="selectPromoGrau(${g})">${g}</button>
+              `).join('')}
+            </div>
+          </div>
+          <div class="form-row">
+            <label class="form-label">Nota (opcional)</label>
+            <textarea class="form-textarea" id="promo-nota" style="min-height:70px" placeholder="Ex: Evolução técnica notável..."></textarea>
+          </div>
+          <div class="form-row">
+            <label class="form-label">Data da promoção</label>
+            <input class="form-input" type="date" id="promo-data" value="${today}">
+          </div>
+        </div>
+        <div class="mfoot">
+          <button class="fbtn" onclick="closeModal('modal-promover')">Cancelar</button>
+          <button class="pbtn" onclick="confirmarPromover()"><i class="ti ti-check"></i> Confirmar</button>
+        </div>
+      </div>
+    </div>
+  `
+  const old = $('modal-promover'); if(old) old.remove()
+  document.body.insertAdjacentHTML('beforeend', html)
+}
+
+function selectPromoFaixa(f){
+  promoSel.faixa = f
+  document.querySelectorAll('#promo-faixas .promo-faixa-opt').forEach(el => {
+    el.classList.toggle('active', el.dataset.faixa === f)
+  })
+}
+function selectPromoGrau(g){
+  promoSel.grau = g
+  document.querySelectorAll('#promo-graus .promo-grau-btn').forEach(el => {
+    el.classList.toggle('active', parseInt(el.dataset.grau) === g)
+  })
+}
+
+async function confirmarPromover(){
+  const nota = $('promo-nota').value.trim()
+  const data = $('promo-data').value
+  if(!data){ toast('Selecione a data.', true); return }
+  try {
+    const totalAulas = await DB.getTotalAulasAluno(perfilAlunoId)
+    await DB.promoverAluno(perfilAlunoId, promoSel.faixa, promoSel.grau, nota || null, data, totalAulas)
+    // Atualiza no state
+    const aluno = state.alunos.find(a => a.id === perfilAlunoId)
+    if(aluno){ aluno.faixa = promoSel.faixa; aluno.grau = promoSel.grau }
+    closeModal('modal-promover'); $('modal-promover').remove()
+    toast('Aluno promovido!')
+    openPerfilAluno(perfilAlunoId)
+  } catch(err){ toast('Erro: '+err.message, true) }
+}
+
+// ─── UTILS ──────────────────────────────────────────────────────────────
+
+function escapeHtml(s){
+  if(s == null) return ''
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))
+}
+function formatDate(d){
+  if(!d) return ''
+  const dt = new Date(d)
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+  return `${dt.getDate()} ${meses[dt.getMonth()]} ${dt.getFullYear()}`
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// FASE 3: MURAL DE RECADOS
+// ════════════════════════════════════════════════════════════════════════
+
+const state_mural = { recados: [], editing: null }
+
+async function renderComunicacao(){
+  try {
+    state_mural.recados = await DB.getRecados()
+    renderMural()
+  } catch(err){
+    console.error('[mural]', err)
+    $('mural-list').innerHTML = `<div class="empty-state"><div class="empty-text" style="color:#e05050">Erro ao carregar: ${err.message}</div></div>`
+  }
+}
+
+function renderMural(){
+  const recs = state_mural.recados
+  $('mural-count').textContent = recs.length === 1 ? '1 recado' : recs.length + ' recados'
+  const isProf = Auth.isProfessor()
+
+  if(recs.length === 0){
+    $('mural-list').innerHTML = `<div class="empty-state" style="text-align:center;padding:60px 20px;background:var(--surf);border:0.5px dashed var(--border);border-radius:2px">
+      <i class="ti ti-pin" style="font-size:36px;color:var(--txt3);margin-bottom:12px;display:block"></i>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--txt2);margin-bottom:6px">Nenhum recado ainda</div>
+      <div style="font-size:12px;color:var(--txt3)">${isProf ? 'Clique em "Novo recado" para começar.' : 'Aguarde avisos do professor.'}</div>
+    </div>`
+    return
+  }
+
+  $('mural-list').innerHTML = recs.map(r => {
+    const d = new Date(r.criado_em)
+    const dataStr = `${d.getDate()} ${['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][d.getMonth()]} ${d.getFullYear()}`
+    return `<div class="recado ${r.fixado ? 'fixed' : ''}">
+      <div class="recado-head">
+        <div class="recado-title-area">
+          <div class="recado-title">${escapeHtml(r.titulo)}</div>
+          <div class="recado-meta">
+            ${r.fixado ? '<span class="recado-pin"><i class="ti ti-pin-filled"></i> Fixado</span><span>·</span>' : ''}
+            <span>${dataStr}</span>
+          </div>
+        </div>
+        ${isProf ? `<div class="recado-actions">
+          <button class="ibtn" onclick="openRecadoModal('${r.id}')"><i class="ti ti-edit"></i></button>
+          <button class="dbtn" onclick="deleteRecado('${r.id}')"><i class="ti ti-trash"></i></button>
+        </div>` : ''}
+      </div>
+      <div class="recado-text">${escapeHtml(r.texto)}</div>
+    </div>`
+  }).join('')
+}
+
+function escapeHtml(s){ return (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) }
+
+function openRecadoModal(id){
+  state_mural.editing = id
+  if(id){
+    const r = state_mural.recados.find(x => x.id === id)
+    if(!r) return
+    $('rec-title').textContent = 'Editar Recado'
+    $('rec-titulo').value = r.titulo
+    $('rec-texto').value = r.texto
+    $('rec-switch').classList.toggle('on', !!r.fixado)
+  } else {
+    $('rec-title').textContent = 'Novo Recado'
+    $('rec-titulo').value = ''
+    $('rec-texto').value = ''
+    $('rec-switch').classList.remove('on')
+  }
+  $('modal-recado').style.display = 'flex'
+}
+
+async function saveRecado(){
+  const titulo = $('rec-titulo').value.trim()
+  const texto = $('rec-texto').value.trim()
+  const fixado = $('rec-switch').classList.contains('on')
+  if(!titulo || !texto){ toast('Preencha título e mensagem.', true); return }
+  try {
+    if(state_mural.editing){
+      await DB.updateRecado(state_mural.editing, { titulo, texto, fixado })
+      toast('Recado atualizado!')
+    } else {
+      await DB.createRecado(titulo, texto, fixado)
+      toast('Recado publicado!')
+    }
+    closeModal('modal-recado')
+    await renderComunicacao()
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+async function deleteRecado(id){
+  if(!confirm('Excluir este recado?')) return
+  try {
+    await DB.deleteRecado(id)
+    toast('Recado excluído.')
+    await renderComunicacao()
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// FASE 3: PERFIL DO ALUNO + GRADUAÇÃO
+// ════════════════════════════════════════════════════════════════════════
+
+const state_perfil = { aluno: null, historico: [], totalAulas: 0, promo: { faixa:null, grau:0 } }
+
+const FAIXA_PT = { white:'BRANCA', blue:'AZUL', purple:'ROXA', brown:'MARROM', black:'PRETA' }
+const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+
+function iniciais(nome){
+  return (nome||'?').split(' ').filter(Boolean).slice(0,2).map(p => p[0]).join('').toUpperCase()
+}
+
+function mesesEntre(dataIso){
+  const d = new Date(dataIso)
+  const now = new Date()
+  let m = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth())
+  return Math.max(0, m)
+}
+
+function formatTempoNoGrau(meses){
+  if(meses < 1) return '<1m'
+  if(meses < 12) return meses + 'm'
+  const anos = Math.floor(meses / 12)
+  const m = meses % 12
+  return anos + 'a' + (m > 0 ? ' ' + m + 'm' : '')
+}
+
+async function openPerfilAluno(alunoId, fromList){
+  try {
+    const aluno = state.alunos.find(a => a.id === alunoId) || { id: alunoId }
+    if(!aluno.nome && !Auth.isProfessor()){
+      // Aluno vendo o próprio perfil - busca via auth
+      aluno.nome = Auth.currentProfile?.nome
+      aluno.email = Auth.currentProfile?.email
+      aluno.faixa = Auth.currentProfile?.faixa
+      aluno.grau = Auth.currentProfile?.grau
+    }
+    state_perfil.aluno = aluno
+    state_perfil.historico = await DB.getHistoricoGraduacao(alunoId)
+    state_perfil.totalAulas = await DB.getTotalAulasAluno(alunoId)
+
+    $('perfil-back').style.display = fromList ? 'inline-flex' : 'none'
+    $('perfil-label').textContent = fromList ? 'Perfil do Aluno' : 'Meu Perfil'
+    renderPerfil()
+
+    // Ativa a aba perfil se não estiver
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('on'))
+    $('page-perfil').classList.add('on')
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+function openPerfilSelf(){
+  if(Auth.currentProfile) openPerfilAluno(Auth.currentProfile.id, false)
+}
+
+function closeFinalPerfil(){
+  // Volta pra lista de alunos
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'))
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('active'))
+  const navStu = document.querySelector('.nb[data-page="students"]')
+  if(navStu){
+    navStu.classList.add('active')
+    $('page-students').classList.add('on')
+  }
+}
+
+function renderBeltGraus(grau){
+  const g = Math.min(4, Math.max(0, grau || 0))
+  if(g === 0) return ''
+  return `<div class="belt-graus">${'<span></span>'.repeat(g)}</div>`
+}
+
+function renderPerfil(){
+  const a = state_perfil.aluno
+  const hist = state_perfil.historico
+  const isProf = Auth.isProfessor()
+  const faixaAtual = a.faixa || 'white'
+  const grauAtual = a.grau || 0
+  const ultimaPromo = hist[0]
+  const aulasDesde = ultimaPromo ? state_perfil.totalAulas - (ultimaPromo.aulas_acumuladas || 0) : state_perfil.totalAulas
+  const tempoMeses = ultimaPromo ? mesesEntre(ultimaPromo.data) : 0
+  const dataDesde = ultimaPromo ? new Date(ultimaPromo.data) : null
+  const dataDesdeStr = dataDesde ? `${MESES[dataDesde.getMonth()]}/${String(dataDesde.getFullYear()).slice(2)}` : '—'
+
+  $('perfil-content').innerHTML = `
+    <div class="perfil-header">
+      <div class="perfil-avatar">${iniciais(a.nome)}</div>
+      <div class="perfil-info">
+        <div class="perfil-nome">${escapeHtml(a.nome || '—')}</div>
+        <div class="perfil-email">${escapeHtml(a.email || '')}</div>
+        <div class="perfil-faixa-atual">
+          <div class="perfil-faixa-display">
+            <div class="belt ${faixaAtual}">${renderBeltGraus(grauAtual)}</div>
+            <div>
+              <div class="perfil-faixa-nome">FAIXA ${FAIXA_PT[faixaAtual] || '—'}</div>
+              <div class="perfil-faixa-grau">${grauAtual > 0 ? grauAtual + 'º grau · ' : ''}desde ${dataDesdeStr}</div>
+            </div>
+          </div>
+        </div>
+        ${isProf ? `<div class="perfil-actions">
+          <button class="pbtn" onclick="openPromoverModal()"><i class="ti ti-arrow-up"></i> Promover</button>
+        </div>` : ''}
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-cell">
+        <div class="stat-num">${state_perfil.totalAulas}</div>
+        <div class="stat-label">Total de aulas</div>
+        <div class="stat-sub">Desde o cadastro</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num">${aulasDesde}</div>
+        <div class="stat-label">Desde a promoção</div>
+        <div class="stat-sub">${ultimaPromo ? FAIXA_PT[ultimaPromo.faixa] + (ultimaPromo.grau ? ' ' + ultimaPromo.grau + 'º' : '') : '—'}</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num">${formatTempoNoGrau(tempoMeses)}</div>
+        <div class="stat-label">No grau atual</div>
+        <div class="stat-sub">${tempoMeses} ${tempoMeses === 1 ? 'mês' : 'meses'}</div>
+      </div>
+    </div>
+
+    <div class="timeline-header">
+      <div class="timeline-title">Histórico de Graduação</div>
+    </div>
+    <div class="timeline">
+      ${hist.length === 0 ? `<div style="text-align:center;padding:20px;color:var(--txt3);font-size:12px">Nenhuma promoção registrada ainda.</div>` : `
+      <div class="timeline-list">
+        ${hist.map((h, i) => {
+          const d = new Date(h.data)
+          const dataStr = `${d.getDate()} ${MESES[d.getMonth()]} ${d.getFullYear()}`
+          return `<div class="tl-item">
+            <div class="tl-marker ${i === 0 ? 'current' : ''}">
+              <i class="ti ${i === 0 ? 'ti-circle-check-filled' : 'ti-arrow-up'}"></i>
+            </div>
+            <div class="tl-content">
+              <div class="tl-faixa">
+                <div class="belt ${h.faixa}"></div>
+                <span class="tl-faixa-name">FAIXA ${FAIXA_PT[h.faixa] || h.faixa}</span>
+                ${h.grau > 0 ? `<span class="tl-faixa-grau">· ${h.grau}º grau</span>` : ''}
+                ${i === 0 ? '<span class="tl-faixa-grau">· atual</span>' : ''}
+                ${isProf ? `<button class="dbtn" style="margin-left:auto;padding:3px 6px;font-size:10px" onclick="deleteGraduacao('${h.id}')"><i class="ti ti-trash"></i></button>` : ''}
+              </div>
+              <div class="tl-date">${dataStr}</div>
+              ${h.nota ? `<div class="tl-note">"${escapeHtml(h.nota)}"</div>` : ''}
+              ${h.aulas_acumuladas ? `<div class="tl-aulas">${h.aulas_acumuladas} aulas acumuladas</div>` : ''}
+            </div>
+          </div>`
+        }).join('')}
+      </div>`}
+    </div>
+  `
+}
+
+function openPromoverModal(){
+  const a = state_perfil.aluno
+  state_perfil.promo = { faixa: a.faixa || 'white', grau: a.grau || 0 }
+
+  $('pro-title').textContent = 'Promover ' + (a.nome || 'Aluno')
+  $('pro-atual').innerHTML = `
+    <div style="background:var(--surf2);border:0.5px solid var(--border);border-radius:2px;padding:12px 14px;margin-bottom:var(--sp-4);display:flex;align-items:center;gap:10px">
+      <div class="belt ${a.faixa || 'white'}">${renderBeltGraus(a.grau)}</div>
+      <div>
+        <div style="font-size:11px;color:var(--txt2)">Atual: <strong style="color:var(--txt)">${FAIXA_PT[a.faixa||'white']} ${a.grau > 0 ? a.grau + 'º grau' : ''}</strong></div>
+        <div style="font-size:10px;color:var(--txt3);margin-top:2px">${state_perfil.totalAulas} aulas acumuladas</div>
+      </div>
+    </div>
+  `
+
+  // Marcar atual
+  document.querySelectorAll('#pro-faixas .promo-faixa-opt').forEach(el => {
+    el.classList.toggle('active', el.dataset.faixa === state_perfil.promo.faixa)
+    el.onclick = () => {
+      document.querySelectorAll('#pro-faixas .promo-faixa-opt').forEach(x => x.classList.remove('active'))
+      el.classList.add('active')
+      state_perfil.promo.faixa = el.dataset.faixa
+    }
+  })
+  document.querySelectorAll('#pro-graus .promo-grau-btn').forEach(el => {
+    el.classList.toggle('active', parseInt(el.dataset.grau) === state_perfil.promo.grau)
+    el.onclick = () => {
+      document.querySelectorAll('#pro-graus .promo-grau-btn').forEach(x => x.classList.remove('active'))
+      el.classList.add('active')
+      state_perfil.promo.grau = parseInt(el.dataset.grau)
+    }
+  })
+
+  $('pro-nota').value = ''
+  $('pro-data').value = new Date().toISOString().slice(0, 10)
+  $('modal-promover').style.display = 'flex'
+}
+
+async function confirmarPromocao(){
+  const { faixa, grau } = state_perfil.promo
+  const data = $('pro-data').value
+  const nota = $('pro-nota').value.trim() || null
+  const a = state_perfil.aluno
+  if(!faixa || !data){ toast('Faixa e data são obrigatórias.', true); return }
+  try {
+    await DB.promoverAluno(a.id, faixa, grau, data, nota, state_perfil.totalAulas)
+    // Atualizar local
+    a.faixa = faixa
+    a.grau = grau
+    // Atualizar lista de alunos
+    const idx = state.alunos.findIndex(x => x.id === a.id)
+    if(idx >= 0){ state.alunos[idx].faixa = faixa; state.alunos[idx].grau = grau }
+    toast('Aluno promovido!')
+    closeModal('modal-promover')
+    // Recarregar perfil
+    await openPerfilAluno(a.id, $('perfil-back').style.display !== 'none')
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+async function deleteGraduacao(id){
+  if(!confirm('Excluir esta promoção do histórico?')) return
+  try {
+    await DB.deleteGraduacao(id)
+    toast('Promoção removida.')
+    await openPerfilAluno(state_perfil.aluno.id, $('perfil-back').style.display !== 'none')
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  }
 }
 
 // ─── BOOT ───────────────────────────────────────────────────────────────
