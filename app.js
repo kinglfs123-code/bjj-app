@@ -276,6 +276,7 @@ function applyName(){
   const last = parts.pop()
   $('logo-text').innerHTML = parts.join(' ') + ' <em>' + last + '</em>'
   $('sch-title').textContent = 'Grade — ' + n
+  document.title = n
 }
 
 async function saveName(){
