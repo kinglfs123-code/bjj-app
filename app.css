@@ -718,15 +718,6 @@ a { color: inherit; text-decoration: none; }
   border: 0.5px solid var(--border);
   border-radius: var(--r-sm);
 }
-.li::before {
-  content: '';
-  width: 8px; height: 8px;
-  border-radius: 2px;
-  background: var(--txt3);
-}
-.li.gi::before { background: #5a8dc8; }
-.li.nogi::before { background: #b88a5a; }
-.li.kids::before { background: #c8b89a; }
 
 .wgrid {
   display: grid;
@@ -734,7 +725,7 @@ a { color: inherit; text-decoration: none; }
   gap: var(--sp-2);
   margin-bottom: var(--sp-4);
 }
-.ld {
+.wgrid .ld {
   background: var(--surf);
   border: 0.5px solid var(--border);
   border-radius: var(--r-sm);
@@ -743,7 +734,7 @@ a { color: inherit; text-decoration: none; }
   display: flex; flex-direction: column;
   transition: border-color var(--t-fast) var(--ease);
 }
-.ld:hover { border-color: var(--border2); }
+.wgrid .ld:hover { border-color: var(--border2); }
 .ld-head {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: var(--sp-2);
@@ -758,6 +749,19 @@ a { color: inherit; text-decoration: none; }
   font-family: 'Bebas Neue', sans-serif;
   font-size: 16px;
   color: var(--txt);
+}
+
+/* Bolinha colorida dentro do filtro (li .ld) — sobrescreve o estilo de dia */
+.li .ld {
+  width: 8px;
+  height: 8px;
+  min-height: 0;
+  padding: 0;
+  border-radius: 50%;
+  display: inline-block;
+  border: none;
+  background: var(--txt3);
+  margin: 0;
 }
 
 .grade-editor {
