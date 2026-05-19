@@ -102,6 +102,7 @@ async function boot(){
     applyName()
     applyLogo()
     loadTermoConfig()
+    loadRegrasGraduacao()
 
     // 8. Renderiza tudo
     renderAll()
@@ -993,16 +994,23 @@ function renderStudents(){
     if(q && !s.nome.toLowerCase().includes(q)) return false
     return true
   })
-  $('stu-body').innerHTML = filtered.length ? filtered.map(s => `<tr class="stu-row-clickable">
-    <td style="font-weight:500;color:var(--txt)" onclick="openPerfilAluno('${s.id}', true)"><i class="ti ti-user" style="color:var(--txt3);margin-right:6px"></i>${s.nome}</td>
-    <td style="font-size:11px;color:var(--txt3)">${s.email || '—'}</td>
+  $('stu-body').innerHTML = filtered.length ? filtered.map(s => `<tr class="stu-row-clickable" onclick="openPerfilAluno('${s.id}', true)">
+    <td style="font-weight:500;color:var(--txt)"><i class="ti ti-user" style="color:var(--txt3);margin-right:6px"></i>${s.nome}</td>
+    <td style="font-size:11px;color:var(--txt3)">${maskEmail(s.email)}</td>
     <td><span class="belt ${s.faixa}"></span><span style="font-size:10px;color:var(--txt3)">${BELT_PT[s.faixa] || s.faixa}${s.grau > 0 ? ' ' + s.grau + 'º' : ''}</span></td>
     <td><span style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--txt)">${state.totaisPresenca[s.id] || 0}</span></td>
-    <td style="display:flex;gap:6px">
-      <button class="ibtn" onclick="event.stopPropagation();openStuModal('${s.id}')"><i class="ti ti-edit" aria-hidden="true"></i></button>
-      <button class="dbtn" onclick="event.stopPropagation();deleteStudent('${s.id}')"><i class="ti ti-trash" aria-hidden="true"></i></button>
-    </td>
+    <td><button class="dbtn" onclick="event.stopPropagation();deleteStudent('${s.id}')"><i class="ti ti-trash" aria-hidden="true"></i></button></td>
   </tr>`).join('') : `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--txt3)">Nenhum aluno encontrado.</td></tr>`
+}
+
+// Censura email: v***@gmail.com
+function maskEmail(email){
+  if(!email) return '—'
+  const at = email.indexOf('@')
+  if(at < 1) return email
+  const user = email.slice(0, at)
+  const dom = email.slice(at)
+  return user[0] + '***' + dom
 }
 
 function openInviteModal(){
@@ -1342,7 +1350,7 @@ async function renderNotificacoes(){
         ${naoLidas ? '<button class="fbtn" onclick="marcarTodasLidas()"><i class="ti ti-check"></i> Marcar todas como lidas</button>' : ''}
       </div>
       <div class="recado-list">
-        ${notifs.length === 0 ? '<div class="empty-state"><div class="empty-icon"><i class="ti ti-bell"></i></div><div class="empty-title">Sem notificações</div><div class="empty-text">Você será notificado sobre promoções e novidades.</div></div>' :
+        ${notifs.length === 0 ? '<div class="empty-state"><div class="empty-icon"><i class="ti ti-bell"></i></div><div class="empty-title">Sem notificações</div><div class="empty-text">Você será notificado sobre graduações e novidades.</div></div>' :
         notifs.map(n => `
           <div class="recado ${!n.lida?'fixed':''}" onclick="marcarLida('${n.id}')" style="cursor:pointer">
             <div class="recado-head">
@@ -1420,7 +1428,8 @@ async function openPerfilAluno(alunoId){
         <div class="perfil-info">
           <div class="perfil-nome">${escapeHtml(aluno.nome || '?')}</div>
           <div class="perfil-email">${escapeHtml(aluno.email || '')}</div>
-          <div class="perfil-faixa-atual">
+          ${aluno.created_at ? `<div style="font-size:10px;color:var(--txt3);margin-top:2px"><i class="ti ti-calendar" aria-hidden="true"></i> Cadastrado em ${formatDate(aluno.created_at)}</div>` : ''}
+          <div class="perfil-faixa-atual" style="margin-top:8px">
             <div class="perfil-faixa-display">
               <div class="belt ${faixaAtual}">${grauAtual>0?'<div class="belt-graus">'+'<span></span>'.repeat(grauAtual)+'</div>':''}</div>
               <div>
@@ -1429,7 +1438,10 @@ async function openPerfilAluno(alunoId){
               </div>
             </div>
           </div>
-          ${isProf && !isSelf ? `<div class="perfil-actions"><button class="pbtn" onclick="openPromoverModal()"><i class="ti ti-arrow-up"></i> Promover</button></div>` : ''}
+          ${isProf && !isSelf ? `<div class="perfil-actions">
+            <button class="pbtn" onclick="openPromoverModal()"><i class="ti ti-arrow-up"></i> Graduar</button>
+            <button class="fbtn" onclick="openEditarAlunoModal()"><i class="ti ti-edit"></i> Editar dados</button>
+          </div>` : ''}
         </div>
       </div>
 
@@ -1440,11 +1452,11 @@ async function openPerfilAluno(alunoId){
         </div>
         <div class="stat-cell">
           <div class="stat-num">${aulasDesdeUltimaPromocao}</div>
-          <div class="stat-label">Desde última promoção</div>
+          <div class="stat-label">Desde última graduação</div>
         </div>
         <div class="stat-cell">
           <div class="stat-num">${historico.length}</div>
-          <div class="stat-label">Promoções</div>
+          <div class="stat-label">Graduações</div>
         </div>
       </div>
 
@@ -1452,7 +1464,7 @@ async function openPerfilAluno(alunoId){
         <div class="timeline-title">Histórico de Graduação</div>
       </div>
       <div class="timeline">
-        ${historico.length === 0 ? '<div style="padding:20px;text-align:center;color:var(--txt3);font-size:12px">Nenhuma promoção registrada ainda.</div>' :
+        ${historico.length === 0 ? '<div style="padding:20px;text-align:center;color:var(--txt3);font-size:12px">Nenhuma graduação registrada ainda.</div>' :
         `<div class="timeline-list">
           ${historico.map((h, i) => {
             const fnome = FAIXAS.find(f=>f.id===h.faixa)?.nome || h.faixa
@@ -1503,7 +1515,7 @@ function openPromoverModal(){
     <div class="mlay" id="modal-promover" style="display:flex">
       <div class="mbox">
         <div class="mhead">
-          <span class="mtitle">Promover ${escapeHtml(aluno.nome)}</span>
+          <span class="mtitle">Graduar ${escapeHtml(aluno.nome)}</span>
           <button class="mclose" onclick="closeModal('modal-promover')">✕</button>
         </div>
         <div class="mbody">
@@ -1531,7 +1543,7 @@ function openPromoverModal(){
             <textarea class="form-textarea" id="promo-nota" style="min-height:70px" placeholder="Ex: Evolução técnica notável..."></textarea>
           </div>
           <div class="form-row">
-            <label class="form-label">Data da promoção</label>
+            <label class="form-label">Data da graduação</label>
             <input class="form-input" type="date" id="promo-data" value="${today}">
           </div>
         </div>
@@ -1572,6 +1584,110 @@ async function confirmarPromover(){
     closeModal('modal-promover'); $('modal-promover').remove()
     toast('Aluno promovido!')
     openPerfilAluno(perfilAlunoId)
+  } catch(err){ toast('Erro: '+err.message, true) }
+}
+
+// ─── EDITAR DADOS DO ALUNO (do perfil) ──────────────────────────────────
+
+function openEditarAlunoModal(){
+  const aluno = state.alunos.find(a => a.id === perfilAlunoId)
+  if(!aluno) return
+  const old = $('modal-edit-aluno'); if(old) old.remove()
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="mlay" id="modal-edit-aluno" style="display:flex">
+      <div class="mbox">
+        <div class="mhead">
+          <span class="mtitle">Editar Dados</span>
+          <button class="mclose" onclick="closeModal('modal-edit-aluno');document.getElementById('modal-edit-aluno').remove()">✕</button>
+        </div>
+        <div class="mbody">
+          <div class="mrow">
+            <label class="mlabel">Nome completo</label>
+            <input class="sinput" id="ea-nome" style="width:100%" value="${escapeHtml(aluno.nome || '')}">
+          </div>
+          <div class="mrow">
+            <label class="mlabel">Email</label>
+            <input class="sinput" id="ea-email" style="width:100%" value="${escapeHtml(aluno.email || '')}" type="email">
+            <div style="font-size:10px;color:var(--txt3);margin-top:4px">Email não pode ser alterado por aqui (vinculado ao login).</div>
+          </div>
+          <div class="mrow">
+            <label class="mlabel">Faixa atual (sem registro de graduação)</label>
+            <select class="mselect" id="ea-faixa" style="width:100%">
+              <option value="white">Branca</option>
+              <option value="blue">Azul</option>
+              <option value="purple">Roxa</option>
+              <option value="brown">Marrom</option>
+              <option value="black">Preta</option>
+            </select>
+            <div style="font-size:10px;color:var(--txt3);margin-top:4px">Use "Graduar" pra registrar no histórico. Aqui é só ajuste manual.</div>
+          </div>
+        </div>
+        <div class="mfoot">
+          <button class="fbtn" onclick="closeModal('modal-edit-aluno');document.getElementById('modal-edit-aluno').remove()">Cancelar</button>
+          <button class="pbtn" onclick="salvarEdicaoAluno()"><i class="ti ti-check"></i> Salvar</button>
+        </div>
+      </div>
+    </div>
+  `)
+  $('ea-email').disabled = true
+  $('ea-faixa').value = aluno.faixa || 'white'
+}
+
+async function salvarEdicaoAluno(){
+  const nome = $('ea-nome').value.trim()
+  const faixa = $('ea-faixa').value
+  if(!nome){ toast('Nome obrigatório.', true); return }
+  try {
+    await DB.updateAluno(perfilAlunoId, { nome, faixa })
+    const a = state.alunos.find(a => a.id === perfilAlunoId)
+    if(a){ a.nome = nome; a.faixa = faixa }
+    toast('Dados atualizados!')
+    closeModal('modal-edit-aluno'); $('modal-edit-aluno').remove()
+    openPerfilAluno(perfilAlunoId)
+  } catch(err){ toast('Erro: '+err.message, true) }
+}
+
+// ─── REGRAS DE GRADUAÇÃO (settings) ─────────────────────────────────────
+
+const FAIXAS_REGRAS = [
+  { id: 'white', nome: 'Branca' },
+  { id: 'blue', nome: 'Azul' },
+  { id: 'purple', nome: 'Roxa' },
+  { id: 'brown', nome: 'Marrom' },
+  { id: 'black', nome: 'Preta' },
+]
+
+async function loadRegrasGraduacao(){
+  if(!Auth.isProfessor()) return
+  const cont = $('regras-list')
+  if(!cont) return
+  try {
+    const regras = await DB.getRegrasGraduacao()
+    const map = {}
+    regras.forEach(r => { map[r.faixa] = r })
+    cont.innerHTML = FAIXAS_REGRAS.map(f => {
+      const r = map[f.id] || { aulas_min: 0, meses_min: 0 }
+      return `<div style="display:flex;align-items:center;gap:10px;background:var(--surf2);border:0.5px solid var(--border);border-radius:2px;padding:10px 12px">
+        <div class="belt ${f.id}" style="width:30px;height:8px;flex-shrink:0"></div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:1px;min-width:70px">${f.nome.toUpperCase()}</div>
+        <input class="sinput" type="number" min="0" id="reg-aulas-${f.id}" value="${r.aulas_min || 0}" style="width:80px;text-align:center" placeholder="aulas">
+        <span style="font-size:10px;color:var(--txt3)">aulas</span>
+        <input class="sinput" type="number" min="0" id="reg-meses-${f.id}" value="${r.meses_min || 0}" style="width:70px;text-align:center" placeholder="meses">
+        <span style="font-size:10px;color:var(--txt3)">meses</span>
+        <button class="pbtn" style="margin-left:auto;padding:6px 10px;font-size:9px" onclick="saveRegra('${f.id}')">Salvar</button>
+      </div>`
+    }).join('')
+  } catch(err){
+    cont.innerHTML = `<div style="color:#e05050;font-size:11px">Erro: ${err.message}</div>`
+  }
+}
+
+async function saveRegra(faixa){
+  const aulas = parseInt($(`reg-aulas-${faixa}`).value) || 0
+  const meses = parseInt($(`reg-meses-${faixa}`).value) || 0
+  try {
+    await DB.saveRegraGraduacao(faixa, aulas, meses)
+    toast('Regra salva!')
   } catch(err){ toast('Erro: '+err.message, true) }
 }
 
@@ -1797,7 +1913,7 @@ function renderPerfil(){
           </div>
         </div>
         ${isProf ? `<div class="perfil-actions">
-          <button class="pbtn" onclick="openPromoverModal()"><i class="ti ti-arrow-up"></i> Promover</button>
+          <button class="pbtn" onclick="openPromoverModal()"><i class="ti ti-arrow-up"></i> Graduar</button>
         </div>` : ''}
       </div>
     </div>
@@ -1825,7 +1941,7 @@ function renderPerfil(){
       ${state_perfil.aceite ? `<span style="font-size:10px;color:var(--accent);letter-spacing:1px;text-transform:uppercase;display:inline-flex;align-items:center;gap:4px"><i class="ti ti-circle-check-filled"></i> Termo aceito ${new Date(state_perfil.aceite.aceito_em).toLocaleDateString('pt-BR')}</span>` : ''}
     </div>
     <div class="timeline">
-      ${hist.length === 0 ? `<div style="text-align:center;padding:20px;color:var(--txt3);font-size:12px">Nenhuma promoção registrada ainda.</div>` : `
+      ${hist.length === 0 ? `<div style="text-align:center;padding:20px;color:var(--txt3);font-size:12px">Nenhuma graduação registrada ainda.</div>` : `
       <div class="timeline-list">
         ${hist.map((h, i) => {
           const d = new Date(h.data)
