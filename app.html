@@ -88,6 +88,27 @@
     <div id="pres-content"></div>
   </div>
 
+  <div class="page" id="page-comunicacao">
+    <div class="slabel">Avisos da academia</div>
+    <div class="stitle">Comunicação</div>
+    <div class="com-tabs">
+      <button class="com-tab active"><i class="ti ti-pin" aria-hidden="true"></i> Mural</button>
+      <button class="com-tab disabled" title="Em breve"><i class="ti ti-trophy" aria-hidden="true"></i> Eventos</button>
+      <button class="com-tab disabled" title="Em breve"><i class="ti ti-bell" aria-hidden="true"></i> Notificações</button>
+    </div>
+    <div class="mural-header">
+      <div class="mural-count" id="mural-count">—</div>
+      <button class="pbtn prof-only" onclick="openRecadoModal(null)"><i class="ti ti-plus" aria-hidden="true"></i> Novo recado</button>
+    </div>
+    <div id="mural-list" class="recado-list"></div>
+  </div>
+
+  <div class="page" id="page-perfil">
+    <button class="back-btn" id="perfil-back" style="display:none" onclick="closeFinalPerfil()"><i class="ti ti-arrow-left" aria-hidden="true"></i> Voltar para lista</button>
+    <div class="slabel" id="perfil-label">Meu Perfil</div>
+    <div id="perfil-content"></div>
+  </div>
+
   <div class="page" id="page-videos">
     <div class="slabel">Biblioteca técnica</div>
     <div class="stitle">Vídeos Instrutivos</div>
@@ -287,6 +308,85 @@
       <button class="mclose" onclick="closeModal('modal-vid')">✕</button>
     </div>
     <div id="vid-modal-content"></div>
+  </div>
+</div>
+
+<!-- Modal: Recado -->
+<div class="mlay" id="modal-recado" style="display:none">
+  <div class="mbox">
+    <div class="mhead">
+      <span class="mtitle" id="rec-title">Novo Recado</span>
+      <button class="mclose" onclick="closeModal('modal-recado')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="mrow">
+        <label class="mlabel">Título</label>
+        <input class="sinput" id="rec-titulo" style="width:100%" placeholder="Ex: Seminário Out/2026">
+      </div>
+      <div class="mrow">
+        <label class="mlabel">Mensagem</label>
+        <textarea class="sinput" id="rec-texto" style="width:100%;min-height:110px;resize:vertical;font-family:'DM Sans',sans-serif"></textarea>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-pin">
+          <i class="ti ti-pin-filled toggle-pin-icon" aria-hidden="true"></i>
+          <div>
+            <div class="toggle-pin-title">Fixar no topo</div>
+            <div class="toggle-pin-desc">Recado aparece destacado para todos</div>
+          </div>
+        </div>
+        <div class="switch" id="rec-switch" onclick="this.classList.toggle('on')"></div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="fbtn" onclick="closeModal('modal-recado')">Cancelar</button>
+      <button class="pbtn" onclick="saveRecado()"><i class="ti ti-check" aria-hidden="true"></i> Salvar recado</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Promover Aluno -->
+<div class="mlay" id="modal-promover" style="display:none">
+  <div class="mbox">
+    <div class="mhead">
+      <span class="mtitle" id="pro-title">Promover Aluno</span>
+      <button class="mclose" onclick="closeModal('modal-promover')">✕</button>
+    </div>
+    <div class="mbody">
+      <div id="pro-atual"></div>
+      <div class="mrow">
+        <label class="mlabel">Nova faixa</label>
+        <div class="promo-faixas" id="pro-faixas">
+          <div class="promo-faixa-opt" data-faixa="white"><div class="belt white"></div><div class="promo-faixa-opt-name">Branca</div></div>
+          <div class="promo-faixa-opt" data-faixa="blue"><div class="belt blue"></div><div class="promo-faixa-opt-name">Azul</div></div>
+          <div class="promo-faixa-opt" data-faixa="purple"><div class="belt purple"></div><div class="promo-faixa-opt-name">Roxa</div></div>
+          <div class="promo-faixa-opt" data-faixa="brown"><div class="belt brown"></div><div class="promo-faixa-opt-name">Marrom</div></div>
+          <div class="promo-faixa-opt" data-faixa="black"><div class="belt black"></div><div class="promo-faixa-opt-name">Preta</div></div>
+        </div>
+      </div>
+      <div class="mrow">
+        <label class="mlabel">Novo grau</label>
+        <div class="promo-grau-row" id="pro-graus">
+          <button class="promo-grau-btn" data-grau="0">0</button>
+          <button class="promo-grau-btn" data-grau="1">1</button>
+          <button class="promo-grau-btn" data-grau="2">2</button>
+          <button class="promo-grau-btn" data-grau="3">3</button>
+          <button class="promo-grau-btn" data-grau="4">4</button>
+        </div>
+      </div>
+      <div class="mrow">
+        <label class="mlabel">Nota (opcional)</label>
+        <textarea class="sinput" id="pro-nota" style="width:100%;min-height:60px;resize:vertical;font-family:'DM Sans',sans-serif" placeholder="Ex: Evolução técnica notável..."></textarea>
+      </div>
+      <div class="mrow">
+        <label class="mlabel">Data da promoção</label>
+        <input class="sinput" type="date" id="pro-data" style="width:100%">
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="fbtn" onclick="closeModal('modal-promover')">Cancelar</button>
+      <button class="pbtn" onclick="confirmarPromocao()"><i class="ti ti-check" aria-hidden="true"></i> Confirmar promoção</button>
+    </div>
   </div>
 </div>
 
