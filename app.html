@@ -184,6 +184,33 @@
         </div>
       </div>
     </div>
+    <div class="scard prof-only">
+      <div class="scard-title">Termo de Aceite</div>
+      <div style="display:flex;align-items:center;gap:12px;padding:11px 13px;background:var(--surf2);border:0.5px solid var(--border);border-radius:2px;margin-bottom:12px">
+        <div style="flex:1">
+          <div style="font-size:12px;color:var(--txt);font-weight:500">Exigir aceite no cadastro</div>
+          <div style="font-size:10px;color:var(--txt3);margin-top:1px">Aluno precisa concordar pra criar conta</div>
+        </div>
+        <div class="switch" id="termo-switch" onclick="toggleTermoAtivo()"></div>
+      </div>
+      <div id="termo-config-area">
+        <label class="slabel">Texto do termo</label>
+        <textarea class="sinput" id="termo-texto" style="width:100%;min-height:120px;resize:vertical;font-family:'DM Sans',sans-serif;margin-bottom:10px" placeholder="Ex: Declaro estar ciente dos riscos inerentes à prática do jiu-jitsu..."></textarea>
+        <div style="display:flex;gap:6px;margin-bottom:14px">
+          <button class="pbtn" onclick="saveTermoTexto()"><i class="ti ti-check" aria-hidden="true"></i> Salvar texto</button>
+        </div>
+        <label class="slabel">Ou anexe um PDF</label>
+        <div id="termo-pdf-area" style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--surf2);border:0.5px solid var(--border);border-radius:2px;margin-bottom:10px">
+          <i class="ti ti-file-text" style="font-size:22px;color:var(--txt3)"></i>
+          <div style="flex:1;font-size:11px;color:var(--txt3)" id="termo-pdf-info">Nenhum PDF anexado.</div>
+        </div>
+        <input type="file" id="termo-pdf-input" accept="application/pdf" style="display:none" onchange="onTermoPdfSelected(event)">
+        <div style="display:flex;gap:6px">
+          <button class="pbtn" onclick="document.getElementById('termo-pdf-input').click()"><i class="ti ti-upload" aria-hidden="true"></i> Enviar PDF</button>
+          <button class="fbtn" id="termo-pdf-remove" onclick="removerTermoPdf()" style="display:none"><i class="ti ti-trash" aria-hidden="true"></i> Remover</button>
+        </div>
+      </div>
+    </div>
     <div class="scard">
       <div class="scard-title">Conta</div>
       <div style="font-size:12px;color:var(--txt2);margin-bottom:10px" id="account-info"></div>
