@@ -1773,57 +1773,94 @@ async function carregarMensalidadeNoPerfil(alunoId){
   if(!area) return
   try {
     const pagamentos = await DB.getPagamentosAluno(alunoId)
+    const cfg = state_fin.configMens
+
+    // Caso 1: Nenhum pagamento registrado
     if(pagamentos.length === 0){
-      area.innerHTML = ''
+      area.innerHTML = `
+        <div class="mens-card">
+          <div class="mens-header">
+            <span class="mens-label">Mensalidade</span>
+            <span class="mens-badge neutral">Sem cobrança</span>
+          </div>
+          <div class="mens-body">
+            <div class="mens-value">${fmtBRL(cfg.mensalidade_valor)}</div>
+            <div class="mens-info">Vencimento padrão: dia ${cfg.mensalidade_dia_vencimento} de cada mês</div>
+          </div>
+          <div class="mens-footer">
+            <small>Aguardando o professor gerar sua cobrança.</small>
+          </div>
+        </div>
+      `
       return
     }
-    // Próximo pendente
+
+    // Caso 2: tem pagamentos — mostrar próximo + histórico
     const pendente = pagamentos.find(p => !p.pago)
     const hoje = new Date(); hoje.setHours(0,0,0,0)
+    const ultimoPago = pagamentos.find(p => p.pago)
 
     let cardHtml = ''
     if(pendente){
       const venc = new Date(pendente.data_vencimento + 'T00:00:00')
       const diasRest = Math.ceil((venc - hoje) / 86400000)
       const atrasado = diasRest < 0
+      const cor = atrasado ? '#e05050' : (diasRest <= 3 ? '#e8c270' : 'var(--accent)')
+      const status = atrasado ? `Atrasado há ${Math.abs(diasRest)} dia(s)` : diasRest === 0 ? 'Vence hoje' : `Vence em ${diasRest} dia(s)`
+      const badge = atrasado ? '✕ ATRASADO' : (diasRest === 0 ? '⚠ HOJE' : '○ PENDENTE')
       cardHtml = `
-        <div style="background:var(--surf);border:0.5px solid var(--border);border-left:3px solid ${atrasado?'#e05050':'var(--accent)'};border-radius:2px;padding:14px 16px;margin-bottom:var(--sp-4)">
-          <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);margin-bottom:6px">Próximo Vencimento</div>
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-            <div>
-              <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--txt);line-height:1">${fmtBRL(pendente.valor)}</div>
-              <div style="font-size:11px;color:${atrasado?'#e05050':'var(--txt2)'};margin-top:4px">
-                ${atrasado ? `Atrasado há ${Math.abs(diasRest)} dia(s)` : diasRest === 0 ? 'Vence hoje' : `Vence em ${diasRest} dia(s)`}
-                · ${formatDate(pendente.data_vencimento)}
-              </div>
-            </div>
-            <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:${atrasado?'#e05050':'var(--accent)'};font-weight:500">
-              ${atrasado ? '✕ ATRASADO' : '○ PENDENTE'}
-            </div>
+        <div class="mens-card" style="border-left:3px solid ${cor}">
+          <div class="mens-header">
+            <span class="mens-label">Próximo Vencimento</span>
+            <span class="mens-badge" style="color:${cor};border-color:${cor}">${badge}</span>
+          </div>
+          <div class="mens-body">
+            <div class="mens-value">${fmtBRL(pendente.valor)}</div>
+            <div class="mens-info" style="color:${cor}">${status}  ·  ${formatDate(pendente.data_vencimento)}</div>
+          </div>
+        </div>
+      `
+    } else if(ultimoPago){
+      // Todos em dia
+      cardHtml = `
+        <div class="mens-card" style="border-left:3px solid var(--accent)">
+          <div class="mens-header">
+            <span class="mens-label">Mensalidade</span>
+            <span class="mens-badge" style="color:var(--accent);border-color:var(--accent)">✓ EM DIA</span>
+          </div>
+          <div class="mens-body">
+            <div class="mens-value">${fmtBRL(ultimoPago.valor)}</div>
+            <div class="mens-info">Último pagamento em ${formatDate(ultimoPago.data_pagamento || ultimoPago.data_vencimento)}${ultimoPago.forma_pagamento ? ' · ' + ultimoPago.forma_pagamento : ''}</div>
           </div>
         </div>
       `
     }
 
-    // Histórico
+    // Histórico (últimos 6)
     const pagos = pagamentos.filter(p => p.pago).slice(0, 6)
     if(pagos.length > 0){
       cardHtml += `
-        <div style="background:var(--surf);border:0.5px solid var(--border);border-radius:2px;padding:14px 16px;margin-bottom:var(--sp-4)">
-          <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);margin-bottom:10px">Últimos Pagamentos</div>
-          ${pagos.map(p => `
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--border);font-size:12px">
-              <span style="color:var(--txt2)">${formatDate(p.data_pagamento || p.data_vencimento)}</span>
-              <span style="color:var(--txt)">${fmtBRL(p.valor)}</span>
-              <span style="color:var(--accent);font-size:10px;letter-spacing:1px;text-transform:uppercase">${p.forma_pagamento || '✓ pago'}</span>
-            </div>
-          `).join('')}
+        <div class="mens-history">
+          <div class="mens-history-title">Histórico de pagamentos</div>
+          <table class="mens-tbl">
+            <thead><tr><th>Data</th><th>Valor</th><th>Forma</th></tr></thead>
+            <tbody>
+              ${pagos.map(p => `
+                <tr>
+                  <td>${formatDate(p.data_pagamento || p.data_vencimento)}</td>
+                  <td>${fmtBRL(p.valor)}</td>
+                  <td>${escapeHtml(p.forma_pagamento || '—')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
         </div>
       `
     }
     area.innerHTML = cardHtml
   } catch(err){
-    area.innerHTML = `<div style="color:#e05050;font-size:11px;padding:10px">Erro ao carregar mensalidade: ${err.message}</div>`
+    console.warn('[mensalidade perfil]', err)
+    area.innerHTML = ''
   }
 }
 
