@@ -262,5 +262,159 @@ const DB = {
       .eq('data', data)
     if (error) throw error
     return rows || []
+  },
+
+  // ── MURAL DE RECADOS ──────────────────────────────────────────────────────
+
+  async getRecados() {
+    const { data, error } = await sb
+      .from('mural_recados')
+      .select('*')
+      .order('fixado', { ascending: false })
+      .order('criado_em', { ascending: false })
+    if (error) throw error
+    return data || []
+  },
+
+  async createRecado(titulo, texto, fixado) {
+    const { data, error } = await sb
+      .from('mural_recados')
+      .insert({ titulo, texto, fixado })
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async updateRecado(id, fields) {
+    const { error } = await sb
+      .from('mural_recados')
+      .update({ ...fields, atualizado_em: new Date().toISOString() })
+      .eq('id', id)
+    if (error) throw error
+  },
+
+  async deleteRecado(id) {
+    const { error } = await sb.from('mural_recados').delete().eq('id', id)
+    if (error) throw error
+  },
+
+  // ── GRADUAÇÃO ──────────────────────────────────────────────────────────────
+
+  async getHistoricoGraduacao(alunoId) {
+    const { data, error } = await sb
+      .from('graduacoes_historico')
+      .select('*')
+      .eq('aluno_id', alunoId)
+      .order('data', { ascending: false })
+    if (error) throw error
+    return data || []
+  },
+
+  async promoverAluno(alunoId, faixa, grau, data, nota, aulasAcumuladas) {
+    // Insere no histórico
+    const { error: errHist } = await sb
+      .from('graduacoes_historico')
+      .insert({ aluno_id: alunoId, faixa, grau, data, nota, aulas_acumuladas: aulasAcumuladas })
+    if (errHist) throw errHist
+    // Atualiza profile
+    const { error: errProf } = await sb
+      .from('profiles')
+      .update({ faixa, grau })
+      .eq('id', alunoId)
+    if (errProf) throw errProf
+  },
+
+  async deleteGraduacao(id) {
+    const { error } = await sb.from('graduacoes_historico').delete().eq('id', id)
+    if (error) throw error
+  },
+
+  async getTotalAulasAluno(alunoId) {
+    const { count, error } = await sb
+      .from('presences')
+      .select('*', { count: 'exact', head: true })
+      .eq('aluno_id', alunoId)
+      .eq('presente', true)
+    if (error) throw error
+    return count || 0
+  },
+
+  // ── MURAL DE RECADOS ─────────────────────────────────────────────────────
+  async getRecados() {
+    const { data, error } = await sb.from('mural_recados').select('*').order('fixado', { ascending: false }).order('criado_em', { ascending: false })
+    if (error) throw error
+    return data || []
+  },
+  async createRecado(titulo, texto, fixado) {
+    const { error } = await sb.from('mural_recados').insert({ titulo, texto, fixado })
+    if (error) throw error
+  },
+  async updateRecado(id, titulo, texto, fixado) {
+    const { error } = await sb.from('mural_recados').update({ titulo, texto, fixado, atualizado_em: new Date().toISOString() }).eq('id', id)
+    if (error) throw error
+  },
+  async deleteRecado(id) {
+    const { error } = await sb.from('mural_recados').delete().eq('id', id)
+    if (error) throw error
+  },
+
+  // ── EVENTOS ──────────────────────────────────────────────────────────────
+  async getEventos() {
+    const { data, error } = await sb.from('eventos').select('*').order('data_evento', { ascending: true })
+    if (error) throw error
+    return data || []
+  },
+  async createEvento(ev) {
+    const { error } = await sb.from('eventos').insert(ev)
+    if (error) throw error
+  },
+  async updateEvento(id, ev) {
+    const { error } = await sb.from('eventos').update(ev).eq('id', id)
+    if (error) throw error
+  },
+  async deleteEvento(id) {
+    const { error } = await sb.from('eventos').delete().eq('id', id)
+    if (error) throw error
+  },
+
+  // ── GRADUAÇÕES ──────────────────────────────────────────────────────────
+  async getHistoricoAluno(alunoId) {
+    const { data, error } = await sb.from('graduacoes_historico').select('*').eq('aluno_id', alunoId).order('data', { ascending: false })
+    if (error) throw error
+    return data || []
+  },
+  async promoverAluno(alunoId, faixa, grau, nota, data, aulasAcumuladas) {
+    // 1. Insere no histórico
+    const { error: e1 } = await sb.from('graduacoes_historico').insert({
+      aluno_id: alunoId, faixa, grau, nota, data, aulas_acumuladas: aulasAcumuladas
+    })
+    if (e1) throw e1
+    // 2. Atualiza profile do aluno
+    const { error: e2 } = await sb.from('profiles').update({ faixa, grau }).eq('id', alunoId)
+    if (e2) throw e2
+    // 3. Cria notificação pro aluno
+    await sb.from('notificacoes').insert({
+      user_id: alunoId,
+      titulo: 'Você foi promovido!',
+      texto: `Parabéns! Você agora é ${faixa} ${grau > 0 ? grau + 'º grau' : ''}.`
+    })
+  },
+  async getTotalAulasAluno(alunoId) {
+    const { count } = await sb.from('presences').select('*', { count: 'exact', head: true }).eq('aluno_id', alunoId).eq('presente', true)
+    return count || 0
+  },
+
+  // ── NOTIFICAÇÕES ────────────────────────────────────────────────────────
+  async getMinhasNotificacoes(userId) {
+    const { data, error } = await sb.from('notificacoes').select('*').eq('user_id', userId).order('criado_em', { ascending: false }).limit(50)
+    if (error) throw error
+    return data || []
+  },
+  async marcarNotifLida(id) {
+    await sb.from('notificacoes').update({ lida: true }).eq('id', id)
+  },
+  async marcarTodasLidas(userId) {
+    await sb.from('notificacoes').update({ lida: true }).eq('user_id', userId).eq('lida', false)
   }
 }
