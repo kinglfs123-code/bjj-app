@@ -56,6 +56,8 @@ function ytEmbedUrl(raw){
 
 // ─── BOOT ───────────────────────────────────────────────────────────────
 async function boot(){
+  const bootStart = Date.now()
+  const BOOT_MIN_MS = 600 // tempo mínimo do loader pra não piscar
   try {
     // 1. Verifica sessão
     const profile = await Auth.init()
@@ -107,9 +109,16 @@ async function boot(){
     // 9. Setup event listeners
     setupListeners()
 
-    // 10. Esconde loader, mostra app
-    $('boot-loader').style.display = 'none'
+    // 10. Aguarda tempo mínimo, depois esconde loader com fade-out
+    const elapsed = Date.now() - bootStart
+    if(elapsed < BOOT_MIN_MS) {
+      await new Promise(r => setTimeout(r, BOOT_MIN_MS - elapsed))
+    }
+    const loader = $('boot-loader')
+    loader.style.transition = 'opacity .25s ease'
+    loader.style.opacity = '0'
     $('APP').style.display = 'flex'
+    setTimeout(() => { loader.style.display = 'none' }, 250)
   } catch (err) {
     console.error('Erro no boot:', err)
     $('boot-loader').innerHTML = `
