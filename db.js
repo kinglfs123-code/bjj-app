@@ -435,81 +435,76 @@ const DB = {
     if (error) throw error
   },
 
-  // ── MURAL DE RECADOS ─────────────────────────────────────────────────────
-  async getRecados() {
-    const { data, error } = await sb.from('mural_recados').select('*').order('fixado', { ascending: false }).order('criado_em', { ascending: false })
+  // ── MENSALIDADES ────────────────────────────────────────────────────────
+
+  async getPagamentosAluno(alunoId) {
+    const { data, error } = await sb
+      .from('pagamentos')
+      .select('*')
+      .eq('aluno_id', alunoId)
+      .order('data_vencimento', { ascending: false })
     if (error) throw error
     return data || []
   },
-  async createRecado(titulo, texto, fixado) {
-    const { error } = await sb.from('mural_recados').insert({ titulo, texto, fixado })
+
+  async getTodosPagamentosMes(ano, mes) {
+    const inicio = `${ano}-${String(mes).padStart(2, '0')}-01`
+    const proxMes = mes === 12 ? `${ano + 1}-01-01` : `${ano}-${String(mes + 1).padStart(2, '0')}-01`
+    const { data, error } = await sb
+      .from('pagamentos')
+      .select('*, profiles(nome, faixa)')
+      .gte('data_vencimento', inicio)
+      .lt('data_vencimento', proxMes)
+      .order('data_vencimento')
     if (error) throw error
+    return data || []
   },
-  async updateRecado(id, titulo, texto, fixado) {
-    const { error } = await sb.from('mural_recados').update({ titulo, texto, fixado, atualizado_em: new Date().toISOString() }).eq('id', id)
+
+  async criarPagamento(alunoId, valor, dataVencimento) {
+    const { data, error } = await sb
+      .from('pagamentos')
+      .insert({ aluno_id: alunoId, valor, data_vencimento: dataVencimento })
+      .select().single()
     if (error) throw error
+    return data
   },
-  async deleteRecado(id) {
-    const { error } = await sb.from('mural_recados').delete().eq('id', id)
+
+  async marcarPago(id, dataPagamento, formaPagamento) {
+    const { error } = await sb
+      .from('pagamentos')
+      .update({ pago: true, data_pagamento: dataPagamento, forma_pagamento: formaPagamento })
+      .eq('id', id)
     if (error) throw error
   },
 
-  // ── EVENTOS ──────────────────────────────────────────────────────────────
-  async getEventos() {
-    const { data, error } = await sb.from('eventos').select('*').order('data_evento', { ascending: true })
-    if (error) throw error
-    return data || []
-  },
-  async createEvento(ev) {
-    const { error } = await sb.from('eventos').insert(ev)
-    if (error) throw error
-  },
-  async updateEvento(id, ev) {
-    const { error } = await sb.from('eventos').update(ev).eq('id', id)
-    if (error) throw error
-  },
-  async deleteEvento(id) {
-    const { error } = await sb.from('eventos').delete().eq('id', id)
+  async desmarcarPago(id) {
+    const { error } = await sb
+      .from('pagamentos')
+      .update({ pago: false, data_pagamento: null, forma_pagamento: null })
+      .eq('id', id)
     if (error) throw error
   },
 
-  // ── GRADUAÇÕES ──────────────────────────────────────────────────────────
-  async getHistoricoAluno(alunoId) {
-    const { data, error } = await sb.from('graduacoes_historico').select('*').eq('aluno_id', alunoId).order('data', { ascending: false })
+  async deletePagamento(id) {
+    const { error } = await sb.from('pagamentos').delete().eq('id', id)
     if (error) throw error
-    return data || []
-  },
-  async promoverAluno(alunoId, faixa, grau, nota, data, aulasAcumuladas) {
-    // 1. Insere no histórico
-    const { error: e1 } = await sb.from('graduacoes_historico').insert({
-      aluno_id: alunoId, faixa, grau, nota, data, aulas_acumuladas: aulasAcumuladas
-    })
-    if (e1) throw e1
-    // 2. Atualiza profile do aluno
-    const { error: e2 } = await sb.from('profiles').update({ faixa, grau }).eq('id', alunoId)
-    if (e2) throw e2
-    // 3. Cria notificação pro aluno
-    await sb.from('notificacoes').insert({
-      user_id: alunoId,
-      titulo: 'Você foi promovido!',
-      texto: `Parabéns! Você agora é ${faixa} ${grau > 0 ? grau + 'º grau' : ''}.`
-    })
-  },
-  async getTotalAulasAluno(alunoId) {
-    const { count } = await sb.from('presences').select('*', { count: 'exact', head: true }).eq('aluno_id', alunoId).eq('presente', true)
-    return count || 0
   },
 
-  // ── NOTIFICAÇÕES ────────────────────────────────────────────────────────
-  async getMinhasNotificacoes(userId) {
-    const { data, error } = await sb.from('notificacoes').select('*').eq('user_id', userId).order('criado_em', { ascending: false }).limit(50)
+  async getConfigMensalidade() {
+    const { data, error } = await sb
+      .from('config')
+      .select('mensalidade_valor, mensalidade_dia_vencimento')
+      .eq('id', 1)
+      .single()
+    if (error && error.code !== 'PGRST116') throw error
+    return data || { mensalidade_valor: 150, mensalidade_dia_vencimento: 10 }
+  },
+
+  async saveConfigMensalidade(valor, diaVencimento) {
+    const { error } = await sb
+      .from('config')
+      .upsert({ id: 1, mensalidade_valor: valor, mensalidade_dia_vencimento: diaVencimento })
     if (error) throw error
-    return data || []
-  },
-  async marcarNotifLida(id) {
-    await sb.from('notificacoes').update({ lida: true }).eq('id', id)
-  },
-  async marcarTodasLidas(userId) {
-    await sb.from('notificacoes').update({ lida: true }).eq('user_id', userId).eq('lida', false)
   }
+
 }
