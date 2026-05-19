@@ -141,6 +141,7 @@ function setupNav(){
     { id:'videos', label:'Vídeos' },
   ]
   if(isProf) items.push({ id:'students', label:'Alunos' })
+  if(isProf) items.push({ id:'financeiro', label:'Financeiro' })
   if(!isProf) items.push({ id:'perfil', label:'Perfil' })
   items.push({ id:'settings', label:'⚙️', isIcon:true })
 
@@ -159,6 +160,7 @@ function setupNav(){
       // Carrega conteúdo da página
       if(btn.dataset.page === 'comunicacao') renderComunicacao()
       if(btn.dataset.page === 'perfil') openPerfilSelf()
+      if(btn.dataset.page === 'financeiro') renderFinanceiro()
     })
   })
 }
