@@ -103,6 +103,7 @@ async function boot(){
     applyLogo()
     loadTermoConfig()
     loadRegrasGraduacao()
+    carregarConfigMensalidade()
 
     // 8. Renderiza tudo
     renderAll()
@@ -1062,32 +1063,6 @@ async function shareNative(){
   }
 }
 
-function openStuModal(id){
-  state.editingStuId = id
-  const s = state.alunos.find(x => x.id === id)
-  if(!s) return
-  $('stu-name').value = s.nome
-  $('stu-belt').value = s.faixa
-  $('modal-stu').style.display = 'flex'
-}
-
-async function saveStudent(){
-  const nome = $('stu-name').value.trim()
-  const faixa = $('stu-belt').value
-  if(!nome){ toast('Nome obrigatório.', true); return }
-  try {
-    await DB.updateAluno(state.editingStuId, { nome, faixa })
-    const s = state.alunos.find(x => x.id === state.editingStuId)
-    if(s){ s.nome = nome; s.faixa = faixa }
-    closeModal('modal-stu')
-    renderStudents()
-    renderPresContent()
-    toast('Aluno atualizado!')
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  }
-}
-
 async function deleteStudent(id){
   if(!confirm('Remover este aluno? Esta ação não pode ser desfeita.')) return
   try {
@@ -1108,279 +1083,6 @@ function closeModal(id){
 }
 
 // ════════════════════════════════════════════════════════════════════════
-// FASE 3: COMUNICAÇÃO (Mural + Eventos) + GRADUAÇÃO + NOTIFICAÇÕES
-// ════════════════════════════════════════════════════════════════════════
-
-let comTab = 'mural'
-let perfilAlunoId = null
-
-async function renderComunicacao(){
-  const isProf = Auth.isProfessor()
-  $('page-comunicacao').innerHTML = `
-    <div class="slabel">Avisos da academia</div>
-    <div class="stitle">Comunicação</div>
-    <div class="com-tabs">
-      <button class="com-tab ${comTab==='mural'?'active':''}" onclick="switchComTab('mural')"><i class="ti ti-pin"></i> Mural</button>
-      <button class="com-tab ${comTab==='eventos'?'active':''}" onclick="switchComTab('eventos')"><i class="ti ti-calendar-event"></i> Eventos</button>
-      <button class="com-tab ${comTab==='notif'?'active':''}" onclick="switchComTab('notif')"><i class="ti ti-bell"></i> Notificações</button>
-    </div>
-    <div id="com-content"></div>
-  `
-  if(comTab === 'mural') await renderMural()
-  else if(comTab === 'eventos') await renderEventos()
-  else if(comTab === 'notif') await renderNotificacoes()
-}
-
-function switchComTab(tab){
-  comTab = tab
-  renderComunicacao()
-}
-
-async function renderMural(){
-  const isProf = Auth.isProfessor()
-  try {
-    const recados = await DB.getRecados()
-    const c = $('com-content')
-    c.innerHTML = `
-      <div class="mural-header">
-        <div class="mural-count">${recados.length} ${recados.length===1?'recado':'recados'}</div>
-        ${isProf ? '<button class="pbtn" onclick="openRecadoModal()"><i class="ti ti-plus"></i> Novo recado</button>' : ''}
-      </div>
-      <div class="recado-list">
-        ${recados.length === 0 ? '<div class="empty-state"><div class="empty-icon"><i class="ti ti-pin"></i></div><div class="empty-title">Nenhum recado</div><div class="empty-text">Os recados aparecerão aqui.</div></div>' :
-        recados.map(r => `
-          <div class="recado ${r.fixado?'fixed':''}">
-            <div class="recado-head">
-              <div class="recado-title-area">
-                <div class="recado-title">${escapeHtml(r.titulo)}</div>
-                <div class="recado-meta">
-                  ${r.fixado ? '<span class="recado-pin"><i class="ti ti-pin-filled"></i> Fixado</span><span>·</span>' : ''}
-                  <span>${formatDate(r.criado_em)}</span>
-                </div>
-              </div>
-              ${isProf ? `<div class="recado-actions">
-                <button class="ibtn" onclick='openRecadoModal(${JSON.stringify(r).replace(/'/g,"&#39;")})'><i class="ti ti-edit"></i></button>
-                <button class="dbtn" onclick="deleteRecado('${r.id}')"><i class="ti ti-trash"></i></button>
-              </div>` : ''}
-            </div>
-            <div class="recado-text">${escapeHtml(r.texto)}</div>
-          </div>
-        `).join('')}
-      </div>
-    `
-  } catch(err){
-    $('com-content').innerHTML = `<div style="padding:20px;color:#e05050">Erro: ${err.message}</div>`
-  }
-}
-
-function openRecadoModal(recado){
-  const isEdit = !!recado
-  const html = `
-    <div class="mlay" id="modal-recado" style="display:flex">
-      <div class="mbox">
-        <div class="mhead">
-          <span class="mtitle">${isEdit?'Editar Recado':'Novo Recado'}</span>
-          <button class="mclose" onclick="closeModal('modal-recado')">✕</button>
-        </div>
-        <div class="mbody">
-          <div class="form-row">
-            <label class="form-label">Título</label>
-            <input class="form-input" id="rec-titulo" value="${isEdit?escapeHtml(recado.titulo):''}">
-          </div>
-          <div class="form-row">
-            <label class="form-label">Mensagem</label>
-            <textarea class="form-textarea" id="rec-texto">${isEdit?escapeHtml(recado.texto):''}</textarea>
-          </div>
-          <div class="toggle-row">
-            <div class="toggle-pin">
-              <i class="ti ti-pin-filled toggle-pin-icon"></i>
-              <div>
-                <div class="toggle-pin-title">Fixar no topo</div>
-                <div class="toggle-pin-desc">Recado aparece destacado</div>
-              </div>
-            </div>
-            <div class="switch ${isEdit&&recado.fixado?'on':''}" id="rec-fixado" onclick="this.classList.toggle('on')"></div>
-          </div>
-        </div>
-        <div class="mfoot">
-          <button class="fbtn" onclick="closeModal('modal-recado')">Cancelar</button>
-          <button class="pbtn" onclick="saveRecado('${isEdit?recado.id:''}')"><i class="ti ti-check"></i> Salvar</button>
-        </div>
-      </div>
-    </div>
-  `
-  // remove modal antigo se existir
-  const old = $('modal-recado'); if(old) old.remove()
-  document.body.insertAdjacentHTML('beforeend', html)
-}
-
-async function saveRecado(id){
-  const titulo = $('rec-titulo').value.trim()
-  const texto = $('rec-texto').value.trim()
-  const fixado = $('rec-fixado').classList.contains('on')
-  if(!titulo || !texto){ toast('Preencha título e mensagem.', true); return }
-  try {
-    if(id) await DB.updateRecado(id, titulo, texto, fixado)
-    else await DB.createRecado(titulo, texto, fixado)
-    closeModal('modal-recado'); $('modal-recado').remove()
-    toast(id?'Recado atualizado.':'Recado criado.')
-    renderMural()
-  } catch(err){ toast('Erro: '+err.message, true) }
-}
-
-async function deleteRecado(id){
-  if(!confirm('Excluir este recado?')) return
-  try { await DB.deleteRecado(id); toast('Recado excluído.'); renderMural() }
-  catch(err){ toast('Erro: '+err.message, true) }
-}
-
-// ─── EVENTOS ────────────────────────────────────────────────────────────
-
-async function renderEventos(){
-  const isProf = Auth.isProfessor()
-  try {
-    const eventos = await DB.getEventos()
-    $('com-content').innerHTML = `
-      <div class="mural-header">
-        <div class="mural-count">${eventos.length} ${eventos.length===1?'evento':'eventos'}</div>
-        ${isProf ? '<button class="pbtn" onclick="openEventoModal()"><i class="ti ti-plus"></i> Novo evento</button>' : ''}
-      </div>
-      <div class="recado-list">
-        ${eventos.length === 0 ? '<div class="empty-state"><div class="empty-icon"><i class="ti ti-calendar-event"></i></div><div class="empty-title">Nenhum evento</div><div class="empty-text">Seminários e campeonatos aparecerão aqui.</div></div>' :
-        eventos.map(e => `
-          <div class="recado">
-            <div class="recado-head">
-              <div class="recado-title-area">
-                <div class="recado-title">${escapeHtml(e.titulo)}</div>
-                <div class="recado-meta">
-                  <span style="text-transform:uppercase;letter-spacing:1px;color:var(--gold,#c8b89a)">${formatDate(e.data_evento)}</span>
-                  ${e.horario ? '<span>·</span><span>'+e.horario.slice(0,5)+'</span>' : ''}
-                  ${e.local ? '<span>·</span><span>'+escapeHtml(e.local)+'</span>' : ''}
-                </div>
-              </div>
-              ${isProf ? `<div class="recado-actions">
-                <button class="ibtn" onclick='openEventoModal(${JSON.stringify(e).replace(/'/g,"&#39;")})'><i class="ti ti-edit"></i></button>
-                <button class="dbtn" onclick="deleteEvento('${e.id}')"><i class="ti ti-trash"></i></button>
-              </div>` : ''}
-            </div>
-            ${e.descricao ? '<div class="recado-text">'+escapeHtml(e.descricao)+'</div>' : ''}
-          </div>
-        `).join('')}
-      </div>
-    `
-  } catch(err){
-    $('com-content').innerHTML = `<div style="padding:20px;color:#e05050">Erro: ${err.message}</div>`
-  }
-}
-
-function openEventoModal(ev){
-  const isEdit = !!ev
-  const html = `
-    <div class="mlay" id="modal-evento" style="display:flex">
-      <div class="mbox">
-        <div class="mhead">
-          <span class="mtitle">${isEdit?'Editar Evento':'Novo Evento'}</span>
-          <button class="mclose" onclick="closeModal('modal-evento')">✕</button>
-        </div>
-        <div class="mbody">
-          <div class="form-row">
-            <label class="form-label">Título</label>
-            <input class="form-input" id="ev-titulo" value="${isEdit?escapeHtml(ev.titulo):''}" placeholder="Ex: Seminário com Alexandre Vieira">
-          </div>
-          <div class="form-row">
-            <label class="form-label">Data</label>
-            <input class="form-input" type="date" id="ev-data" value="${isEdit?ev.data_evento:''}">
-          </div>
-          <div class="form-row">
-            <label class="form-label">Horário (opcional)</label>
-            <input class="form-input" type="time" id="ev-hora" value="${isEdit&&ev.horario?ev.horario.slice(0,5):''}">
-          </div>
-          <div class="form-row">
-            <label class="form-label">Local (opcional)</label>
-            <input class="form-input" id="ev-local" value="${isEdit&&ev.local?escapeHtml(ev.local):''}" placeholder="Ex: Academia ou Ginásio Municipal">
-          </div>
-          <div class="form-row">
-            <label class="form-label">Descrição</label>
-            <textarea class="form-textarea" id="ev-desc">${isEdit&&ev.descricao?escapeHtml(ev.descricao):''}</textarea>
-          </div>
-        </div>
-        <div class="mfoot">
-          <button class="fbtn" onclick="closeModal('modal-evento')">Cancelar</button>
-          <button class="pbtn" onclick="saveEvento('${isEdit?ev.id:''}')"><i class="ti ti-check"></i> Salvar</button>
-        </div>
-      </div>
-    </div>
-  `
-  const old = $('modal-evento'); if(old) old.remove()
-  document.body.insertAdjacentHTML('beforeend', html)
-}
-
-async function saveEvento(id){
-  const data = {
-    titulo: $('ev-titulo').value.trim(),
-    data_evento: $('ev-data').value,
-    horario: $('ev-hora').value || null,
-    local: $('ev-local').value.trim() || null,
-    descricao: $('ev-desc').value.trim() || null
-  }
-  if(!data.titulo || !data.data_evento){ toast('Título e data obrigatórios.', true); return }
-  try {
-    if(id) await DB.updateEvento(id, data)
-    else await DB.createEvento(data)
-    closeModal('modal-evento'); $('modal-evento').remove()
-    toast(id?'Evento atualizado.':'Evento criado.')
-    renderEventos()
-  } catch(err){ toast('Erro: '+err.message, true) }
-}
-
-async function deleteEvento(id){
-  if(!confirm('Excluir este evento?')) return
-  try { await DB.deleteEvento(id); toast('Evento excluído.'); renderEventos() }
-  catch(err){ toast('Erro: '+err.message, true) }
-}
-
-// ─── NOTIFICAÇÕES ────────────────────────────────────────────────────────
-
-async function renderNotificacoes(){
-  if(!Auth.currentProfile){ return }
-  try {
-    const notifs = await DB.getMinhasNotificacoes(Auth.currentProfile.id)
-    const naoLidas = notifs.filter(n => !n.lida).length
-    $('com-content').innerHTML = `
-      <div class="mural-header">
-        <div class="mural-count">${notifs.length} ${notifs.length===1?'notificação':'notificações'}${naoLidas?' · <strong style="color:var(--accent)">'+naoLidas+' não lida(s)</strong>':''}</div>
-        ${naoLidas ? '<button class="fbtn" onclick="marcarTodasLidas()"><i class="ti ti-check"></i> Marcar todas como lidas</button>' : ''}
-      </div>
-      <div class="recado-list">
-        ${notifs.length === 0 ? '<div class="empty-state"><div class="empty-icon"><i class="ti ti-bell"></i></div><div class="empty-title">Sem notificações</div><div class="empty-text">Você será notificado sobre graduações e novidades.</div></div>' :
-        notifs.map(n => `
-          <div class="recado ${!n.lida?'fixed':''}" onclick="marcarLida('${n.id}')" style="cursor:pointer">
-            <div class="recado-head">
-              <div class="recado-title-area">
-                <div class="recado-title">${escapeHtml(n.titulo)}</div>
-                <div class="recado-meta">
-                  ${!n.lida ? '<span class="recado-pin"><i class="ti ti-circle-filled" style="font-size:8px"></i> Nova</span><span>·</span>' : ''}
-                  <span>${formatDate(n.criado_em)}</span>
-                </div>
-              </div>
-            </div>
-            ${n.texto ? '<div class="recado-text">'+escapeHtml(n.texto)+'</div>' : ''}
-          </div>
-        `).join('')}
-      </div>
-    `
-  } catch(err){
-    $('com-content').innerHTML = `<div style="padding:20px;color:#e05050">Erro: ${err.message}</div>`
-  }
-}
-
-async function marcarLida(id){
-  try { await DB.marcarNotifLida(id); renderNotificacoes() } catch(e){}
-}
-async function marcarTodasLidas(){
-  try { await DB.marcarTodasLidas(Auth.currentProfile.id); toast('Marcadas como lidas.'); renderNotificacoes() } catch(e){}
-}
-
 // ═════════════════════════════════════════════════════════════════════════
 // PERFIL DO ALUNO + GRADUAÇÃO
 // ═════════════════════════════════════════════════════════════════════════
@@ -1462,6 +1164,8 @@ async function openPerfilAluno(alunoId){
         </div>
       </div>
 
+      <div id="perfil-mensalidade-area"></div>
+
       <div class="timeline-header">
         <div class="timeline-title">Histórico de Graduação</div>
       </div>
@@ -1488,6 +1192,8 @@ async function openPerfilAluno(alunoId){
         </div>`}
       </div>
     `
+    // Carrega mensalidade depois do HTML montar
+    carregarMensalidadeNoPerfil(alunoId)
   } catch(err){
     pageEl.innerHTML = `<div style="padding:20px;color:#e05050">Erro: ${err.message}</div>`
   }
@@ -1758,7 +1464,6 @@ function renderMural(){
   }).join('')
 }
 
-function escapeHtml(s){ return (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) }
 
 function openRecadoModal(id){
   state_mural.editing = id
@@ -1919,6 +1624,200 @@ async function removerTermoPdf(){
     toast('PDF removido.')
   } catch(err){
     toast('Erro: ' + err.message, true)
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// FINANCEIRO / MENSALIDADES
+// ════════════════════════════════════════════════════════════════════════
+
+const state_fin = { ano: new Date().getFullYear(), mes: new Date().getMonth() + 1, configMens: { mensalidade_valor: 150, mensalidade_dia_vencimento: 10 } }
+
+const MESES_FULL = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+
+function fmtBRL(v){ return 'R$ ' + (Number(v) || 0).toFixed(2).replace('.', ',') }
+
+async function carregarConfigMensalidade(){
+  if(!Auth.isProfessor()) return
+  try {
+    const cfg = await DB.getConfigMensalidade()
+    state_fin.configMens = cfg
+    if($('cfg-mens-valor')) $('cfg-mens-valor').value = cfg.mensalidade_valor || 150
+    if($('cfg-mens-dia')) $('cfg-mens-dia').value = cfg.mensalidade_dia_vencimento || 10
+  } catch(err) { console.warn('[mens config]', err) }
+}
+
+async function salvarConfigMensalidade(){
+  const valor = parseFloat($('cfg-mens-valor').value) || 0
+  const dia = parseInt($('cfg-mens-dia').value) || 10
+  if(valor <= 0){ toast('Valor inválido.', true); return }
+  if(dia < 1 || dia > 28){ toast('Dia entre 1 e 28.', true); return }
+  try {
+    await DB.saveConfigMensalidade(valor, dia)
+    state_fin.configMens = { mensalidade_valor: valor, mensalidade_dia_vencimento: dia }
+    toast('Mensalidade padrão salva!')
+  } catch(err){ toast('Erro: ' + err.message, true) }
+}
+
+function fin_mudaMes(delta){
+  state_fin.mes += delta
+  if(state_fin.mes < 1){ state_fin.mes = 12; state_fin.ano-- }
+  if(state_fin.mes > 12){ state_fin.mes = 1; state_fin.ano++ }
+  renderFinanceiro()
+}
+
+async function renderFinanceiro(){
+  $('fin-mes-label').textContent = `${MESES_FULL[state_fin.mes - 1]} ${state_fin.ano}`
+  try {
+    const rows = await DB.getTodosPagamentosMes(state_fin.ano, state_fin.mes)
+    const pagos = rows.filter(r => r.pago)
+    const pendentes = rows.filter(r => !r.pago)
+    const receita = pagos.reduce((s, r) => s + Number(r.valor || 0), 0)
+
+    $('fin-total-alunos').textContent = rows.length
+    $('fin-pagos').textContent = pagos.length
+    $('fin-pendentes').textContent = pendentes.length
+    $('fin-receita').textContent = fmtBRL(receita)
+
+    if(rows.length === 0){
+      $('fin-body').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--txt3)">Nenhuma cobrança neste mês.<br><span style="font-size:11px">Clique em "Gerar cobranças do mês" pra criar.</span></td></tr>`
+      return
+    }
+
+    $('fin-body').innerHTML = rows.map(p => {
+      const venc = new Date(p.data_vencimento + 'T00:00:00')
+      const hoje = new Date(); hoje.setHours(0,0,0,0)
+      const atrasado = !p.pago && venc < hoje
+      const statusClass = p.pago ? 'pago' : atrasado ? 'atrasado' : 'pendente'
+      const statusTxt = p.pago ? '✓ Pago' : atrasado ? '✕ Atrasado' : '○ Pendente'
+      const statusColor = p.pago ? 'var(--accent)' : atrasado ? '#e05050' : 'var(--txt3)'
+      return `<tr>
+        <td style="font-weight:500">${escapeHtml(p.profiles?.nome || '?')}</td>
+        <td>${fmtBRL(p.valor)}</td>
+        <td style="font-size:11px;color:${atrasado?'#e05050':'var(--txt2)'}">${formatDate(p.data_vencimento)}</td>
+        <td><span style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:${statusColor}">${statusTxt}</span></td>
+        <td style="display:flex;gap:4px">
+          ${p.pago
+            ? `<button class="fbtn" onclick="desmarcarPago('${p.id}')"><i class="ti ti-rotate"></i> Desfazer</button>`
+            : `<button class="pbtn" onclick="marcarPago('${p.id}')"><i class="ti ti-check"></i> Pago</button>`
+          }
+          <button class="dbtn" onclick="excluirPagamento('${p.id}')"><i class="ti ti-trash"></i></button>
+        </td>
+      </tr>`
+    }).join('')
+  } catch(err){
+    $('fin-body').innerHTML = `<tr><td colspan="5" style="color:#e05050;padding:20px">Erro: ${err.message}</td></tr>`
+  }
+}
+
+async function gerarMensalidadesDoMes(){
+  if(!confirm(`Gerar cobranças de ${MESES_FULL[state_fin.mes - 1]}/${state_fin.ano} para todos os alunos?`)) return
+  try {
+    const cfg = state_fin.configMens
+    const valor = cfg.mensalidade_valor || 150
+    const dia = Math.min(cfg.mensalidade_dia_vencimento || 10, 28)
+    const dataVenc = `${state_fin.ano}-${String(state_fin.mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`
+
+    // Pega pagamentos já existentes do mês pra não duplicar
+    const existentes = await DB.getTodosPagamentosMes(state_fin.ano, state_fin.mes)
+    const jaTeve = new Set(existentes.map(p => p.aluno_id))
+
+    let criadas = 0
+    for(const aluno of state.alunos){
+      if(jaTeve.has(aluno.id)) continue
+      await DB.criarPagamento(aluno.id, valor, dataVenc)
+      criadas++
+    }
+    toast(criadas === 0 ? 'Todos os alunos já tem cobrança no mês.' : `${criadas} cobrança(s) criada(s)!`)
+    renderFinanceiro()
+  } catch(err){ toast('Erro: ' + err.message, true) }
+}
+
+async function marcarPago(id){
+  const forma = prompt('Forma de pagamento (PIX, Dinheiro, Cartão, etc):', 'PIX')
+  if(forma === null) return
+  try {
+    await DB.marcarPago(id, new Date().toISOString().slice(0,10), forma)
+    toast('Marcado como pago!')
+    renderFinanceiro()
+  } catch(err){ toast('Erro: ' + err.message, true) }
+}
+
+async function desmarcarPago(id){
+  if(!confirm('Desfazer este pagamento?')) return
+  try {
+    await DB.desmarcarPago(id)
+    toast('Pagamento desfeito.')
+    renderFinanceiro()
+  } catch(err){ toast('Erro: ' + err.message, true) }
+}
+
+async function excluirPagamento(id){
+  if(!confirm('Excluir esta cobrança? Esta ação não pode ser desfeita.')) return
+  try {
+    await DB.deletePagamento(id)
+    toast('Cobrança excluída.')
+    renderFinanceiro()
+  } catch(err){ toast('Erro: ' + err.message, true) }
+}
+
+// Mensalidade no perfil do aluno
+async function carregarMensalidadeNoPerfil(alunoId){
+  const area = $('perfil-mensalidade-area')
+  if(!area) return
+  try {
+    const pagamentos = await DB.getPagamentosAluno(alunoId)
+    if(pagamentos.length === 0){
+      area.innerHTML = ''
+      return
+    }
+    // Próximo pendente
+    const pendente = pagamentos.find(p => !p.pago)
+    const hoje = new Date(); hoje.setHours(0,0,0,0)
+
+    let cardHtml = ''
+    if(pendente){
+      const venc = new Date(pendente.data_vencimento + 'T00:00:00')
+      const diasRest = Math.ceil((venc - hoje) / 86400000)
+      const atrasado = diasRest < 0
+      cardHtml = `
+        <div style="background:var(--surf);border:0.5px solid var(--border);border-left:3px solid ${atrasado?'#e05050':'var(--accent)'};border-radius:2px;padding:14px 16px;margin-bottom:var(--sp-4)">
+          <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);margin-bottom:6px">Próximo Vencimento</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--txt);line-height:1">${fmtBRL(pendente.valor)}</div>
+              <div style="font-size:11px;color:${atrasado?'#e05050':'var(--txt2)'};margin-top:4px">
+                ${atrasado ? `Atrasado há ${Math.abs(diasRest)} dia(s)` : diasRest === 0 ? 'Vence hoje' : `Vence em ${diasRest} dia(s)`}
+                · ${formatDate(pendente.data_vencimento)}
+              </div>
+            </div>
+            <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:${atrasado?'#e05050':'var(--accent)'};font-weight:500">
+              ${atrasado ? '✕ ATRASADO' : '○ PENDENTE'}
+            </div>
+          </div>
+        </div>
+      `
+    }
+
+    // Histórico
+    const pagos = pagamentos.filter(p => p.pago).slice(0, 6)
+    if(pagos.length > 0){
+      cardHtml += `
+        <div style="background:var(--surf);border:0.5px solid var(--border);border-radius:2px;padding:14px 16px;margin-bottom:var(--sp-4)">
+          <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);margin-bottom:10px">Últimos Pagamentos</div>
+          ${pagos.map(p => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--border);font-size:12px">
+              <span style="color:var(--txt2)">${formatDate(p.data_pagamento || p.data_vencimento)}</span>
+              <span style="color:var(--txt)">${fmtBRL(p.valor)}</span>
+              <span style="color:var(--accent);font-size:10px;letter-spacing:1px;text-transform:uppercase">${p.forma_pagamento || '✓ pago'}</span>
+            </div>
+          `).join('')}
+        </div>
+      `
+    }
+    area.innerHTML = cardHtml
+  } catch(err){
+    area.innerHTML = `<div style="color:#e05050;font-size:11px;padding:10px">Erro ao carregar mensalidade: ${err.message}</div>`
   }
 }
 
