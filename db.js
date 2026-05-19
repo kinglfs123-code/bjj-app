@@ -418,6 +418,23 @@ const DB = {
     return data || []
   },
 
+  // ── REGRAS DE GRADUAÇÃO ─────────────────────────────────────────────────
+
+  async getRegrasGraduacao() {
+    const { data, error } = await sb
+      .from('graduacao_regras')
+      .select('*')
+    if (error) throw error
+    return data || []
+  },
+
+  async saveRegraGraduacao(faixa, aulas_min, meses_min) {
+    const { error } = await sb
+      .from('graduacao_regras')
+      .upsert({ faixa, aulas_min, meses_min })
+    if (error) throw error
+  },
+
   // ── MURAL DE RECADOS ─────────────────────────────────────────────────────
   async getRecados() {
     const { data, error } = await sb.from('mural_recados').select('*').order('fixado', { ascending: false }).order('criado_em', { ascending: false })
