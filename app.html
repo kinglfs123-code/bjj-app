@@ -104,7 +104,7 @@
   </div>
 
   <div class="page" id="page-perfil">
-    <button class="back-btn" id="perfil-back" style="display:none" onclick="closeFinalPerfil()"><i class="ti ti-arrow-left" aria-hidden="true"></i> Voltar para lista</button>
+    <button class="back-btn" id="perfil-back" style="display:none" onclick="voltarParaAlunos()"><i class="ti ti-arrow-left" aria-hidden="true"></i> Voltar para lista</button>
     <div class="slabel" id="perfil-label">Meu Perfil</div>
     <div id="perfil-content"></div>
   </div>
@@ -140,6 +140,29 @@
     <table class="tbl" id="stu-tbl">
       <thead><tr><th>Nome</th><th>E-mail</th><th>Faixa</th><th>Presenças</th><th>Ações</th></tr></thead>
       <tbody id="stu-body"></tbody>
+    </table>
+  </div>
+
+  <div class="page prof-only" id="page-financeiro">
+    <div class="slabel">Gestão</div>
+    <div class="stitle">Financeiro</div>
+    <div class="dnav" style="margin-bottom:var(--sp-4)">
+      <button class="darrow" onclick="fin_mudaMes(-1)">‹</button>
+      <span class="ddate" id="fin-mes-label">—</span>
+      <button class="darrow" onclick="fin_mudaMes(1)">›</button>
+    </div>
+    <div class="scards" style="margin-bottom:var(--sp-5)">
+      <div class="sc"><div class="scv" id="fin-total-alunos">—</div><div class="scl">Alunos</div></div>
+      <div class="sc"><div class="scv" id="fin-pagos">—</div><div class="scl">Pagos</div></div>
+      <div class="sc"><div class="scv" id="fin-pendentes">—</div><div class="scl">Pendentes</div></div>
+      <div class="sc"><div class="scv" id="fin-receita">—</div><div class="scl">Receita</div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:var(--sp-4);flex-wrap:wrap">
+      <button class="pbtn" onclick="gerarMensalidadesDoMes()"><i class="ti ti-plus" aria-hidden="true"></i> Gerar cobranças do mês</button>
+    </div>
+    <table class="tbl">
+      <thead><tr><th>Aluno</th><th>Valor</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr></thead>
+      <tbody id="fin-body"></tbody>
     </table>
   </div>
 
@@ -210,6 +233,20 @@
           <button class="fbtn" id="termo-pdf-remove" onclick="removerTermoPdf()" style="display:none"><i class="ti ti-trash" aria-hidden="true"></i> Remover</button>
         </div>
       </div>
+    </div>
+    <div class="scard prof-only">
+      <div class="scard-title">Mensalidade Padrão</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <div style="flex:1">
+          <label class="aula-info-lbl" style="margin-bottom:4px;display:block">Valor (R$)</label>
+          <input class="sinput" type="number" id="cfg-mens-valor" step="0.01" style="width:100%">
+        </div>
+        <div style="flex:1">
+          <label class="aula-info-lbl" style="margin-bottom:4px;display:block">Dia de vencimento</label>
+          <input class="sinput" type="number" id="cfg-mens-dia" min="1" max="28" style="width:100%">
+        </div>
+      </div>
+      <button class="pbtn" onclick="salvarConfigMensalidade()"><i class="ti ti-check" aria-hidden="true"></i> Salvar</button>
     </div>
     <div class="scard prof-only">
       <div class="scard-title">Regras de Graduação</div>
