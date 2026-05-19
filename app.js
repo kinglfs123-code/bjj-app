@@ -99,6 +99,7 @@ async function boot(){
     applyTheme(state.config.tema)
     applyName()
     applyLogo()
+    loadTermoConfig()
 
     // 8. Renderiza tudo
     renderAll()
@@ -1721,6 +1722,9 @@ async function openPerfilAluno(alunoId, fromList){
     state_perfil.aluno = aluno
     state_perfil.historico = await DB.getHistoricoGraduacao(alunoId)
     state_perfil.totalAulas = await DB.getTotalAulasAluno(alunoId)
+    try {
+      state_perfil.aceite = await DB.getAceiteAluno(alunoId)
+    } catch(e){ state_perfil.aceite = null }
 
     $('perfil-back').style.display = fromList ? 'inline-flex' : 'none'
     $('perfil-label').textContent = fromList ? 'Perfil do Aluno' : 'Meu Perfil'
@@ -1808,6 +1812,7 @@ function renderPerfil(){
 
     <div class="timeline-header">
       <div class="timeline-title">Histórico de Graduação</div>
+      ${state_perfil.aceite ? `<span style="font-size:10px;color:var(--accent);letter-spacing:1px;text-transform:uppercase;display:inline-flex;align-items:center;gap:4px"><i class="ti ti-circle-check-filled"></i> Termo aceito ${new Date(state_perfil.aceite.aceito_em).toLocaleDateString('pt-BR')}</span>` : ''}
     </div>
     <div class="timeline">
       ${hist.length === 0 ? `<div style="text-align:center;padding:20px;color:var(--txt3);font-size:12px">Nenhuma promoção registrada ainda.</div>` : `
@@ -1905,6 +1910,107 @@ async function deleteGraduacao(id){
     await DB.deleteGraduacao(id)
     toast('Promoção removida.')
     await openPerfilAluno(state_perfil.aluno.id, $('perfil-back').style.display !== 'none')
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// FASE 3.5: TERMO DE ACEITE (gestão pelo professor)
+// ════════════════════════════════════════════════════════════════════════
+
+const state_termo = { ativo: false, texto: null, pdf_url: null }
+
+async function loadTermoConfig(){
+  if(!Auth.isProfessor()) return
+  try {
+    const cfg = await DB.getTermoConfig()
+    state_termo.ativo = cfg.termo_ativo || false
+    state_termo.texto = cfg.termo_texto || null
+    state_termo.pdf_url = cfg.termo_pdf_url || null
+
+    // Atualiza UI
+    const sw = $('termo-switch')
+    if(sw) sw.classList.toggle('on', state_termo.ativo)
+    const txt = $('termo-texto')
+    if(txt) txt.value = state_termo.texto || ''
+    updateTermoPdfUI()
+  } catch(err){
+    console.error('[termo config]', err)
+  }
+}
+
+function updateTermoPdfUI(){
+  const info = $('termo-pdf-info')
+  const rm = $('termo-pdf-remove')
+  if(!info) return
+  if(state_termo.pdf_url){
+    const name = state_termo.pdf_url.split('/').pop()
+    info.innerHTML = `<strong style="color:var(--txt)">${name}</strong> · <a href="${state_termo.pdf_url}" target="_blank" style="color:var(--txt2);text-decoration:underline">Ver</a>`
+    if(rm) rm.style.display = 'inline-flex'
+  } else {
+    info.textContent = 'Nenhum PDF anexado.'
+    if(rm) rm.style.display = 'none'
+  }
+}
+
+async function toggleTermoAtivo(){
+  const sw = $('termo-switch')
+  const novoEstado = !sw.classList.contains('on')
+  sw.classList.toggle('on', novoEstado)
+  try {
+    await DB.saveTermoConfig({ termo_ativo: novoEstado })
+    state_termo.ativo = novoEstado
+    toast(novoEstado ? 'Termo ativado.' : 'Termo desativado.')
+  } catch(err){
+    sw.classList.toggle('on', !novoEstado)
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+async function saveTermoTexto(){
+  const texto = $('termo-texto').value.trim()
+  try {
+    await DB.saveTermoConfig({ termo_texto: texto || null })
+    state_termo.texto = texto || null
+    toast('Texto do termo salvo!')
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+async function onTermoPdfSelected(event){
+  const file = event.target.files[0]
+  if(!file) return
+  if(file.type !== 'application/pdf'){ toast('Selecione um arquivo PDF.', true); return }
+  if(file.size > 5 * 1024 * 1024){ toast('PDF muito grande (máx 5MB).', true); return }
+  toast('Enviando PDF...')
+  try {
+    if(state_termo.pdf_url){
+      try { await DB.removeTermoPdf(state_termo.pdf_url) } catch(e){ /* ignora */ }
+    }
+    const url = await DB.uploadTermoPdf(file)
+    await DB.saveTermoConfig({ termo_pdf_url: url })
+    state_termo.pdf_url = url
+    updateTermoPdfUI()
+    toast('PDF do termo enviado!')
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  } finally {
+    event.target.value = ''
+  }
+}
+
+async function removerTermoPdf(){
+  if(!confirm('Remover o PDF do termo?')) return
+  try {
+    if(state_termo.pdf_url){
+      try { await DB.removeTermoPdf(state_termo.pdf_url) } catch(e){ /* ignora */ }
+    }
+    await DB.saveTermoConfig({ termo_pdf_url: null })
+    state_termo.pdf_url = null
+    updateTermoPdfUI()
+    toast('PDF removido.')
   } catch(err){
     toast('Erro: ' + err.message, true)
   }
