@@ -14,7 +14,8 @@
 <body class="login-page">
   <div class="login-wrap">
     <div class="login-box">
-      <div class="login-logo">ART OF <em>BJJ</em></div>
+      <img id="brand-logo" src="" alt="" style="display:none;width:70px;height:70px;object-fit:contain;margin:0 auto 14px;border-radius:4px">
+      <div class="login-logo" id="brand-name">ART OF <em>BJJ</em></div>
       <div class="login-sub">Cadastro de aluno</div>
 
       <form id="signup-form" autocomplete="on">
@@ -30,6 +31,17 @@
           <label class="form-label" for="password">Crie uma senha</label>
           <input class="form-input" type="password" id="password" required minlength="6" autocomplete="new-password" placeholder="Mínimo 6 caracteres">
         </div>
+
+        <div id="termo-area" style="display:none;margin-top:18px;padding-top:18px;border-top:0.5px solid var(--border)">
+          <label class="form-label" style="margin-bottom:10px">Termo de aceite</label>
+          <div id="termo-box" style="max-height:200px;overflow-y:auto;background:var(--b);border:0.5px solid var(--border);border-radius:2px;padding:14px;font-size:12px;color:var(--txt2);line-height:1.6;white-space:pre-wrap;margin-bottom:10px"></div>
+          <a id="termo-pdf-link" href="#" target="_blank" style="display:none;font-size:11px;color:var(--txt2);text-decoration:underline;margin-bottom:10px"><i class="ti ti-file-text" aria-hidden="true"></i> Baixar PDF do termo</a>
+          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:12px;color:var(--txt);margin-top:8px">
+            <input type="checkbox" id="termo-checkbox" style="margin-top:3px;flex-shrink:0">
+            <span>Li e aceito o termo acima</span>
+          </label>
+        </div>
+
         <div class="form-err" id="err-msg"></div>
         <div class="form-ok" id="ok-msg" style="color:#7ac890;font-size:12px;text-align:center;margin:8px 0;min-height:18px"></div>
         <button class="form-submit" type="submit" id="submit-btn">Cadastrar</button>
@@ -70,6 +82,45 @@
       try {
         const sb = await waitForSb();
 
+        // Carrega logo/nome da academia
+        let termoConfig = { termo_ativo: false, termo_texto: null, termo_pdf_url: null };
+        try {
+          const { data } = await sb.from('config').select('nome_academia, logo_url, termo_ativo, termo_texto, termo_pdf_url').eq('id', 1).single();
+          if (data) {
+            if (data.logo_url) {
+              const img = document.getElementById('brand-logo');
+              img.src = data.logo_url;
+              img.style.display = 'block';
+            }
+            if (data.nome_academia) {
+              const parts = data.nome_academia.split(' ');
+              const last = parts.pop();
+              document.getElementById('brand-name').innerHTML =
+                parts.join(' ') + (parts.length ? ' ' : '') + '<em>' + last + '</em>';
+            }
+            termoConfig = {
+              termo_ativo: data.termo_ativo || false,
+              termo_texto: data.termo_texto || null,
+              termo_pdf_url: data.termo_pdf_url || null
+            };
+          }
+        } catch (e) { /* segue mesmo sem config */ }
+
+        // Mostrar termo se ativo
+        if (termoConfig.termo_ativo && (termoConfig.termo_texto || termoConfig.termo_pdf_url)) {
+          document.getElementById('termo-area').style.display = 'block';
+          if (termoConfig.termo_texto) {
+            document.getElementById('termo-box').textContent = termoConfig.termo_texto;
+          } else {
+            document.getElementById('termo-box').style.display = 'none';
+          }
+          if (termoConfig.termo_pdf_url) {
+            const link = document.getElementById('termo-pdf-link');
+            link.href = termoConfig.termo_pdf_url;
+            link.style.display = 'inline-block';
+          }
+        }
+
         // Se já está logado, redireciona pro app
         const { data: { session } } = await sb.auth.getSession();
         if (session) {
@@ -81,6 +132,15 @@
           e.preventDefault();
           errEl.textContent = '';
           okEl.textContent = '';
+
+          // Validar termo
+          if (termoConfig.termo_ativo) {
+            if (!document.getElementById('termo-checkbox').checked) {
+              errEl.textContent = 'Você precisa aceitar o termo para se cadastrar.';
+              return;
+            }
+          }
+
           submitBtn.disabled = true;
           submitBtn.textContent = 'Cadastrando...';
 
@@ -102,6 +162,27 @@
             });
 
             if (error) throw error;
+
+            // Registrar aceite do termo (se ativo e tem sessão)
+            if (termoConfig.termo_ativo && data.user) {
+              try {
+                let ip = null;
+                try {
+                  const r = await fetch('https://api.ipify.org?format=json');
+                  const d = await r.json();
+                  ip = d.ip;
+                } catch (e) { /* ok */ }
+                await sb.from('termo_aceites').insert({
+                  aluno_id: data.user.id,
+                  ip,
+                  user_agent: navigator.userAgent,
+                  termo_texto_snapshot: termoConfig.termo_texto,
+                  termo_pdf_url_snapshot: termoConfig.termo_pdf_url
+                });
+              } catch (e) {
+                console.warn('[termo] falha ao registrar aceite:', e);
+              }
+            }
 
             // Se tem sessão = entrou direto
             if (data.session) {
