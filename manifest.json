@@ -1,13 +1,13 @@
 {
-  "name": "Art of BJJ",
-  "short_name": "BJJ",
+  "name": "Garage Training",
+  "short_name": "Garage",
   "description": "Aplicativo de gestão para academia de Jiu-Jitsu",
   "start_url": "/index.html",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#080808",
-  "theme_color": "#080808",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
   "icons": [
     {
       "src": "/icon-192.png",
