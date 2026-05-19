@@ -594,3 +594,109 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 420px) {
   .nb { padding: 6px 8px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LOGIN / CADASTRO PAGES
+   ═══════════════════════════════════════════════════════════════════════ */
+.login-page {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--sp-5);
+  background: var(--b);
+  animation: fadeIn 0.4s var(--ease);
+}
+.login-wrap {
+  width: 100%; max-width: 380px;
+  display: flex; flex-direction: column;
+  align-items: center;
+  gap: var(--sp-5);
+}
+.login-box {
+  width: 100%;
+  background: var(--surf);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-7) var(--sp-5);
+  display: flex; flex-direction: column;
+  gap: var(--sp-4);
+  box-shadow: var(--shadow-md);
+  animation: slideUp 0.4s var(--ease);
+}
+.login-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 38px; letter-spacing: 4px;
+  text-align: center;
+  color: var(--txt);
+  line-height: 1;
+  margin-bottom: var(--sp-2);
+}
+.login-logo em { color: var(--accent); font-style: normal; }
+.login-sub {
+  text-align: center;
+  font-size: 9px; letter-spacing: 3px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+  margin-bottom: var(--sp-5);
+}
+
+.form-row { display: flex; flex-direction: column; gap: 6px; }
+.form-label {
+  font-size: 9px; letter-spacing: 2px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+}
+.form-input {
+  background: var(--b);
+  color: var(--txt);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  font-size: 14px;
+  transition: border-color var(--t-fast) var(--ease);
+}
+.form-input:focus { outline: none; border-color: var(--accent); }
+.form-submit {
+  background: var(--txt);
+  color: var(--b);
+  border: none;
+  border-radius: var(--r-sm);
+  padding: 14px;
+  font-size: 11px; letter-spacing: 3px; font-weight: 500; text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+  margin-top: var(--sp-2);
+}
+.form-submit:hover:not(:disabled) {
+  background: var(--accent); transform: translateY(-1px);
+}
+.form-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+.form-err {
+  font-size: 11px;
+  color: var(--danger);
+  text-align: center;
+  min-height: 14px;
+}
+.form-ok {
+  font-size: 11px;
+  color: var(--accent);
+  text-align: center;
+}
+.login-hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--txt3);
+  margin-top: var(--sp-3);
+}
+.login-hint a { color: var(--txt); text-decoration: underline; }
+.login-hint a:hover { color: var(--accent); }
+
+#brand-logo {
+  max-width: 80px;
+  max-height: 80px;
+  object-fit: contain;
+  margin: 0 auto var(--sp-2);
+}
+
+@media (max-width: 480px) {
+  .login-box { padding: var(--sp-5) var(--sp-4); }
+  .login-logo { font-size: 30px; }
+  .form-input { padding: 11px 12px; font-size: 13px; }
+}
