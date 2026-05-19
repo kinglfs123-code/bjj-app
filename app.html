@@ -355,51 +355,6 @@
   </div>
 </div>
 
-<!-- Modal: Promover Aluno -->
-<div class="mlay" id="modal-promover" style="display:none">
-  <div class="mbox">
-    <div class="mhead">
-      <span class="mtitle" id="pro-title">Promover Aluno</span>
-      <button class="mclose" onclick="closeModal('modal-promover')">✕</button>
-    </div>
-    <div class="mbody">
-      <div id="pro-atual"></div>
-      <div class="mrow">
-        <label class="mlabel">Nova faixa</label>
-        <div class="promo-faixas" id="pro-faixas">
-          <div class="promo-faixa-opt" data-faixa="white"><div class="belt white"></div><div class="promo-faixa-opt-name">Branca</div></div>
-          <div class="promo-faixa-opt" data-faixa="blue"><div class="belt blue"></div><div class="promo-faixa-opt-name">Azul</div></div>
-          <div class="promo-faixa-opt" data-faixa="purple"><div class="belt purple"></div><div class="promo-faixa-opt-name">Roxa</div></div>
-          <div class="promo-faixa-opt" data-faixa="brown"><div class="belt brown"></div><div class="promo-faixa-opt-name">Marrom</div></div>
-          <div class="promo-faixa-opt" data-faixa="black"><div class="belt black"></div><div class="promo-faixa-opt-name">Preta</div></div>
-        </div>
-      </div>
-      <div class="mrow">
-        <label class="mlabel">Novo grau</label>
-        <div class="promo-grau-row" id="pro-graus">
-          <button class="promo-grau-btn" data-grau="0">0</button>
-          <button class="promo-grau-btn" data-grau="1">1</button>
-          <button class="promo-grau-btn" data-grau="2">2</button>
-          <button class="promo-grau-btn" data-grau="3">3</button>
-          <button class="promo-grau-btn" data-grau="4">4</button>
-        </div>
-      </div>
-      <div class="mrow">
-        <label class="mlabel">Nota (opcional)</label>
-        <textarea class="sinput" id="pro-nota" style="width:100%;min-height:60px;resize:vertical;font-family:'DM Sans',sans-serif" placeholder="Ex: Evolução técnica notável..."></textarea>
-      </div>
-      <div class="mrow">
-        <label class="mlabel">Data da promoção</label>
-        <input class="sinput" type="date" id="pro-data" style="width:100%">
-      </div>
-    </div>
-    <div class="mfoot">
-      <button class="fbtn" onclick="closeModal('modal-promover')">Cancelar</button>
-      <button class="pbtn" onclick="confirmarPromocao()"><i class="ti ti-check" aria-hidden="true"></i> Confirmar promoção</button>
-    </div>
-  </div>
-</div>
-
 <div class="toast" id="toast"></div>
 
 <script src="config.js"></script>
