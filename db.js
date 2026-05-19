@@ -243,15 +243,19 @@ const DB = {
     return data || []
   },
 
-  // Lista de alunos confirmados em uma aula específica (para o professor)
+  // Lista de alunos confirmados em uma aula específica
   async getConfirmacoesAula(aulaId, data) {
     const { data: rows, error } = await sb
       .from('confirmacoes')
-      .select('aluno_id, profiles(nome, faixa)')
+      .select('aluno_id, profiles_publicos(nome, faixa)')
       .eq('aula_id', aulaId)
       .eq('data', data)
     if (error) throw error
-    return rows || []
+    // Normaliza para manter compatibilidade
+    return (rows || []).map(r => ({
+      aluno_id: r.aluno_id,
+      profiles: r.profiles_publicos
+    }))
   },
 
   // Lista de alunos que confirmaram em alguma aula de uma data (pra destacar na lista de presenças)
