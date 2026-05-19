@@ -340,6 +340,80 @@ const DB = {
     return count || 0
   },
 
+  // ── TERMO DE ACEITE ───────────────────────────────────────────────────────
+
+  async getTermoConfig() {
+    const { data, error } = await sb
+      .from('config')
+      .select('termo_ativo, termo_texto, termo_pdf_url')
+      .eq('id', 1)
+      .single()
+    if (error && error.code !== 'PGRST116') throw error
+    return data || { termo_ativo: false, termo_texto: null, termo_pdf_url: null }
+  },
+
+  async saveTermoConfig(fields) {
+    const { error } = await sb
+      .from('config')
+      .upsert({ id: 1, ...fields })
+    if (error) throw error
+  },
+
+  async uploadTermoPdf(file) {
+    const filename = `termo-${Date.now()}.pdf`
+    const { error: upErr } = await sb.storage
+      .from('termo-pdf')
+      .upload(filename, file, { cacheControl: '3600', upsert: false, contentType: 'application/pdf' })
+    if (upErr) throw upErr
+    const { data } = sb.storage.from('termo-pdf').getPublicUrl(filename)
+    return data.publicUrl
+  },
+
+  async removeTermoPdf(url) {
+    const filename = url.split('/').pop()
+    if (!filename) return
+    await sb.storage.from('termo-pdf').remove([filename])
+  },
+
+  async registrarAceite(alunoId, termoTexto, termoPdfUrl) {
+    // Pega IP via API pública (best effort)
+    let ip = null
+    try {
+      const r = await fetch('https://api.ipify.org?format=json')
+      const d = await r.json()
+      ip = d.ip
+    } catch(e) { /* ignora */ }
+
+    const { error } = await sb
+      .from('termo_aceites')
+      .insert({
+        aluno_id: alunoId,
+        ip,
+        user_agent: navigator.userAgent,
+        termo_texto_snapshot: termoTexto,
+        termo_pdf_url_snapshot: termoPdfUrl
+      })
+    if (error) throw error
+  },
+
+  async getAceiteAluno(alunoId) {
+    const { data, error } = await sb
+      .from('termo_aceites')
+      .select('*')
+      .eq('aluno_id', alunoId)
+      .maybeSingle()
+    if (error) throw error
+    return data
+  },
+
+  async getTodosAceites() {
+    const { data, error } = await sb
+      .from('termo_aceites')
+      .select('aluno_id, aceito_em, ip')
+    if (error) throw error
+    return data || []
+  },
+
   // ── MURAL DE RECADOS ─────────────────────────────────────────────────────
   async getRecados() {
     const { data, error } = await sb.from('mural_recados').select('*').order('fixado', { ascending: false }).order('criado_em', { ascending: false })
