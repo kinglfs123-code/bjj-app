@@ -1192,3 +1192,112 @@ a { color: inherit; text-decoration: none; }
   .user-area .user-name { display: none; }
   .user-area .user-role { display: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   EDITOR DE GRADE (modo edição)
+   ═══════════════════════════════════════════════════════════════════════ */
+#grade-editor {
+  display: flex; flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.grade-day-block {
+  background: var(--surf);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+
+.grade-day-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surf2);
+  border-bottom: 0.5px solid var(--border);
+}
+
+.grade-day-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px; letter-spacing: 2px;
+  color: var(--txt);
+}
+
+.grade-add-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  font-size: 10px; letter-spacing: 1.5px; font-weight: 500; text-transform: uppercase;
+  color: var(--accent);
+  border: 0.5px solid var(--accent);
+  border-radius: var(--r-sm);
+  background: transparent;
+  transition: all var(--t-fast) var(--ease);
+}
+.grade-add-btn:hover {
+  background: var(--accent);
+  color: var(--b);
+}
+
+.grade-aulas {
+  display: flex; flex-direction: column;
+}
+
+.grade-aula-row {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 0.5px solid var(--border);
+  border-left: 2px solid var(--txt3);
+  transition: background var(--t-fast) var(--ease);
+}
+.grade-aula-row:last-child { border-bottom: none; }
+.grade-aula-row:hover { background: var(--surf2); }
+.grade-aula-row.gi { border-left-color: #5a8dc8; }
+.grade-aula-row.nogi { border-left-color: #b88a5a; }
+.grade-aula-row.kids { border-left-color: #c8b89a; }
+
+.grade-aula-time {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px;
+  color: var(--txt);
+  min-width: 60px;
+}
+
+.grade-aula-info { flex: 1; min-width: 0; }
+.grade-aula-name {
+  font-size: 13px; font-weight: 500;
+  color: var(--txt);
+}
+.grade-aula-type {
+  font-size: 9px; letter-spacing: 2px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+  margin-top: 2px;
+}
+
+.grade-aula-del {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  font-size: 9px; letter-spacing: 1.5px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+  background: transparent;
+  border: 0.5px solid var(--border2);
+  border-radius: var(--r-sm);
+  transition: all var(--t-fast) var(--ease);
+}
+.grade-aula-del:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.grade-empty {
+  padding: var(--sp-5) var(--sp-4);
+  text-align: center;
+  font-size: 11px;
+  color: var(--txt3);
+  font-style: italic;
+}
+
+/* Mobile */
+@media (max-width: 720px) {
+  .grade-day-header { padding: var(--sp-3); }
+  .grade-aula-row { padding: var(--sp-3); flex-wrap: wrap; }
+  .grade-aula-time { min-width: 50px; font-size: 16px; }
+  .grade-aula-del { font-size: 8px; padding: 4px 8px; }
+}
