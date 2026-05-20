@@ -841,24 +841,29 @@ function renderPresContentProfessor(){
   })
 
   $('pres-content').innerHTML = filtered.length ? `
-    <table class="tbl">
-      <thead><tr><th>Aluno</th><th>Faixa</th><th>Presenças</th><th>Hoje</th></tr></thead>
+    <table class="tbl tbl-presencas">
+      <thead><tr>
+        <th class="col-l">Aluno</th>
+        <th class="col-l">Faixa</th>
+        <th class="col-c">Presenças</th>
+        <th class="col-c">Hoje</th>
+      </tr></thead>
       <tbody>
         ${filtered.map(s => {
           const confirmou = state.confirmadosNoDia[s.id]
           return `<tr>
-            <td style="font-weight:500;color:var(--txt)">
+            <td class="col-l td-nome">
               ${s.nome}
               ${confirmou ? '<span class="pres-confirmed-badge"><i class="ti ti-circle-check-filled"></i> confirmou</span>' : ''}
             </td>
-            <td><span class="belt-cell"><span class="belt ${s.faixa}"></span><span class="belt-label">${BELT_PT[s.faixa] || s.faixa}</span></span></td>
-            <td><span class="pres-count">${state.totaisPresenca[s.id] || 0}</span></td>
-            <td><button class="ck ${state.presencas[s.id] ? 'on' : ''}" onclick="togglePres('${s.id}')">${state.presencas[s.id] ? '<i class="ti ti-check"></i>' : '<i class="ti ti-plus" style="color:var(--txt3)"></i>'}</button></td>
+            <td class="col-l"><span class="belt-cell"><span class="belt ${s.faixa}"></span><span class="belt-label">${BELT_PT[s.faixa] || s.faixa}</span></span></td>
+            <td class="col-c"><span class="pres-count">${state.totaisPresenca[s.id] || 0}</span></td>
+            <td class="col-c"><button class="ck ${state.presencas[s.id] ? 'on' : ''}" onclick="togglePres('${s.id}')">${state.presencas[s.id] ? '<i class="ti ti-check"></i>' : '<i class="ti ti-plus" style="color:var(--txt3)"></i>'}</button></td>
           </tr>`
         }).join('')}
       </tbody>
     </table>
-  ` : '<div style="text-align:center;padding:30px;color:var(--txt3);font-size:13px">Nenhum aluno encontrado.</div>'
+  ` : '<div class="empty-state">Nenhum aluno encontrado.</div>'
 }
 
 // Aluno vê apenas o próprio histórico
