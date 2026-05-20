@@ -708,10 +708,12 @@ a { color: inherit; text-decoration: none; }
 
 /* ═══════════════════════════════════════════════════════════════════════
    GRADE (SCHEDULE) — Grid semanal
+   Classes vêm do JS: .dcol, .dhead, .dname, .dnum, .cpill, .ctime, .cname
    ═══════════════════════════════════════════════════════════════════════ */
+
+/* Legenda Gi / No-Gi / Kids */
 .leg {
   display: flex; gap: var(--sp-2);
-  margin-bottom: var(--sp-4);
   flex-wrap: wrap;
 }
 .li {
@@ -723,52 +725,142 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
 }
+/* Bolinha de cor da legenda */
+.li .ld {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  background: var(--txt3);
+}
 
+/* Grade semanal (7 colunas) */
 .wgrid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: var(--sp-2);
   margin-bottom: var(--sp-4);
 }
-.wgrid .ld {
+
+/* Coluna de cada dia */
+.dcol {
   background: var(--surf);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   padding: var(--sp-3);
-  min-height: 120px;
+  min-height: 140px;
   display: flex; flex-direction: column;
+  gap: 6px;
   transition: border-color var(--t-fast) var(--ease);
 }
-.wgrid .ld:hover { border-color: var(--border2); }
-.ld-head {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: var(--sp-2);
-  padding-bottom: 6px;
+.dcol:hover { border-color: var(--border2); }
+
+/* Cabeçalho da coluna (dia + número) */
+.dhead {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding-bottom: var(--sp-2);
+  margin-bottom: var(--sp-1);
   border-bottom: 1px solid var(--border);
 }
-.ld-day {
+.dname {
   font-size: 9px; letter-spacing: 2px; font-weight: 500; text-transform: uppercase;
   color: var(--txt3);
 }
-.ld-date {
+.dnum {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 16px;
+  font-size: 20px;
+  color: var(--txt2);
+  line-height: 1;
+}
+/* "Hoje" — destacado em dourado */
+.dnum.td { color: var(--accent); }
+
+/* Tempo e nome dentro do cpill */
+.cpill .ctime {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 14px;
+  color: var(--txt);
+  letter-spacing: 1px;
+  min-width: 42px;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.cpill .cname {
+  font-size: 11px;
+  color: var(--txt2);
+  margin-left: 8px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Cards "Aulas de hoje" (lista abaixo da grade) */
+.today-aula-card {
+  display: flex; align-items: center; gap: var(--sp-3);
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-sm);
+  padding: 10px 14px;
+  margin-bottom: var(--sp-2);
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+}
+.today-aula-card:hover {
+  border-color: var(--border2);
+  transform: translateX(2px);
+}
+.today-aula-card.confirmed { border-left-color: #7ac890; }
+.today-aula-card.gi { border-left-color: #5a8dc8; }
+.today-aula-card.nogi { border-left-color: #b88a5a; }
+.today-aula-card.kids { border-left-color: #c8b89a; }
+.today-aula-card.confirmed.gi,
+.today-aula-card.confirmed.nogi,
+.today-aula-card.confirmed.kids { border-left-color: #7ac890; }
+
+.today-aula-time {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  color: var(--txt);
+  line-height: 1;
+  min-width: 52px;
+}
+.today-aula-info { flex: 1; min-width: 0; }
+.today-aula-name {
+  font-size: 13px; font-weight: 500;
   color: var(--txt);
 }
+.today-aula-type {
+  font-size: 9px; letter-spacing: 2px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+  margin-top: 2px;
+}
+.today-aula-chev {
+  color: var(--txt3);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.today-aula-chev.ok { color: #7ac890; }
 
-/* Bolinha colorida dentro do filtro (li .ld) — sobrescreve o estilo de dia */
-.li .ld {
-  width: 8px;
-  height: 8px;
-  min-height: 0;
-  padding: 0;
-  border-radius: 50%;
-  display: inline-block;
-  border: none;
-  background: var(--txt3);
-  margin: 0;
+.today-empty {
+  padding: var(--sp-4);
+  text-align: center;
+  font-size: 11px;
+  color: var(--txt3);
+  font-style: italic;
+  background: var(--surf);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-sm);
 }
 
+/* Barra de filtros (legenda + botão "Editar grade") */
+.schedule-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+/* Editor de grade (modo edição) */
 .grade-editor {
   background: var(--surf);
   border: 1px solid var(--border);
@@ -869,7 +961,7 @@ a { color: inherit; text-decoration: none; }
    ═══════════════════════════════════════════════════════════════════════ */
 @media (max-width: 720px) {
   .wgrid { grid-template-columns: 1fr; }
-  .ld { min-height: auto; }
+  .dcol { min-height: auto; }
   .vgrid { grid-template-columns: 1fr; }
   .theme-opts { grid-template-columns: 1fr; }
   .user-name { font-size: 12px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1324,16 +1416,18 @@ a { color: inherit; text-decoration: none; }
     grid-template-columns: 1fr; 
     gap: var(--sp-3);
   }
-  .ld { 
+  .dcol { 
     min-height: auto; 
     padding: var(--sp-3);
   }
-  .ld-head { 
-    margin-bottom: var(--sp-3); 
+  .dhead { 
+    margin-bottom: var(--sp-2); 
     padding-bottom: var(--sp-2);
   }
-  .ld-day { font-size: 10px; letter-spacing: 2px; }
-  .ld-date { font-size: 20px; }
+  .dname { font-size: 10px; letter-spacing: 2px; }
+  .dnum { font-size: 22px; }
+  .cpill .ctime { font-size: 16px; min-width: 50px; }
+  .cpill .cname { font-size: 12px; }
   
   /* Cpills maiores no mobile */
   .cpill {
@@ -1485,7 +1579,7 @@ a { color: inherit; text-decoration: none; }
 :root[data-theme="light"] .switch.on::after { background: #fff; }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   CONTRASTE REFORÇADO — Versão final, distinção visual clara
+   CONTRASTE REFORÇADO — Filtros e cards de aula
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* Filtros Gi/No-Gi/Kids — bolinha visível por tipo */
@@ -1493,12 +1587,6 @@ a { color: inherit; text-decoration: none; }
   background: var(--surf2);
   border-width: 1px;
   border-color: var(--border2);
-}
-.li .ld {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--txt3);
 }
 .li.gi .ld, .li[class*="gi"] .ld { background: #5a8dc8 !important; }
 .li.nogi .ld, .li[class*="nogi"] .ld { background: #b88a5a !important; }
@@ -1514,16 +1602,6 @@ a { color: inherit; text-decoration: none; }
 .cpill.gi { border-left-color: #5a8dc8; }
 .cpill.nogi { border-left-color: #b88a5a; }
 .cpill.kids { border-left-color: #c8b89a; }
-
-/* Caixas de dia (ld) — separação clara do fundo */
-.wgrid .ld {
-  background: var(--surf);
-  border: 1px solid var(--border2);
-}
-.wgrid .ld:hover {
-  background: var(--surf2);
-  border-color: var(--accent);
-}
 
 /* Botão "Editar Grade" — mais destacado */
 .pbtn {
@@ -1649,9 +1727,9 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   FADE/GRADIENTE — Profundidade nos cards de aula (igual presenças)
+   FADE/GRADIENTE — Profundidade nos cards (igual presenças e eventos)
    ═══════════════════════════════════════════════════════════════════════ */
-.wgrid .ld {
+.dcol {
   background: 
     linear-gradient(180deg, rgba(200, 184, 154, 0.06) 0%, transparent 40%),
     linear-gradient(135deg, #252521 0%, #1a1a17 100%);
@@ -1662,7 +1740,7 @@ a { color: inherit; text-decoration: none; }
     0 2px 6px rgba(0,0,0,0.25),
     inset 0 1px 0 rgba(245, 239, 223, 0.06);
 }
-.wgrid .ld::before {
+.dcol::before {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
@@ -1671,14 +1749,14 @@ a { color: inherit; text-decoration: none; }
   opacity: 0.5;
   transition: opacity var(--t-fast) var(--ease);
 }
-.wgrid .ld:hover {
+.dcol:hover {
   border-color: var(--accent);
   transform: translateY(-2px);
   box-shadow: 
     0 6px 20px rgba(0,0,0,0.4), 
     inset 0 1px 0 rgba(245, 239, 223, 0.1);
 }
-.wgrid .ld:hover::before { opacity: 1; }
+.dcol:hover::before { opacity: 1; }
 
 .cpill {
   background: 
@@ -1699,8 +1777,18 @@ a { color: inherit; text-decoration: none; }
     inset 0 1px 0 rgba(245, 239, 223, 0.1);
 }
 
+.today-aula-card {
+  background: 
+    linear-gradient(180deg, rgba(200, 184, 154, 0.06) 0%, transparent 40%),
+    linear-gradient(135deg, #252521 0%, #1a1a17 100%);
+  border: 1px solid rgba(245, 239, 223, 0.18);
+  box-shadow: 
+    0 2px 6px rgba(0,0,0,0.25),
+    inset 0 1px 0 rgba(245, 239, 223, 0.06);
+}
+
 /* Light mode */
-:root[data-theme="light"] .wgrid .ld {
+:root[data-theme="light"] .dcol {
   background: 
     linear-gradient(180deg, rgba(122, 106, 74, 0.04) 0%, transparent 40%),
     linear-gradient(135deg, #ffffff 0%, #ede4ca 100%);
@@ -1714,6 +1802,15 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid rgba(26, 22, 18, 0.22);
   box-shadow: 
     0 2px 4px rgba(26, 22, 18, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+:root[data-theme="light"] .today-aula-card {
+  background: 
+    linear-gradient(180deg, rgba(122, 106, 74, 0.04) 0%, transparent 40%),
+    linear-gradient(135deg, #ffffff 0%, #ede4ca 100%);
+  border: 1px solid rgba(26, 22, 18, 0.18);
+  box-shadow: 
+    0 2px 6px rgba(26, 22, 18, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
