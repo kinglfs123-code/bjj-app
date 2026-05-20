@@ -310,13 +310,45 @@ a { color: inherit; text-decoration: none; }
   text-align: left;
   padding: var(--sp-3);
   border-bottom: 1px solid var(--border);
+  white-space: nowrap;
 }
 .tbl tbody tr {
   border-bottom: 1px solid var(--border);
   transition: background var(--t-fast) var(--ease);
 }
 .tbl tbody tr:hover { background: var(--surf); }
-.tbl td { padding: var(--sp-3); color: var(--txt2); }
+.tbl td {
+  padding: var(--sp-3);
+  color: var(--txt2);
+  vertical-align: middle;
+}
+
+/* Alinhamento por coluna — header e conteúdo seguem juntos */
+.tbl th.col-l, .tbl td.col-l { text-align: left; }
+.tbl th.col-c, .tbl td.col-c { text-align: center; }
+.tbl th.col-r, .tbl td.col-r { text-align: right; }
+
+/* Nome do aluno destacado */
+.tbl td.td-nome { font-weight: 500; color: var(--txt); }
+
+/* Tabela de presenças — distribuição de largura controlada */
+.tbl-presencas { table-layout: auto; }
+.tbl-presencas th.col-l:nth-child(1),
+.tbl-presencas td.col-l:nth-child(1) { width: auto; }
+.tbl-presencas th:nth-child(2),
+.tbl-presencas td:nth-child(2) { width: 200px; }
+.tbl-presencas th:nth-child(3),
+.tbl-presencas td:nth-child(3) { width: 120px; }
+.tbl-presencas th:nth-child(4),
+.tbl-presencas td:nth-child(4) { width: 90px; }
+
+/* Estado vazio padronizado pras tabelas/listas */
+.empty-state {
+  text-align: center;
+  padding: var(--sp-6) var(--sp-4);
+  color: var(--txt3);
+  font-size: 13px;
+}
 .stu-row-clickable { cursor: pointer; }
 
 .belt {
