@@ -32,10 +32,23 @@
     <div class="user-area">
       <span class="user-name" id="user-name"></span>
       <span class="user-role" id="user-role"></span>
+      <button class="logout-btn" id="bell-btn" aria-label="Notificações" onclick="toggleSinoNotif()" style="position:relative">
+        <i class="ti ti-bell" aria-hidden="true"></i>
+        <span id="bell-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:var(--accent);color:var(--b);font-size:9px;font-weight:600;padding:1px 5px;border-radius:8px;min-width:14px;text-align:center">0</span>
+      </button>
       <button class="logout-btn" id="logout-btn" aria-label="Sair">
         <i class="ti ti-logout" aria-hidden="true"></i>
       </button>
     </div>
+  </div>
+
+  <!-- Dropdown de notificações -->
+  <div id="notif-dropdown" style="display:none;position:fixed;top:60px;right:20px;width:340px;max-height:480px;background:var(--b);border:0.5px solid var(--border2);border-radius:var(--r-md);box-shadow:var(--shadow-lg);z-index:200;overflow:hidden;animation:modalIn 0.2s var(--ease)">
+    <div style="padding:14px 16px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px">NOTIFICAÇÕES</div>
+      <button class="fbtn" style="padding:4px 8px;font-size:9px" onclick="marcarTodasLidas()">Marcar todas</button>
+    </div>
+    <div id="notif-list" style="max-height:400px;overflow-y:auto"></div>
   </div>
 
   <div class="nav-bar" id="nav-bar"></div>
@@ -93,15 +106,27 @@
     <div class="slabel">Avisos da academia</div>
     <div class="stitle">Comunicação</div>
     <div class="com-tabs">
-      <button class="com-tab active"><i class="ti ti-pin" aria-hidden="true"></i> Mural</button>
-      <button class="com-tab disabled" title="Em breve"><i class="ti ti-trophy" aria-hidden="true"></i> Eventos</button>
-      <button class="com-tab disabled" title="Em breve"><i class="ti ti-bell" aria-hidden="true"></i> Notificações</button>
+      <button class="com-tab active" data-com="mural" onclick="switchComTab('mural')"><i class="ti ti-pin" aria-hidden="true"></i> Mural</button>
+      <button class="com-tab" data-com="eventos" onclick="switchComTab('eventos')"><i class="ti ti-trophy" aria-hidden="true"></i> Eventos</button>
     </div>
-    <div class="mural-header">
-      <div class="mural-count" id="mural-count">—</div>
-      <button class="pbtn prof-only" onclick="openRecadoModal(null)"><i class="ti ti-plus" aria-hidden="true"></i> Novo recado</button>
+
+    <!-- Aba Mural -->
+    <div class="com-pane on" id="com-pane-mural">
+      <div class="mural-header">
+        <div class="mural-count" id="mural-count">—</div>
+        <button class="pbtn prof-only" onclick="openRecadoModal(null)"><i class="ti ti-plus" aria-hidden="true"></i> Novo recado</button>
+      </div>
+      <div id="mural-list" class="recado-list"></div>
     </div>
-    <div id="mural-list" class="recado-list"></div>
+
+    <!-- Aba Eventos -->
+    <div class="com-pane" id="com-pane-eventos">
+      <div class="mural-header">
+        <div class="mural-count" id="eventos-count">—</div>
+        <button class="pbtn prof-only" onclick="openEventoModal(null)"><i class="ti ti-plus" aria-hidden="true"></i> Novo evento</button>
+      </div>
+      <div id="eventos-list" class="evento-list"></div>
+    </div>
   </div>
 
   <div class="page" id="page-perfil">
