@@ -505,6 +505,61 @@ const DB = {
       .from('config')
       .upsert({ id: 1, mensalidade_valor: valor, mensalidade_dia_vencimento: diaVencimento })
     if (error) throw error
+  },
+
+  // ── EVENTOS ──────────────────────────────────────────────────────────────
+  async getEventos() {
+    const { data, error } = await sb
+      .from('eventos')
+      .select('*')
+      .order('data_evento', { ascending: true })
+    if (error) throw error
+    return data || []
+  },
+  async createEvento(ev) {
+    const { error } = await sb.from('eventos').insert(ev)
+    if (error) throw error
+  },
+  async updateEvento(id, ev) {
+    const { error } = await sb.from('eventos').update(ev).eq('id', id)
+    if (error) throw error
+  },
+  async deleteEvento(id) {
+    const { error } = await sb.from('eventos').delete().eq('id', id)
+    if (error) throw error
+  },
+
+  // ── NOTIFICAÇÕES ────────────────────────────────────────────────────────
+  async getMinhasNotificacoes(userId, limit = 20) {
+    const { data, error } = await sb
+      .from('notificacoes')
+      .select('*')
+      .eq('user_id', userId)
+      .order('criado_em', { ascending: false })
+      .limit(limit)
+    if (error) throw error
+    return data || []
+  },
+  async contarNaoLidas(userId) {
+    const { count, error } = await sb
+      .from('notificacoes')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('lida', false)
+    if (error) throw error
+    return count || 0
+  },
+  async marcarNotifLida(id) {
+    const { error } = await sb.from('notificacoes').update({ lida: true }).eq('id', id)
+    if (error) throw error
+  },
+  async marcarTodasLidas(userId) {
+    const { error } = await sb
+      .from('notificacoes')
+      .update({ lida: true })
+      .eq('user_id', userId)
+      .eq('lida', false)
+    if (error) throw error
   }
 
 }
