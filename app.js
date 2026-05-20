@@ -112,6 +112,7 @@ async function boot(){
     applyTheme(state.config.tema)
     applyName()
     applyLogo()
+    applyBrandColor()
     loadTermoConfig()
     loadRegrasGraduacao()
     carregarConfigMensalidade()
@@ -314,6 +315,69 @@ function applyName(){
     document.title = n
   } catch(err){ console.warn('[applyName]', err) }
 }
+
+// ─── BRAND COLOR (cor do nome da equipe) ────────────────────────────────
+
+function applyBrandColor(){
+  try {
+    const c = state.config?.brand_color
+    if(c && /^#[0-9a-fA-F]{6}$/.test(c)){
+      document.documentElement.style.setProperty('--brand', c)
+    } else {
+      document.documentElement.style.removeProperty('--brand')
+    }
+    // Sincroniza inputs se a página de configurações estiver montada
+    const picker = $('cfg-brand-color')
+    const hex = $('cfg-brand-hex')
+    if(picker) picker.value = c || '#e8ebf2'
+    if(hex) hex.value = c || ''
+  } catch(err){ console.warn('[applyBrandColor]', err) }
+}
+
+async function saveBrandColor(){
+  const picker = $('cfg-brand-color')
+  const hexInput = $('cfg-brand-hex')
+  let c = (hexInput?.value || picker?.value || '').trim()
+  if(c && !c.startsWith('#')) c = '#' + c
+  if(c && !/^#[0-9a-fA-F]{6}$/.test(c)){
+    toast('Cor inválida. Use formato #RRGGBB.', true)
+    return
+  }
+  try {
+    await DB.saveConfig({ brand_color: c || null })
+    state.config.brand_color = c || null
+    applyBrandColor()
+    toast('Cor aplicada!')
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+async function resetBrandColor(){
+  try {
+    await DB.saveConfig({ brand_color: null })
+    state.config.brand_color = null
+    applyBrandColor()
+    toast('Cor padrão restaurada!')
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+// Sincroniza picker ↔ hex em tempo real
+document.addEventListener('input', (e) => {
+  if(e.target.id === 'cfg-brand-color'){
+    const hex = $('cfg-brand-hex')
+    if(hex) hex.value = e.target.value
+  } else if(e.target.id === 'cfg-brand-hex'){
+    let v = e.target.value.trim()
+    if(v && !v.startsWith('#')) v = '#' + v
+    if(/^#[0-9a-fA-F]{6}$/.test(v)){
+      const picker = $('cfg-brand-color')
+      if(picker) picker.value = v
+    }
+  }
+})
 
 async function saveName(){
   const v = $('cfg-name').value.trim()
@@ -787,8 +851,8 @@ function renderPresContentProfessor(){
               ${s.nome}
               ${confirmou ? '<span class="pres-confirmed-badge"><i class="ti ti-circle-check-filled"></i> confirmou</span>' : ''}
             </td>
-            <td><span class="belt ${s.faixa}"></span><span style="font-size:10px;color:var(--txt3)">${BELT_PT[s.faixa] || s.faixa}</span></td>
-            <td><span style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--txt)">${state.totaisPresenca[s.id] || 0}</span></td>
+            <td><span class="belt-cell"><span class="belt ${s.faixa}"></span><span class="belt-label">${BELT_PT[s.faixa] || s.faixa}</span></span></td>
+            <td><span class="pres-count">${state.totaisPresenca[s.id] || 0}</span></td>
             <td><button class="ck ${state.presencas[s.id] ? 'on' : ''}" onclick="togglePres('${s.id}')">${state.presencas[s.id] ? '<i class="ti ti-check"></i>' : '<i class="ti ti-plus" style="color:var(--txt3)"></i>'}</button></td>
           </tr>`
         }).join('')}
