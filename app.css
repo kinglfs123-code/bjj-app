@@ -8,19 +8,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
 
 :root {
-  --b: #0e0e0c;
-  --b2: #161613;
-  --surf: #1c1c19;
-  --surf2: #28281f;
-  --border: rgba(245, 239, 223, 0.14);
-  --border2: rgba(245, 239, 223, 0.24);
-  --txt: #f5efdf;
-  --txt2: rgba(245, 239, 223, 0.72);
-  --txt3: rgba(245, 239, 223, 0.42);
-  --accent: #c8b89a;
-  --accent2: #b8a384;
+  --b: #0c0c0b;
+  --b2: #141413;
+  --surf: #1a1a18;
+  --surf2: #232320;
+  --border: rgba(235, 232, 222, 0.10);
+  --border2: rgba(235, 232, 222, 0.20);
+  --txt: #ebe8de;
+  --txt2: rgba(235, 232, 222, 0.70);
+  --txt3: rgba(235, 232, 222, 0.42);
+  --accent: #c9a961;
+  --accent2: #b8985a;
   --danger: #e07050;
-  --belt-white: #f5efdf;
+  --belt-white: #ebe8de;
   --belt-blue: #5a8dc8;
   --belt-purple: #8866aa;
   --belt-brown: #6e4528;
@@ -39,17 +39,17 @@
 }
 
 :root[data-theme="light"] {
-  --b: #f5efdf;
-  --b2: #ede5cf;
+  --b: #f7f5ef;
+  --b2: #efece2;
   --surf: #ffffff;
-  --surf2: #faf6ea;
-  --border: rgba(26, 22, 18, 0.16);
-  --border2: rgba(26, 22, 18, 0.28);
-  --txt: #1a1612;
-  --txt2: rgba(26, 22, 18, 0.66);
-  --txt3: rgba(26, 22, 18, 0.40);
-  --accent: #7a6a4a;
-  --accent2: #5a4d35;
+  --surf2: #f5f1e5;
+  --border: rgba(28, 25, 20, 0.14);
+  --border2: rgba(28, 25, 20, 0.26);
+  --txt: #1c1914;
+  --txt2: rgba(28, 25, 20, 0.68);
+  --txt3: rgba(28, 25, 20, 0.42);
+  --accent: #8a6f3a;
+  --accent2: #6e5828;
   --danger: #c84a30;
   --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
   --shadow-md: 0 4px 16px rgba(0,0,0,.08);
@@ -187,8 +187,8 @@ a { color: inherit; text-decoration: none; }
   border-radius: var(--r-sm);
   transition: all var(--t-fast) var(--ease);
 }
-.pbtn { background: var(--txt); color: var(--b); border-color: var(--txt); }
-.pbtn:hover { background: var(--accent); border-color: var(--accent); transform: translateY(-1px); }
+.pbtn { background: var(--accent); color: var(--b); border-color: var(--accent); }
+.pbtn:hover { background: var(--accent2); border-color: var(--accent2); transform: translateY(-1px); }
 .fbtn { background: transparent; color: var(--txt2); }
 .fbtn:hover { color: var(--txt); border-color: var(--border2); background: var(--surf); }
 .fbtn.active { color: var(--txt); border-color: var(--border2); background: var(--surf); }
@@ -607,33 +607,49 @@ a { color: inherit; text-decoration: none; }
   min-height: 100vh;
   display: flex; align-items: center; justify-content: center;
   padding: var(--sp-5);
-  background: var(--b);
+  background: 
+    radial-gradient(ellipse at top, rgba(201, 169, 97, 0.05) 0%, transparent 50%),
+    var(--b);
   animation: fadeIn 0.4s var(--ease);
 }
 .login-wrap {
-  width: 100%; max-width: 380px;
+  width: 100%; max-width: 400px;
   display: flex; flex-direction: column;
   align-items: center;
   gap: var(--sp-5);
 }
 .login-box {
   width: 100%;
-  background: var(--surf);
-  border: 1px solid var(--border);
+  background: 
+    linear-gradient(180deg, rgba(201, 169, 97, 0.04) 0%, transparent 40%),
+    linear-gradient(135deg, var(--surf) 0%, var(--b2) 100%);
+  border: 1px solid var(--border2);
   border-radius: var(--r-md);
-  padding: var(--sp-7) var(--sp-5);
+  padding: var(--sp-7) var(--sp-6);
   display: flex; flex-direction: column;
   gap: var(--sp-4);
-  box-shadow: var(--shadow-md);
+  box-shadow: 
+    0 12px 40px rgba(0,0,0,0.45),
+    inset 0 1px 0 rgba(235, 232, 222, 0.06);
   animation: slideUp 0.4s var(--ease);
+  position: relative;
+  overflow: hidden;
+}
+/* Linha dourada no topo do card */
+.login-box::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--accent) 50%, transparent 100%);
 }
 .login-logo {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 38px; letter-spacing: 4px;
+  font-size: 40px; letter-spacing: 4px;
   text-align: center;
   color: var(--txt);
   line-height: 1;
-  margin-bottom: var(--sp-2);
+  margin-bottom: var(--sp-1);
 }
 .login-logo em { color: var(--accent); font-style: normal; }
 .login-sub {
@@ -641,6 +657,17 @@ a { color: inherit; text-decoration: none; }
   font-size: 9px; letter-spacing: 3px; font-weight: 500; text-transform: uppercase;
   color: var(--txt3);
   margin-bottom: var(--sp-5);
+  position: relative;
+  padding-bottom: var(--sp-4);
+}
+.login-sub::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 32px; height: 1px;
+  background: var(--accent);
+  opacity: 0.4;
 }
 
 .form-row { display: flex; flex-direction: column; gap: 6px; }
@@ -653,24 +680,40 @@ a { color: inherit; text-decoration: none; }
   color: var(--txt);
   border: 1px solid var(--border2);
   border-radius: var(--r-sm);
-  padding: 12px 14px;
+  padding: 13px 14px;
   font-size: 14px;
-  transition: border-color var(--t-fast) var(--ease);
+  transition: border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
 }
-.form-input:focus { outline: none; border-color: var(--accent); }
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--b2);
+}
+/* Fix do autofill do Chrome — evita o fundo amarelo claro */
+.form-input:-webkit-autofill,
+.form-input:-webkit-autofill:hover,
+.form-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--txt);
+  -webkit-box-shadow: 0 0 0px 1000px var(--b) inset;
+  box-shadow: 0 0 0px 1000px var(--b) inset;
+  transition: background-color 5000s ease-in-out 0s;
+  caret-color: var(--txt);
+}
 .form-submit {
-  background: var(--txt);
+  background: var(--accent);
   color: var(--b);
   border: none;
   border-radius: var(--r-sm);
   padding: 14px;
-  font-size: 11px; letter-spacing: 3px; font-weight: 500; text-transform: uppercase;
+  font-size: 11px; letter-spacing: 3px; font-weight: 600; text-transform: uppercase;
   cursor: pointer;
   transition: all var(--t-fast) var(--ease);
-  margin-top: var(--sp-2);
+  margin-top: var(--sp-3);
 }
 .form-submit:hover:not(:disabled) {
-  background: var(--accent); transform: translateY(-1px);
+  background: var(--accent2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(201, 169, 97, 0.25);
 }
 .form-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 .form-err {
@@ -690,20 +733,42 @@ a { color: inherit; text-decoration: none; }
   color: var(--txt3);
   margin-top: var(--sp-3);
 }
-.login-hint a { color: var(--txt); text-decoration: underline; }
-.login-hint a:hover { color: var(--accent); }
+.login-hint a { color: var(--accent); text-decoration: none; font-weight: 500; border-bottom: 1px solid transparent; transition: border-color var(--t-fast) var(--ease); }
+.login-hint a:hover { border-bottom-color: var(--accent); }
 
 #brand-logo {
-  max-width: 80px;
-  max-height: 80px;
+  max-width: 72px;
+  max-height: 72px;
   object-fit: contain;
-  margin: 0 auto var(--sp-2);
+  margin: 0 auto var(--sp-3);
+  border-radius: var(--r-sm);
+}
+
+/* Light mode pro login */
+:root[data-theme="light"] .login-page {
+  background: 
+    radial-gradient(ellipse at top, rgba(138, 111, 58, 0.06) 0%, transparent 50%),
+    var(--b);
+}
+:root[data-theme="light"] .login-box {
+  background: 
+    linear-gradient(180deg, rgba(138, 111, 58, 0.03) 0%, transparent 40%),
+    linear-gradient(135deg, #ffffff 0%, #f7f3e6 100%);
+  box-shadow: 
+    0 12px 40px rgba(28, 25, 20, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+:root[data-theme="light"] .form-input:-webkit-autofill,
+:root[data-theme="light"] .form-input:-webkit-autofill:hover,
+:root[data-theme="light"] .form-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0px 1000px #ffffff inset;
+  box-shadow: 0 0 0px 1000px #ffffff inset;
 }
 
 @media (max-width: 480px) {
-  .login-box { padding: var(--sp-5) var(--sp-4); }
-  .login-logo { font-size: 30px; }
-  .form-input { padding: 11px 12px; font-size: 13px; }
+  .login-box { padding: var(--sp-6) var(--sp-4); }
+  .login-logo { font-size: 32px; }
+  .form-input { padding: 12px 12px; font-size: 13px; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -1611,8 +1676,8 @@ a { color: inherit; text-decoration: none; }
   font-weight: 600;
 }
 .pbtn:hover {
-  background: var(--txt);
-  border-color: var(--txt);
+  background: var(--accent2);
+  border-color: var(--accent2);
   color: var(--b);
 }
 
@@ -1688,13 +1753,7 @@ a { color: inherit; text-decoration: none; }
   border-color: var(--accent);
 }
 
-/* ─── TEMA CLARO: Ajustes específicos pra contraste ─────────────────── */
-:root[data-theme="light"] {
-  --surf: #ffffff;
-  --surf2: #f0e8d2;
-  --border: rgba(26, 22, 18, 0.18);
-  --border2: rgba(26, 22, 18, 0.32);
-}
+/* ─── TEMA CLARO: ajustes específicos de contraste ─────────────────── */
 
 :root[data-theme="light"] .topbar {
   background: rgba(245, 239, 223, 0.95);
