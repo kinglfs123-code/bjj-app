@@ -104,6 +104,9 @@ async function boot(){
     loadTermoConfig()
     loadRegrasGraduacao()
     carregarConfigMensalidade()
+    carregarNotificacoes()
+    // Atualiza notificações a cada 60s
+    setInterval(carregarNotificacoes, 60000)
 
     // 8. Renderiza tudo
     renderAll()
@@ -1863,6 +1866,222 @@ async function carregarMensalidadeNoPerfil(alunoId){
     area.innerHTML = ''
   }
 }
+
+// ════════════════════════════════════════════════════════════════════════
+// EVENTOS
+// ════════════════════════════════════════════════════════════════════════
+const state_eventos = { list: [] }
+
+async function renderEventos(){
+  try {
+    state_eventos.list = await DB.getEventos()
+    const list = state_eventos.list
+    $('eventos-count').textContent = list.length === 1 ? '1 evento' : list.length + ' eventos'
+    if(list.length === 0){
+      $('eventos-list').innerHTML = `<div class="empty-state"><div class="empty-text">Nenhum evento cadastrado ainda.</div></div>`
+      return
+    }
+    const hoje = new Date(); hoje.setHours(0,0,0,0)
+    $('eventos-list').innerHTML = list.map(e => {
+      const dt = new Date(e.data_evento + 'T00:00:00')
+      const passou = dt < hoje
+      return `<div class="evento-card${passou?' past':''}">
+        <div class="evento-date">
+          <div class="evento-dia">${dt.getDate()}</div>
+          <div class="evento-mes">${['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][dt.getMonth()]}</div>
+        </div>
+        <div class="evento-info">
+          <div class="evento-titulo">${escapeHtml(e.titulo)}</div>
+          ${e.hora ? `<div class="evento-meta"><i class="ti ti-clock"></i> ${escapeHtml(e.hora)}</div>` : ''}
+          ${e.local ? `<div class="evento-meta"><i class="ti ti-map-pin"></i> ${escapeHtml(e.local)}</div>` : ''}
+          ${e.descricao ? `<div class="evento-desc">${escapeHtml(e.descricao)}</div>` : ''}
+        </div>
+        ${Auth.isProfessor() ? `<div class="evento-actions">
+          <button class="ibtn" onclick="openEventoModal('${e.id}')"><i class="ti ti-edit"></i></button>
+          <button class="dbtn" onclick="deleteEvento('${e.id}')"><i class="ti ti-trash"></i></button>
+        </div>` : ''}
+      </div>`
+    }).join('')
+  } catch(err) {
+    $('eventos-list').innerHTML = `<div class="empty-state"><div class="empty-text" style="color:#e05050">Erro: ${err.message}</div></div>`
+  }
+}
+
+function openEventoModal(id){
+  const ev = id ? state_eventos.list.find(e => e.id === id) : null
+  const old = $('modal-evento'); if(old) old.remove()
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="mlay" id="modal-evento" style="display:flex">
+      <div class="mbox">
+        <div class="mhead">
+          <span class="mtitle">${id ? 'Editar Evento' : 'Novo Evento'}</span>
+          <button class="mclose" onclick="document.getElementById('modal-evento').remove()">✕</button>
+        </div>
+        <div class="mbody">
+          <div class="mrow">
+            <label class="mlabel">Título</label>
+            <input class="sinput" id="ev-titulo" style="width:100%" value="${ev ? escapeHtml(ev.titulo) : ''}" placeholder="Ex: Campeonato Regional">
+          </div>
+          <div class="mrow">
+            <label class="mlabel">Data</label>
+            <input class="sinput" type="date" id="ev-data" style="width:100%" value="${ev ? ev.data_evento : new Date().toISOString().slice(0,10)}">
+          </div>
+          <div class="mrow">
+            <label class="mlabel">Hora (opcional)</label>
+            <input class="sinput" id="ev-hora" style="width:100%" value="${ev ? escapeHtml(ev.hora || '') : ''}" placeholder="Ex: 09:00">
+          </div>
+          <div class="mrow">
+            <label class="mlabel">Local (opcional)</label>
+            <input class="sinput" id="ev-local" style="width:100%" value="${ev ? escapeHtml(ev.local || '') : ''}" placeholder="Ex: Ginásio Municipal">
+          </div>
+          <div class="mrow">
+            <label class="mlabel">Descrição (opcional)</label>
+            <textarea class="sinput" id="ev-desc" style="width:100%;min-height:80px;resize:vertical;font-family:'DM Sans',sans-serif" placeholder="Detalhes do evento...">${ev ? escapeHtml(ev.descricao || '') : ''}</textarea>
+          </div>
+        </div>
+        <div class="mfoot">
+          <button class="fbtn" onclick="document.getElementById('modal-evento').remove()">Cancelar</button>
+          <button class="pbtn" onclick="salvarEvento('${id || ''}')"><i class="ti ti-check"></i> Salvar</button>
+        </div>
+      </div>
+    </div>
+  `)
+}
+
+async function salvarEvento(id){
+  const titulo = $('ev-titulo').value.trim()
+  const data_evento = $('ev-data').value
+  const hora = $('ev-hora').value.trim() || null
+  const local = $('ev-local').value.trim() || null
+  const descricao = $('ev-desc').value.trim() || null
+  if(!titulo || !data_evento){ toast('Título e data são obrigatórios.', true); return }
+  try {
+    if(id){
+      await DB.updateEvento(id, { titulo, data_evento, hora, local, descricao })
+    } else {
+      await DB.createEvento({ titulo, data_evento, hora, local, descricao })
+    }
+    toast(id ? 'Evento atualizado!' : 'Evento criado!')
+    document.getElementById('modal-evento').remove()
+    renderEventos()
+  } catch(err){ toast('Erro: ' + err.message, true) }
+}
+
+async function deleteEvento(id){
+  if(!confirm('Excluir este evento?')) return
+  try {
+    await DB.deleteEvento(id)
+    toast('Evento excluído.')
+    renderEventos()
+  } catch(err){ toast('Erro: ' + err.message, true) }
+}
+
+function switchComTab(tab){
+  document.querySelectorAll('.com-tab').forEach(t => t.classList.toggle('active', t.dataset.com === tab))
+  document.querySelectorAll('.com-pane').forEach(p => p.classList.toggle('on', p.id === 'com-pane-' + tab))
+  if(tab === 'eventos') renderEventos()
+  if(tab === 'mural') renderComunicacao()
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// NOTIFICAÇÕES (sino + dropdown)
+// ════════════════════════════════════════════════════════════════════════
+const state_notif = { list: [], naoLidas: 0, aberto: false }
+
+async function carregarNotificacoes(){
+  if(!Auth.currentProfile) return
+  try {
+    const [list, count] = await Promise.all([
+      DB.getMinhasNotificacoes(Auth.currentProfile.id).catch(() => []),
+      DB.contarNaoLidas(Auth.currentProfile.id).catch(() => 0)
+    ])
+    state_notif.list = list
+    state_notif.naoLidas = count
+    atualizarBadge()
+  } catch(err) {
+    console.warn('[notif]', err)
+  }
+}
+
+function atualizarBadge(){
+  const badge = $('bell-badge')
+  if(!badge) return
+  if(state_notif.naoLidas > 0){
+    badge.textContent = state_notif.naoLidas > 9 ? '9+' : state_notif.naoLidas
+    badge.style.display = 'inline-block'
+  } else {
+    badge.style.display = 'none'
+  }
+}
+
+function toggleSinoNotif(){
+  state_notif.aberto = !state_notif.aberto
+  const dd = $('notif-dropdown')
+  if(state_notif.aberto){
+    renderDropdownNotif()
+    dd.style.display = 'block'
+  } else {
+    dd.style.display = 'none'
+  }
+}
+
+function renderDropdownNotif(){
+  const list = state_notif.list
+  if(list.length === 0){
+    $('notif-list').innerHTML = `<div style="padding:30px 20px;text-align:center;color:var(--txt3);font-size:12px">Nenhuma notificação ainda.</div>`
+    return
+  }
+  $('notif-list').innerHTML = list.map(n => `
+    <div class="notif-item${n.lida ? '' : ' unread'}" onclick="marcarNotifLida('${n.id}')">
+      <div class="notif-titulo">${escapeHtml(n.titulo)}</div>
+      ${n.texto ? `<div class="notif-texto">${escapeHtml(n.texto)}</div>` : ''}
+      <div class="notif-time">${tempoAtras(n.criado_em)}</div>
+    </div>
+  `).join('')
+}
+
+function tempoAtras(timestamp){
+  const diff = (Date.now() - new Date(timestamp).getTime()) / 1000
+  if(diff < 60) return 'agora'
+  if(diff < 3600) return Math.floor(diff/60) + 'min'
+  if(diff < 86400) return Math.floor(diff/3600) + 'h'
+  if(diff < 604800) return Math.floor(diff/86400) + 'd'
+  return new Date(timestamp).toLocaleDateString('pt-BR')
+}
+
+async function marcarNotifLida(id){
+  try {
+    await DB.marcarNotifLida(id)
+    const n = state_notif.list.find(x => x.id === id)
+    if(n && !n.lida){
+      n.lida = true
+      state_notif.naoLidas = Math.max(0, state_notif.naoLidas - 1)
+    }
+    renderDropdownNotif()
+    atualizarBadge()
+  } catch(err){ console.warn('[marcar lida]', err) }
+}
+
+async function marcarTodasLidas(){
+  try {
+    await DB.marcarTodasLidas(Auth.currentProfile.id)
+    state_notif.list.forEach(n => n.lida = true)
+    state_notif.naoLidas = 0
+    renderDropdownNotif()
+    atualizarBadge()
+    toast('Marcadas como lidas.')
+  } catch(err){ toast('Erro: ' + err.message, true) }
+}
+
+// Fechar dropdown ao clicar fora
+document.addEventListener('click', (e) => {
+  if(!state_notif.aberto) return
+  const dd = $('notif-dropdown'); const bell = $('bell-btn')
+  if(dd && !dd.contains(e.target) && bell && !bell.contains(e.target)){
+    state_notif.aberto = false
+    dd.style.display = 'none'
+  }
+})
 
 // ─── BOOT ───────────────────────────────────────────────────────────────
 boot()
