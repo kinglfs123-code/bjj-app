@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <script>/* PWA-KILL-SWITCH */ if ("serviceWorker" in navigator) { navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())); if (window.caches) caches.keys().then(ks => ks.forEach(k => caches.delete(k))); }</script>
+  <script>/* PWA-KILL-SWITCH */ try { if ("serviceWorker" in navigator) { navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => { try { r.unregister(); } catch(e){} })).catch(()=>{}); } if (window.caches) { caches.keys().then(ks => ks.forEach(k => caches.delete(k))).catch(()=>{}); } } catch(e){}</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#080808">
