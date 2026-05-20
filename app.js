@@ -486,16 +486,20 @@ function renderSchedule(){
   $('today-classes').innerHTML = tc.length
     ? tc.map(c => {
         const confirmed = Auth.isAluno() && state.minhasConfirmacoes[c.id + '_' + todayStr]
-        return `<div onclick="openAulaDetail('${c.id}','${todayStr}')" style="background:var(--surf);border:0.5px solid var(--border);border-radius:2px;padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;${confirmed ? 'border-left:3px solid #7ac890' : ''}">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--txt);line-height:1">${c.horario.slice(0,5)}</div>
-          <div style="flex:1">
-            <div style="font-size:12px;font-weight:500;color:var(--txt)">${c.nome}</div>
-            <div style="font-size:9px;color:var(--txt3);letter-spacing:1.5px;text-transform:uppercase">${TYPE_PT[c.tipo] || c.tipo}</div>
+        const cls = `today-aula-card ${c.tipo}${confirmed ? ' confirmed' : ''}`
+        const chev = confirmed
+          ? '<i class="ti ti-circle-check-filled today-aula-chev ok"></i>'
+          : '<i class="ti ti-chevron-right today-aula-chev"></i>'
+        return `<div class="${cls}" onclick="openAulaDetail('${c.id}','${todayStr}')">
+          <div class="today-aula-time">${c.horario.slice(0,5)}</div>
+          <div class="today-aula-info">
+            <div class="today-aula-name">${c.nome}</div>
+            <div class="today-aula-type">${TYPE_PT[c.tipo] || c.tipo}</div>
           </div>
-          ${confirmed ? '<i class="ti ti-circle-check-filled" style="color:#7ac890;font-size:18px"></i>' : '<i class="ti ti-chevron-right" style="color:var(--txt3)"></i>'}
+          ${chev}
         </div>`
       }).join('')
-    : '<div style="color:var(--txt3);font-size:12px">Sem aulas hoje.</div>'
+    : '<div class="today-empty">Sem aulas hoje.</div>'
 }
 
 // ─── DETALHE DE AULA + CONFIRMAÇÃO ──────────────────────────────────────
