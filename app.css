@@ -10,8 +10,8 @@
 :root {
   --b: #0e0e0c;
   --b2: #161613;
-  --surf: #1a1a17;
-  --surf2: #22221e;
+  --surf: #1c1c19;
+  --surf2: #28281f;
   --border: rgba(245, 239, 223, 0.14);
   --border2: rgba(245, 239, 223, 0.24);
   --txt: #f5efdf;
@@ -1483,3 +1483,220 @@ a { color: inherit; text-decoration: none; }
 }
 
 :root[data-theme="light"] .switch.on::after { background: #fff; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CONTRASTE REFORÇADO — Versão final, distinção visual clara
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Filtros Gi/No-Gi/Kids — bolinha visível por tipo */
+.li {
+  background: var(--surf2);
+  border-width: 1px;
+  border-color: var(--border2);
+}
+.li .ld {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--txt3);
+}
+.li.gi .ld, .li[class*="gi"] .ld { background: #5a8dc8 !important; }
+.li.nogi .ld, .li[class*="nogi"] .ld { background: #b88a5a !important; }
+.li.kids .ld, .li[class*="kids"] .ld { background: #c8b89a !important; }
+
+/* Cards de aula (cpill) — mais visíveis */
+.cpill {
+  background: var(--surf2);
+  border-color: var(--border2);
+  font-weight: 500;
+  border-left-width: 3px;
+}
+.cpill.gi { border-left-color: #5a8dc8; }
+.cpill.nogi { border-left-color: #b88a5a; }
+.cpill.kids { border-left-color: #c8b89a; }
+
+/* Caixas de dia (ld) — separação clara do fundo */
+.wgrid .ld {
+  background: var(--surf);
+  border: 1px solid var(--border2);
+}
+.wgrid .ld:hover {
+  background: var(--surf2);
+  border-color: var(--accent);
+}
+
+/* Botão "Editar Grade" — mais destacado */
+.pbtn {
+  background: var(--accent);
+  color: var(--b);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.pbtn:hover {
+  background: var(--txt);
+  border-color: var(--txt);
+  color: var(--b);
+}
+
+/* Stats cards — mais destacados */
+.sc {
+  background: var(--surf);
+  border: 1px solid var(--border2);
+}
+
+/* Tabelas (tbl) — divisões mais visíveis */
+.tbl thead th {
+  border-bottom-width: 2px;
+  border-bottom-color: var(--border2);
+}
+.tbl tbody tr {
+  border-bottom-color: var(--border2);
+}
+
+/* Card "Aulas de Hoje" e similares — mais destaque */
+.tdy {
+  background: var(--surf);
+  border: 1px solid var(--border2);
+}
+
+/* Modais — destaque do fundo */
+.mbox {
+  background: var(--b2);
+  border: 1px solid var(--border2);
+}
+
+/* Inputs — mais visíveis */
+.sinput, .form-input, .mselect {
+  background: var(--b2);
+  border-width: 1px;
+  border-color: var(--border2);
+}
+.sinput:focus, .form-input:focus, .mselect:focus {
+  border-color: var(--accent);
+  background: var(--b);
+}
+
+/* Scards (settings) — separação clara */
+.scard {
+  background: var(--surf);
+  border: 1px solid var(--border2);
+}
+
+/* Topbar — separação clara da página */
+.topbar {
+  background: rgba(14, 14, 12, 0.9);
+  border-bottom-width: 1px;
+  border-bottom-color: var(--border2);
+}
+
+/* Nav bar — separação clara */
+.nav-bar {
+  border-bottom-width: 1px;
+  border-bottom-color: var(--border2);
+}
+
+.nb.active {
+  background: var(--surf2);
+  border-color: var(--border2);
+}
+
+/* Logout/Bell buttons — bordas mais visíveis */
+.logout-btn {
+  border: 1px solid var(--border2);
+  background: var(--surf);
+}
+.logout-btn:hover {
+  background: var(--surf2);
+  border-color: var(--accent);
+}
+
+/* ─── TEMA CLARO: Ajustes específicos pra contraste ─────────────────── */
+:root[data-theme="light"] {
+  --surf: #ffffff;
+  --surf2: #f0e8d2;
+  --border: rgba(26, 22, 18, 0.18);
+  --border2: rgba(26, 22, 18, 0.32);
+}
+
+:root[data-theme="light"] .topbar {
+  background: rgba(245, 239, 223, 0.95);
+  border-bottom-color: rgba(26, 22, 18, 0.18);
+}
+
+:root[data-theme="light"] .pbtn {
+  background: var(--txt);
+  color: #fff;
+  border-color: var(--txt);
+}
+:root[data-theme="light"] .pbtn:hover {
+  background: var(--accent2);
+  border-color: var(--accent2);
+}
+
+:root[data-theme="light"] .sinput,
+:root[data-theme="light"] .form-input,
+:root[data-theme="light"] .mselect {
+  background: #ffffff;
+}
+
+:root[data-theme="light"] .mbox {
+  background: #ffffff;
+}
+
+:root[data-theme="light"] .li,
+:root[data-theme="light"] .cpill {
+  background: #ffffff;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FADE/GRADIENTE — Profundidade nos cards de aula (igual presenças)
+   ═══════════════════════════════════════════════════════════════════════ */
+.wgrid .ld {
+  background: linear-gradient(135deg, var(--surf) 0%, var(--surf2) 100%);
+  border: 1px solid var(--border2);
+  position: relative;
+  overflow: hidden;
+}
+.wgrid .ld::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--accent) 50%, transparent 100%);
+  opacity: 0;
+  transition: opacity var(--t-fast) var(--ease);
+}
+.wgrid .ld:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.wgrid .ld:hover::before { opacity: 0.6; }
+
+.cpill {
+  background: linear-gradient(135deg, var(--surf2) 0%, var(--surf) 100%);
+  border: 1px solid var(--border2);
+  border-left-width: 3px;
+  position: relative;
+  transition: all var(--t-fast) var(--ease);
+}
+.cpill:hover {
+  transform: translateX(2px);
+  background: linear-gradient(135deg, var(--surf) 0%, var(--surf2) 100%);
+}
+
+/* Light mode adapta o gradiente pra ficar sutil */
+:root[data-theme="light"] .wgrid .ld {
+  background: linear-gradient(135deg, #ffffff 0%, #faf6e8 100%);
+}
+:root[data-theme="light"] .cpill {
+  background: linear-gradient(135deg, #ffffff 0%, #f5efdf 100%);
+}
+
+/* Stats cards (sc) — mesmo fade pra consistência */
+.sc {
+  background: linear-gradient(135deg, var(--surf) 0%, var(--surf2) 100%);
+  border: 1px solid var(--border2);
+}
+:root[data-theme="light"] .sc {
+  background: linear-gradient(135deg, #ffffff 0%, #faf6e8 100%);
+}
