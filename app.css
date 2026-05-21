@@ -2648,3 +2648,197 @@ input:focus, textarea:focus, select:focus {
 <script src="app.js"></script>
 </body>
 </html>
+/* ═══════════════════════════════════════════════════════════════════════
+   PATCH v12 — Cole no FINAL do app.css (depois da última regra)
+   Substitui o patch v11 anterior se você já tinha colado.
+   Inclui:
+   • Cards full-width (v11 reescrito)
+   • Lista de presenças nova (com avatar)
+   • Botão Editar aula no editor de grade
+   • Botão "Pagar agora" do aluno
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── 1. Container .page ocupa toda a largura disponível ────────────── */
+.page {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 720px) {
+  .page { padding: var(--sp-4) var(--sp-2); }   /* 16px / 8px */
+}
+
+@media (min-width: 720px) {
+  .page {
+    padding: var(--sp-5) var(--sp-4);            /* 24px / 16px */
+    max-width: 960px;                            /* era 1200px */
+  }
+}
+
+/* ─── 2. Containers de listas/grids sempre full-width ───────────────── */
+.wgrid, .scards, .evento-list, .mural-list, .recado-list, .timeline,
+.tbl, .vgrid, #today-classes, #grade-editor, #pres-content,
+#mural-list, #eventos-list, #perfil-content, #stu-tbl, #fin-body,
+.pres-list {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* ─── 3. Cards individuais full-width ───────────────────────────────── */
+.dcol, .evento-card, .mural-card, .recado, .scard, .mens-card,
+.mens-history, .timeline, .perfil-header, .info-banner,
+.grade-editor, .grade-day-block, .pres-row {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 720px) {
+  .vgrid { grid-template-columns: 1fr; gap: var(--sp-3); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PRESENÇAS — Nova lista com avatar (substitui a tabela antiga)
+   ═══════════════════════════════════════════════════════════════════════ */
+.pres-list {
+  display: flex; flex-direction: column;
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+
+.pres-row {
+  display: flex; align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 0.5px solid var(--border);
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease);
+}
+.pres-row:last-child { border-bottom: 0; }
+.pres-row:hover { background: var(--surf2); }
+
+.pres-avatar {
+  width: 36px; height: 36px;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surf2);
+  color: var(--txt2);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.pres-info { flex: 1; min-width: 0; }
+.pres-nome {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--txt);
+  display: flex; align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pres-meta {
+  font-size: 10px;
+  color: var(--txt3);
+  margin-top: 2px;
+  letter-spacing: 0.3px;
+}
+
+.pres-ck {
+  width: 36px; height: 36px;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent;
+  color: var(--txt3);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all var(--t-fast) var(--ease);
+}
+.pres-ck:hover {
+  border-color: var(--border2);
+  color: var(--txt);
+}
+.pres-ck.on {
+  background: rgba(74, 222, 128, 0.15);
+  border-color: #4ade80;
+  color: #4ade80;
+}
+.pres-ck.on:hover {
+  background: rgba(74, 222, 128, 0.25);
+}
+
+.pres-confirmed-badge {
+  display: inline-flex; align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  background: rgba(74, 222, 128, 0.12);
+  color: #4ade80;
+  border-radius: 3px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   GRADE EDITOR — botão "Editar" ao lado do remover
+   ═══════════════════════════════════════════════════════════════════════ */
+.grade-aula-edit {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 9px;
+  font-size: 9px; letter-spacing: 1.5px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt2);
+  background: transparent;
+  border: 0.5px solid var(--border2);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+  margin-right: 6px;
+}
+.grade-aula-edit:hover {
+  color: var(--txt);
+  border-color: var(--accent);
+  background: var(--surf2);
+}
+.grade-aula-edit i { font-size: 11px; }
+
+/* Ajuste no botão de remover pra ficar só ícone */
+.grade-aula-row .grade-aula-del {
+  padding: 5px 9px;
+  font-size: 11px;
+}
+
+@media (max-width: 720px) {
+  .grade-aula-edit { font-size: 8px; padding: 4px 7px; }
+  .grade-aula-edit i { font-size: 10px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MENSALIDADE — Botão "Pagar agora" (visível só pro próprio aluno)
+   ═══════════════════════════════════════════════════════════════════════ */
+.mens-actions {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 0.5px solid var(--border);
+}
+.mens-pay-btn {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  font-size: 12px; letter-spacing: 0.15em; font-weight: 600;
+}
+.mens-pay-btn i { font-size: 16px; }
+.mens-pay-hint {
+  text-align: center;
+  font-size: 10px;
+  color: var(--txt3);
+  margin-top: 8px;
+  line-height: 1.4;
+}
