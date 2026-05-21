@@ -1985,3 +1985,238 @@ input:focus, textarea:focus, select:focus {
   .user-name, .user-role { display: none; }
   .logo { font-size: 14px; letter-spacing: 2px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MURAL no formato de card-com-data-lateral (igual eventos)
+   ═══════════════════════════════════════════════════════════════════════ */
+.mural-card {
+  display: flex; gap: var(--sp-4);
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-sm);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-3);
+  transition: border-color var(--t-fast) var(--ease);
+}
+.mural-card:hover { border-color: var(--border2); }
+.mural-card.fixed { border-left-color: var(--accent); background: var(--surf2); }
+
+.mural-date {
+  width: 56px; flex-shrink: 0; text-align: center; padding-top: 2px;
+}
+.mural-dia {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px; line-height: 1;
+  color: var(--accent);
+}
+.mural-mes {
+  font-size: 9px; letter-spacing: 2px; font-weight: 500;
+  text-transform: uppercase; color: var(--txt3);
+  margin-top: 2px;
+}
+.mural-info { flex: 1; min-width: 0; }
+.mural-tit {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px; letter-spacing: 1px;
+  color: var(--txt); margin-bottom: 4px;
+  word-break: break-word;
+}
+.mural-meta {
+  font-size: 10px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--txt3);
+  margin-bottom: var(--sp-2);
+  display: flex; align-items: center; gap: 4px;
+}
+.mural-txt {
+  font-size: 13px; color: var(--txt2); line-height: 1.5;
+  word-break: break-word;
+}
+.mural-acts {
+  display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;
+}
+.mural-acts .ibtn, .mural-acts .dbtn {
+  width: 28px; height: 28px;
+  padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+}
+
+/* Mobile compact */
+@media (max-width: 720px) {
+  .mural-card { padding: var(--sp-3); gap: var(--sp-3); }
+  .mural-date { width: 44px; }
+  .mural-dia { font-size: 24px; }
+  .mural-tit { font-size: 14px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   STAT CARD CLICÁVEL (Total de aulas)
+   ═══════════════════════════════════════════════════════════════════════ */
+.stat-cell.clickable {
+  cursor: pointer;
+  position: relative;
+  transition: all var(--t-fast) var(--ease);
+}
+.stat-cell.clickable:hover {
+  background: var(--surf2);
+  border-color: var(--border2);
+}
+.stat-cell.clickable::after {
+  content: '›';
+  position: absolute;
+  top: 8px; right: 12px;
+  color: var(--txt3);
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MODAL: Lista de aulas frequentadas
+   ═══════════════════════════════════════════════════════════════════════ */
+.aulas-freq-list {
+  display: flex; flex-direction: column;
+}
+.aula-freq-item {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.aula-freq-item:last-child { border-bottom: 0; }
+.aula-freq-data {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 14px; letter-spacing: 1px;
+  color: var(--txt);
+  min-width: 72px;
+}
+.aula-freq-info { flex: 1; min-width: 0; }
+.aula-freq-nome {
+  font-size: 12px; color: var(--txt);
+  font-weight: 500;
+}
+.aula-freq-hora {
+  font-size: 9px; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--txt3);
+  margin-top: 2px;
+}
+.aula-freq-badge {
+  font-size: 9px; letter-spacing: 1px; font-weight: 500;
+  padding: 3px 7px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.aula-freq-badge.gi { background: rgba(90, 141, 200, 0.18); color: #5a8dc8; }
+.aula-freq-badge.nogi { background: rgba(136, 136, 136, 0.25); color: rgba(255,255,255,0.85); }
+.aula-freq-badge.kids { background: rgba(255, 255, 255, 0.12); color: var(--txt); }
+:root[data-theme="light"] .aula-freq-badge.gi { background: rgba(74, 125, 176, 0.15); color: #4a7db0; }
+:root[data-theme="light"] .aula-freq-badge.nogi { background: rgba(102, 102, 102, 0.15); color: #555; }
+:root[data-theme="light"] .aula-freq-badge.kids { background: rgba(0, 0, 0, 0.08); color: var(--txt); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ALINHAMENTO GERAL — auditoria
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Topbar: itens consistentes */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: var(--topbar-h);
+  padding: 10px var(--sp-4);
+}
+.topbar .brand,
+.topbar > div:first-child {
+  display: flex; align-items: center; gap: 10px;
+  flex: 1; min-width: 0;
+}
+.user-area {
+  display: flex; align-items: center; gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+/* Nav-bar consistente */
+.nav-bar {
+  display: flex;
+  gap: 4px;
+  padding: var(--sp-2) var(--sp-4);
+  overflow-x: auto;
+}
+.nb {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+/* Page header consistente — sempre slabel + stitle com mesmo gap */
+.slabel + .stitle { margin-top: 4px; }
+.stitle + * { margin-top: var(--sp-4); }
+
+/* Filter row (filtros + ação à direita) — alinhamento padrão */
+.page > div[style*="justify-content:space-between"] {
+  margin-bottom: var(--sp-4);
+}
+
+/* Stat cards do perfil — alinhar conteúdo no topo pra ::after caber */
+.stat-cell {
+  display: flex; flex-direction: column;
+  justify-content: center;
+  padding: var(--sp-4);
+  min-height: 80px;
+  text-align: left;
+}
+.stat-cell.clickable { padding-right: 28px; }
+.stat-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px; line-height: 1.1;
+  color: var(--txt);
+  margin-bottom: 4px;
+}
+.stat-label {
+  font-size: 9px; letter-spacing: 2px; font-weight: 500;
+  text-transform: uppercase; color: var(--txt3);
+}
+
+/* Modal padrão — header e body com padding uniforme */
+.mbox { width: 100%; max-width: 500px; }
+.mhead {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+}
+.mtitle {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px; letter-spacing: 2px;
+  color: var(--txt);
+}
+.mclose {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: 0;
+  color: var(--txt3); cursor: pointer;
+  font-size: 16px;
+  border-radius: var(--r-sm);
+  transition: all var(--t-fast) var(--ease);
+}
+.mclose:hover { color: var(--txt); background: var(--surf2); }
+.mbody { padding: var(--sp-4) var(--sp-5); }
+.mfoot {
+  display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--border);
+}
+
+/* Botões de ação consistentes (ibtn, dbtn) */
+.ibtn, .dbtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 32px; padding: 0 10px;
+  font-size: 11px;
+  background: var(--surf);
+  border: 1px solid var(--border);
+  color: var(--txt2);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+}
+.ibtn:hover { color: var(--txt); border-color: var(--border2); }
+.dbtn:hover { color: var(--danger); border-color: var(--danger); }
