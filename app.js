@@ -806,50 +806,48 @@ function renderPresContent(){
   }
 }
 
-// Professor vê lista com avatar + botão de presença (sem filtros de faixa)
+// Professor vê tabela com checkboxes para todos
 function renderPresContentProfessor(){
   const total = state.alunos.length
   const present = Object.values(state.presencas).filter(Boolean).length
   const pct = total ? Math.round(present/total*100) : 0
+  const bc = {}
+  state.alunos.filter(s => state.presencas[s.id]).forEach(s => bc[s.faixa] = (bc[s.faixa] || 0) + 1)
+  const top = Object.entries(bc).sort((a,b) => b[1]-a[1])[0]
 
-  // 3 cards (removido "Faixa líder")
   $('pres-stats').innerHTML = `
     <div class="sc"><div class="scv">${total}</div><div class="scl">Alunos</div></div>
     <div class="sc"><div class="scv">${present}</div><div class="scl">Presentes</div></div>
     <div class="sc"><div class="scv">${pct}%</div><div class="scl">Taxa</div></div>
+    <div class="sc"><div class="scv">${top ? BELT_PT[top[0]] : '—'}</div><div class="scl">Faixa líder</div></div>
   `
 
   const q = state.filters.search
+  const bf = state.filters.presBelt
   const filtered = state.alunos.filter(s => {
+    if(bf !== 'all' && s.faixa !== bf) return false
     if(q && !s.nome.toLowerCase().includes(q)) return false
     return true
   })
 
-  function iniciais(nome){
-    return (nome || '?').split(' ').filter(Boolean).map(p => p[0]).join('').slice(0,2).toUpperCase()
-  }
-
   $('pres-content').innerHTML = filtered.length ? `
-    <div class="pres-list">
-      ${filtered.map(s => {
-        const confirmou = state.confirmadosNoDia[s.id]
-        const totalAulas = state.totaisPresenca[s.id] || 0
-        const presenteHoje = state.presencas[s.id]
-        return `<div class="pres-row" onclick="openPerfilAluno('${s.id}')">
-          <div class="pres-avatar">${iniciais(s.nome)}</div>
-          <div class="pres-info">
-            <div class="pres-nome">
-              ${escapeHtml(s.nome)}
+    <table class="tbl">
+      <thead><tr><th>Aluno</th><th>Faixa</th><th>Presenças</th><th>Hoje</th></tr></thead>
+      <tbody>
+        ${filtered.map(s => {
+          const confirmou = state.confirmadosNoDia[s.id]
+          return `<tr>
+            <td style="font-weight:500;color:var(--txt)">
+              ${s.nome}
               ${confirmou ? '<span class="pres-confirmed-badge"><i class="ti ti-circle-check-filled"></i> confirmou</span>' : ''}
-            </div>
-            <div class="pres-meta">${BELT_PT[s.faixa] || s.faixa || '—'} · ${totalAulas} ${totalAulas === 1 ? 'presença' : 'presenças'}</div>
-          </div>
-          <button class="pres-ck ${presenteHoje ? 'on' : ''}" onclick="event.stopPropagation(); togglePres('${s.id}')" title="${presenteHoje ? 'Desmarcar presença' : 'Marcar presença'}">
-            ${presenteHoje ? '<i class="ti ti-check"></i>' : '<i class="ti ti-plus"></i>'}
-          </button>
-        </div>`
-      }).join('')}
-    </div>
+            </td>
+            <td><span class="belt ${s.faixa}"></span><span style="font-size:10px;color:var(--txt3)">${BELT_PT[s.faixa] || s.faixa}</span></td>
+            <td><span style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--txt)">${state.totaisPresenca[s.id] || 0}</span></td>
+            <td><button class="ck ${state.presencas[s.id] ? 'on' : ''}" onclick="togglePres('${s.id}')">${state.presencas[s.id] ? '<i class="ti ti-check"></i>' : '<i class="ti ti-plus" style="color:var(--txt3)"></i>'}</button></td>
+          </tr>`
+        }).join('')}
+      </tbody>
+    </table>
   ` : '<div style="text-align:center;padding:30px;color:var(--txt3);font-size:13px">Nenhum aluno encontrado.</div>'
 }
 
@@ -1906,30 +1904,6 @@ async function marcarPago(id){
   } catch(err){ toast('Erro: ' + err.message, true) }
 }
 
-// Aluno paga a própria mensalidade (base — depois integramos gateway real)
-async function pagarMinhaMensalidade(pagamentoId, valor){
-  if(!Auth.isAluno()){
-    toast('Apenas o próprio aluno pode pagar a mensalidade aqui.', true)
-    return
-  }
-  const opcao = prompt(
-    `Confirmar pagamento de ${fmtBRL(valor)}?\n\n` +
-    `Por enquanto registramos como pago manualmente.\n` +
-    `Em breve teremos pagamento online (PIX, cartão).\n\n` +
-    `Forma de pagamento (PIX, Dinheiro, Cartão, etc):`,
-    'PIX'
-  )
-  if(opcao === null) return
-  try {
-    await DB.marcarPago(pagamentoId, new Date().toISOString().slice(0,10), opcao)
-    toast('Pagamento registrado! Aguardando confirmação do professor.')
-    // Recarrega o card de mensalidade
-    if(Auth.currentProfile?.id) await carregarMensalidadeNoPerfil(Auth.currentProfile.id)
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  }
-}
-
 async function desmarcarPago(id){
   if(!confirm('Desfazer este pagamento?')) return
   try {
@@ -1989,18 +1963,6 @@ async function carregarMensalidadeNoPerfil(alunoId){
       const cor = atrasado ? '#e05050' : (diasRest <= 3 ? '#e8c270' : 'var(--accent)')
       const status = atrasado ? `Atrasado há ${Math.abs(diasRest)} dia(s)` : diasRest === 0 ? 'Vence hoje' : `Vence em ${diasRest} dia(s)`
       const badge = atrasado ? '✕ ATRASADO' : (diasRest === 0 ? '⚠ HOJE' : '○ PENDENTE')
-
-      // Mostra botão "PAGAR AGORA" só pro próprio aluno (não pro professor visualizando)
-      const ehOProprioAluno = Auth.isAluno() && Auth.currentProfile?.id === alunoId
-      const botaoPagar = ehOProprioAluno ? `
-        <div class="mens-actions">
-          <button class="pbtn mens-pay-btn" onclick="pagarMinhaMensalidade('${pendente.id}', ${pendente.valor})">
-            <i class="ti ti-credit-card" aria-hidden="true"></i> Pagar agora
-          </button>
-          <div class="mens-pay-hint">Pagamento integrado em breve (PIX, cartão, boleto)</div>
-        </div>
-      ` : ''
-
       cardHtml = `
         <div class="mens-card" style="border-left:3px solid ${cor}">
           <div class="mens-header">
@@ -2011,7 +1973,6 @@ async function carregarMensalidadeNoPerfil(alunoId){
             <div class="mens-value">${fmtBRL(pendente.valor)}</div>
             <div class="mens-info" style="color:${cor}">${status}  ·  ${formatDate(pendente.data_vencimento)}</div>
           </div>
-          ${botaoPagar}
         </div>
       `
     } else if(ultimoPago){
