@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" href="/icon-192.png">
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=8">
+  <link rel="stylesheet" href="app.css?v=7">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -57,11 +57,11 @@
   <div class="page on" id="page-schedule">
     <div class="slabel">Semana atual</div>
     <div class="stitle" id="sch-title">Grade de Aulas</div>
-    <div class="schedule-toolbar">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <div class="leg">
-        <div class="li gi"><div class="ld"></div>Gi</div>
-        <div class="li nogi"><div class="ld"></div>No-Gi</div>
-        <div class="li kids"><div class="ld"></div>Kids</div>
+        <div class="li"><div class="ld" style="background:var(--txt)"></div>Gi</div>
+        <div class="li"><div class="ld" style="background:var(--txt3)"></div>No-Gi</div>
+        <div class="li"><div class="ld" style="background:var(--txt2)"></div>Kids</div>
       </div>
       <button class="fbtn prof-only" id="toggle-edit-btn" onclick="toggleScheduleEdit()">
         <i class="ti ti-edit" aria-hidden="true"></i> Editar grade
@@ -200,18 +200,6 @@
       <div style="display:flex;gap:8px;align-items:center">
         <input class="sinput" id="cfg-name" style="flex:1">
         <button class="pbtn" onclick="saveName()">Salvar</button>
-      </div>
-    </div>
-    <div class="scard prof-only">
-      <div class="scard-title">Cor do Nome da Equipe</div>
-      <div style="font-size:11px;color:var(--txt3);margin-bottom:12px;line-height:1.5">
-        Personalize a cor do nome da academia exibido no topo e na tela de login.
-      </div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <input type="color" id="cfg-brand-color" value="#e8ebf2" style="width:48px;height:40px;border:1px solid var(--border2);border-radius:var(--r-sm);background:var(--b);cursor:pointer;padding:2px">
-        <input class="sinput" id="cfg-brand-hex" placeholder="#e8ebf2" maxlength="7" style="width:110px;font-family:monospace">
-        <button class="pbtn" onclick="saveBrandColor()"><i class="ti ti-check" aria-hidden="true"></i> Aplicar</button>
-        <button class="fbtn" onclick="resetBrandColor()" type="button">Padrão</button>
       </div>
     </div>
     <div class="scard prof-only">
