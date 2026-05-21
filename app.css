@@ -8,20 +8,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
 
 :root {
-  --b: #0b0d11;
-  --b2: #131620;
-  --surf: #181b26;
-  --surf2: #232735;
-  --border: rgba(220, 226, 240, 0.10);
-  --border2: rgba(220, 226, 240, 0.20);
-  --txt: #e8ebf2;
-  --txt2: rgba(232, 235, 242, 0.70);
-  --txt3: rgba(232, 235, 242, 0.42);
-  --accent: #e8ebf2;
-  --accent2: #b8bdcc;
+  --b: #0e0e0c;
+  --b2: #161613;
+  --surf: #1c1c19;
+  --surf2: #28281f;
+  --border: rgba(245, 239, 223, 0.14);
+  --border2: rgba(245, 239, 223, 0.24);
+  --txt: #f5efdf;
+  --txt2: rgba(245, 239, 223, 0.72);
+  --txt3: rgba(245, 239, 223, 0.42);
+  --accent: #c8b89a;
+  --accent2: #b8a384;
   --danger: #e07050;
-  --brand: #e8ebf2;
-  --belt-white: #ebe8de;
+  --belt-white: #f5efdf;
   --belt-blue: #5a8dc8;
   --belt-purple: #8866aa;
   --belt-brown: #6e4528;
@@ -40,22 +39,21 @@
 }
 
 :root[data-theme="light"] {
-  --b: #f4f6fa;
-  --b2: #e8ecf3;
+  --b: #f5efdf;
+  --b2: #ede5cf;
   --surf: #ffffff;
-  --surf2: #eef1f7;
-  --border: rgba(20, 25, 40, 0.12);
-  --border2: rgba(20, 25, 40, 0.24);
-  --txt: #141928;
-  --txt2: rgba(20, 25, 40, 0.68);
-  --txt3: rgba(20, 25, 40, 0.42);
-  --accent: #141928;
-  --accent2: #2a3142;
+  --surf2: #faf6ea;
+  --border: rgba(26, 22, 18, 0.16);
+  --border2: rgba(26, 22, 18, 0.28);
+  --txt: #1a1612;
+  --txt2: rgba(26, 22, 18, 0.66);
+  --txt3: rgba(26, 22, 18, 0.40);
+  --accent: #7a6a4a;
+  --accent2: #5a4d35;
   --danger: #c84a30;
-  --brand: #141928;
-  --shadow-sm: 0 1px 2px rgba(20, 25, 40, 0.05);
-  --shadow-md: 0 4px 16px rgba(20, 25, 40, 0.08);
-  --shadow-lg: 0 12px 40px rgba(20, 25, 40, 0.15);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.08);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,.15);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -117,9 +115,9 @@ a { color: inherit; text-decoration: none; }
 .logo {
   font-family: 'Bebas Neue', sans-serif;
   font-size: 22px; letter-spacing: 3px;
-  color: var(--brand, var(--txt)); line-height: 1;
+  color: var(--txt); line-height: 1;
 }
-.logo em { color: var(--brand, var(--accent)); font-style: normal; opacity: 0.7; }
+.logo em { color: var(--accent); font-style: normal; }
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: var(--sp-3); }
 .account-info { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .account-info .name { font-size: 13px; font-weight: 500; color: var(--txt); }
@@ -189,8 +187,8 @@ a { color: inherit; text-decoration: none; }
   border-radius: var(--r-sm);
   transition: all var(--t-fast) var(--ease);
 }
-.pbtn { background: var(--accent); color: var(--b); border-color: var(--accent); }
-.pbtn:hover { background: var(--accent2); border-color: var(--accent2); transform: translateY(-1px); }
+.pbtn { background: var(--txt); color: var(--b); border-color: var(--txt); }
+.pbtn:hover { background: var(--accent); border-color: var(--accent); transform: translateY(-1px); }
 .fbtn { background: transparent; color: var(--txt2); }
 .fbtn:hover { color: var(--txt); border-color: var(--border2); background: var(--surf); }
 .fbtn.active { color: var(--txt); border-color: var(--border2); background: var(--surf); }
@@ -310,45 +308,13 @@ a { color: inherit; text-decoration: none; }
   text-align: left;
   padding: var(--sp-3);
   border-bottom: 1px solid var(--border);
-  white-space: nowrap;
 }
 .tbl tbody tr {
   border-bottom: 1px solid var(--border);
   transition: background var(--t-fast) var(--ease);
 }
 .tbl tbody tr:hover { background: var(--surf); }
-.tbl td {
-  padding: var(--sp-3);
-  color: var(--txt2);
-  vertical-align: middle;
-}
-
-/* Alinhamento por coluna — header e conteúdo seguem juntos */
-.tbl th.col-l, .tbl td.col-l { text-align: left; }
-.tbl th.col-c, .tbl td.col-c { text-align: center; }
-.tbl th.col-r, .tbl td.col-r { text-align: right; }
-
-/* Nome do aluno destacado */
-.tbl td.td-nome { font-weight: 500; color: var(--txt); }
-
-/* Tabela de presenças — distribuição de largura controlada */
-.tbl-presencas { table-layout: auto; }
-.tbl-presencas th.col-l:nth-child(1),
-.tbl-presencas td.col-l:nth-child(1) { width: auto; }
-.tbl-presencas th:nth-child(2),
-.tbl-presencas td:nth-child(2) { width: 200px; }
-.tbl-presencas th:nth-child(3),
-.tbl-presencas td:nth-child(3) { width: 120px; }
-.tbl-presencas th:nth-child(4),
-.tbl-presencas td:nth-child(4) { width: 90px; }
-
-/* Estado vazio padronizado pras tabelas/listas */
-.empty-state {
-  text-align: center;
-  padding: var(--sp-6) var(--sp-4);
-  color: var(--txt3);
-  font-size: 13px;
-}
+.tbl td { padding: var(--sp-3); color: var(--txt2); }
 .stu-row-clickable { cursor: pointer; }
 
 .belt {
@@ -357,24 +323,6 @@ a { color: inherit; text-decoration: none; }
   position: relative;
   border-radius: 1px;
   flex-shrink: 0;
-}
-.belt-cell {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-.belt-label {
-  font-size: 10px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: var(--txt3);
-  white-space: nowrap;
-}
-.pres-count {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 18px;
-  color: var(--txt);
-  letter-spacing: 1px;
 }
 .belt.white { background: var(--belt-white); border: 1px solid var(--border2); }
 .belt.blue { background: var(--belt-blue); }
@@ -659,67 +607,40 @@ a { color: inherit; text-decoration: none; }
   min-height: 100vh;
   display: flex; align-items: center; justify-content: center;
   padding: var(--sp-5);
-  background: 
-    radial-gradient(ellipse at top, rgba(140, 150, 180, 0.05) 0%, transparent 50%),
-    var(--b);
+  background: var(--b);
   animation: fadeIn 0.4s var(--ease);
 }
 .login-wrap {
-  width: 100%; max-width: 400px;
+  width: 100%; max-width: 380px;
   display: flex; flex-direction: column;
   align-items: center;
   gap: var(--sp-5);
 }
 .login-box {
   width: 100%;
-  background: 
-    linear-gradient(180deg, rgba(140, 150, 180, 0.04) 0%, transparent 40%),
-    linear-gradient(135deg, var(--surf) 0%, var(--b2) 100%);
-  border: 1px solid var(--border2);
+  background: var(--surf);
+  border: 1px solid var(--border);
   border-radius: var(--r-md);
-  padding: var(--sp-7) var(--sp-6);
+  padding: var(--sp-7) var(--sp-5);
   display: flex; flex-direction: column;
   gap: var(--sp-4);
-  box-shadow: 
-    0 12px 40px rgba(0,0,0,0.45),
-    inset 0 1px 0 rgba(235, 232, 222, 0.06);
+  box-shadow: var(--shadow-md);
   animation: slideUp 0.4s var(--ease);
-  position: relative;
-  overflow: hidden;
-}
-/* Linha dourada no topo do card */
-.login-box::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent 0%, var(--accent) 50%, transparent 100%);
 }
 .login-logo {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 40px; letter-spacing: 4px;
+  font-size: 38px; letter-spacing: 4px;
   text-align: center;
-  color: var(--brand, var(--txt));
+  color: var(--txt);
   line-height: 1;
-  margin-bottom: var(--sp-1);
+  margin-bottom: var(--sp-2);
 }
-.login-logo em { color: var(--brand, var(--accent)); font-style: normal; opacity: 0.7; }
+.login-logo em { color: var(--accent); font-style: normal; }
 .login-sub {
   text-align: center;
   font-size: 9px; letter-spacing: 3px; font-weight: 500; text-transform: uppercase;
   color: var(--txt3);
   margin-bottom: var(--sp-5);
-  position: relative;
-  padding-bottom: var(--sp-4);
-}
-.login-sub::after {
-  content: '';
-  position: absolute;
-  bottom: 0; left: 50%;
-  transform: translateX(-50%);
-  width: 32px; height: 1px;
-  background: var(--accent);
-  opacity: 0.4;
 }
 
 .form-row { display: flex; flex-direction: column; gap: 6px; }
@@ -732,40 +653,24 @@ a { color: inherit; text-decoration: none; }
   color: var(--txt);
   border: 1px solid var(--border2);
   border-radius: var(--r-sm);
-  padding: 13px 14px;
+  padding: 12px 14px;
   font-size: 14px;
-  transition: border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+  transition: border-color var(--t-fast) var(--ease);
 }
-.form-input:focus {
-  outline: none;
-  border-color: var(--accent);
-  background: var(--b2);
-}
-/* Fix do autofill do Chrome — evita o fundo amarelo claro */
-.form-input:-webkit-autofill,
-.form-input:-webkit-autofill:hover,
-.form-input:-webkit-autofill:focus {
-  -webkit-text-fill-color: var(--txt);
-  -webkit-box-shadow: 0 0 0px 1000px var(--b) inset;
-  box-shadow: 0 0 0px 1000px var(--b) inset;
-  transition: background-color 5000s ease-in-out 0s;
-  caret-color: var(--txt);
-}
+.form-input:focus { outline: none; border-color: var(--accent); }
 .form-submit {
-  background: var(--accent);
+  background: var(--txt);
   color: var(--b);
   border: none;
   border-radius: var(--r-sm);
   padding: 14px;
-  font-size: 11px; letter-spacing: 3px; font-weight: 600; text-transform: uppercase;
+  font-size: 11px; letter-spacing: 3px; font-weight: 500; text-transform: uppercase;
   cursor: pointer;
   transition: all var(--t-fast) var(--ease);
-  margin-top: var(--sp-3);
+  margin-top: var(--sp-2);
 }
 .form-submit:hover:not(:disabled) {
-  background: var(--accent2);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(140, 150, 180, 0.25);
+  background: var(--accent); transform: translateY(-1px);
 }
 .form-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 .form-err {
@@ -785,52 +690,28 @@ a { color: inherit; text-decoration: none; }
   color: var(--txt3);
   margin-top: var(--sp-3);
 }
-.login-hint a { color: var(--accent); text-decoration: none; font-weight: 500; border-bottom: 1px solid transparent; transition: border-color var(--t-fast) var(--ease); }
-.login-hint a:hover { border-bottom-color: var(--accent); }
+.login-hint a { color: var(--txt); text-decoration: underline; }
+.login-hint a:hover { color: var(--accent); }
 
 #brand-logo {
-  max-width: 72px;
-  max-height: 72px;
+  max-width: 80px;
+  max-height: 80px;
   object-fit: contain;
-  margin: 0 auto var(--sp-3);
-  border-radius: var(--r-sm);
-}
-
-/* Light mode pro login */
-:root[data-theme="light"] .login-page {
-  background: 
-    radial-gradient(ellipse at top, rgba(60, 70, 95, 0.06) 0%, transparent 50%),
-    var(--b);
-}
-:root[data-theme="light"] .login-box {
-  background: 
-    linear-gradient(180deg, rgba(60, 70, 95, 0.03) 0%, transparent 40%),
-    linear-gradient(135deg, #ffffff 0%, #eaeef5 100%);
-  box-shadow: 
-    0 12px 40px rgba(20, 25, 40, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
-}
-:root[data-theme="light"] .form-input:-webkit-autofill,
-:root[data-theme="light"] .form-input:-webkit-autofill:hover,
-:root[data-theme="light"] .form-input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0px 1000px #ffffff inset;
-  box-shadow: 0 0 0px 1000px #ffffff inset;
+  margin: 0 auto var(--sp-2);
 }
 
 @media (max-width: 480px) {
-  .login-box { padding: var(--sp-6) var(--sp-4); }
-  .login-logo { font-size: 32px; }
-  .form-input { padding: 12px 12px; font-size: 13px; }
+  .login-box { padding: var(--sp-5) var(--sp-4); }
+  .login-logo { font-size: 30px; }
+  .form-input { padding: 11px 12px; font-size: 13px; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
    GRADE (SCHEDULE) — Grid semanal
-   Classes vêm do JS: .dcol, .dhead, .dname, .dnum, .cpill, .ctime, .cname
    ═══════════════════════════════════════════════════════════════════════ */
-
-/* Legenda Gi / No-Gi / Kids */
 .leg {
   display: flex; gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
   flex-wrap: wrap;
 }
 .li {
@@ -842,142 +723,52 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
 }
-/* Bolinha de cor da legenda */
-.li .ld {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-  background: var(--txt3);
-}
 
-/* Grade semanal (7 colunas) */
 .wgrid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: var(--sp-2);
   margin-bottom: var(--sp-4);
 }
-
-/* Coluna de cada dia */
-.dcol {
+.wgrid .ld {
   background: var(--surf);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   padding: var(--sp-3);
-  min-height: 140px;
+  min-height: 120px;
   display: flex; flex-direction: column;
-  gap: 6px;
   transition: border-color var(--t-fast) var(--ease);
 }
-.dcol:hover { border-color: var(--border2); }
-
-/* Cabeçalho da coluna (dia + número) */
-.dhead {
-  display: flex; align-items: baseline; justify-content: space-between;
-  padding-bottom: var(--sp-2);
-  margin-bottom: var(--sp-1);
+.wgrid .ld:hover { border-color: var(--border2); }
+.ld-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: var(--sp-2);
+  padding-bottom: 6px;
   border-bottom: 1px solid var(--border);
 }
-.dname {
+.ld-day {
   font-size: 9px; letter-spacing: 2px; font-weight: 500; text-transform: uppercase;
   color: var(--txt3);
 }
-.dnum {
+.ld-date {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 20px;
-  color: var(--txt2);
-  line-height: 1;
-}
-/* "Hoje" — destacado em dourado */
-.dnum.td { color: var(--accent); }
-
-/* Tempo e nome dentro do cpill */
-.cpill .ctime {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 14px;
-  color: var(--txt);
-  letter-spacing: 1px;
-  min-width: 42px;
-  display: inline-flex; align-items: center; gap: 4px;
-}
-.cpill .cname {
-  font-size: 11px;
-  color: var(--txt2);
-  margin-left: 8px;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Cards "Aulas de hoje" (lista abaixo da grade) */
-.today-aula-card {
-  display: flex; align-items: center; gap: var(--sp-3);
-  background: var(--surf);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-  border-radius: var(--r-sm);
-  padding: 10px 14px;
-  margin-bottom: var(--sp-2);
-  cursor: pointer;
-  transition: all var(--t-fast) var(--ease);
-}
-.today-aula-card:hover {
-  border-color: var(--border2);
-  transform: translateX(2px);
-}
-.today-aula-card.confirmed { border-left-color: #7ac890; }
-.today-aula-card.gi { border-left-color: #5a8dc8; }
-.today-aula-card.nogi { border-left-color: #b88a5a; }
-.today-aula-card.kids { border-left-color: #c8b89a; }
-.today-aula-card.confirmed.gi,
-.today-aula-card.confirmed.nogi,
-.today-aula-card.confirmed.kids { border-left-color: #7ac890; }
-
-.today-aula-time {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 22px;
-  color: var(--txt);
-  line-height: 1;
-  min-width: 52px;
-}
-.today-aula-info { flex: 1; min-width: 0; }
-.today-aula-name {
-  font-size: 13px; font-weight: 500;
+  font-size: 16px;
   color: var(--txt);
 }
-.today-aula-type {
-  font-size: 9px; letter-spacing: 2px; font-weight: 500; text-transform: uppercase;
-  color: var(--txt3);
-  margin-top: 2px;
-}
-.today-aula-chev {
-  color: var(--txt3);
-  font-size: 18px;
-  flex-shrink: 0;
-}
-.today-aula-chev.ok { color: #7ac890; }
 
-.today-empty {
-  padding: var(--sp-4);
-  text-align: center;
-  font-size: 11px;
-  color: var(--txt3);
-  font-style: italic;
-  background: var(--surf);
-  border: 1px dashed var(--border);
-  border-radius: var(--r-sm);
+/* Bolinha colorida dentro do filtro (li .ld) — sobrescreve o estilo de dia */
+.li .ld {
+  width: 8px;
+  height: 8px;
+  min-height: 0;
+  padding: 0;
+  border-radius: 50%;
+  display: inline-block;
+  border: none;
+  background: var(--txt3);
+  margin: 0;
 }
 
-/* Barra de filtros (legenda + botão "Editar grade") */
-.schedule-toolbar {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: var(--sp-3);
-  margin-bottom: var(--sp-4);
-  flex-wrap: wrap;
-}
-
-/* Editor de grade (modo edição) */
 .grade-editor {
   background: var(--surf);
   border: 1px solid var(--border);
@@ -1078,7 +869,7 @@ a { color: inherit; text-decoration: none; }
    ═══════════════════════════════════════════════════════════════════════ */
 @media (max-width: 720px) {
   .wgrid { grid-template-columns: 1fr; }
-  .dcol { min-height: auto; }
+  .ld { min-height: auto; }
   .vgrid { grid-template-columns: 1fr; }
   .theme-opts { grid-template-columns: 1fr; }
   .user-name { font-size: 12px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1533,18 +1324,16 @@ a { color: inherit; text-decoration: none; }
     grid-template-columns: 1fr; 
     gap: var(--sp-3);
   }
-  .dcol { 
+  .ld { 
     min-height: auto; 
     padding: var(--sp-3);
   }
-  .dhead { 
-    margin-bottom: var(--sp-2); 
+  .ld-head { 
+    margin-bottom: var(--sp-3); 
     padding-bottom: var(--sp-2);
   }
-  .dname { font-size: 10px; letter-spacing: 2px; }
-  .dnum { font-size: 22px; }
-  .cpill .ctime { font-size: 16px; min-width: 50px; }
-  .cpill .cname { font-size: 12px; }
+  .ld-day { font-size: 10px; letter-spacing: 2px; }
+  .ld-date { font-size: 20px; }
   
   /* Cpills maiores no mobile */
   .cpill {
@@ -1639,7 +1428,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 :root[data-theme="light"] .topbar {
-  background: rgba(220, 226, 240, 0.92);
+  background: rgba(245, 239, 223, 0.92);
 }
 
 :root[data-theme="light"] .pbtn {
@@ -1676,7 +1465,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 :root[data-theme="light"] .mlay {
-  background: rgba(20, 25, 40, 0.4);
+  background: rgba(26, 22, 18, 0.4);
 }
 
 :root[data-theme="light"] .form-submit {
@@ -1696,7 +1485,7 @@ a { color: inherit; text-decoration: none; }
 :root[data-theme="light"] .switch.on::after { background: #fff; }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   CONTRASTE REFORÇADO — Filtros e cards de aula
+   CONTRASTE REFORÇADO — Versão final, distinção visual clara
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* Filtros Gi/No-Gi/Kids — bolinha visível por tipo */
@@ -1704,6 +1493,12 @@ a { color: inherit; text-decoration: none; }
   background: var(--surf2);
   border-width: 1px;
   border-color: var(--border2);
+}
+.li .ld {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--txt3);
 }
 .li.gi .ld, .li[class*="gi"] .ld { background: #5a8dc8 !important; }
 .li.nogi .ld, .li[class*="nogi"] .ld { background: #b88a5a !important; }
@@ -1720,6 +1515,16 @@ a { color: inherit; text-decoration: none; }
 .cpill.nogi { border-left-color: #b88a5a; }
 .cpill.kids { border-left-color: #c8b89a; }
 
+/* Caixas de dia (ld) — separação clara do fundo */
+.wgrid .ld {
+  background: var(--surf);
+  border: 1px solid var(--border2);
+}
+.wgrid .ld:hover {
+  background: var(--surf2);
+  border-color: var(--accent);
+}
+
 /* Botão "Editar Grade" — mais destacado */
 .pbtn {
   background: var(--accent);
@@ -1728,8 +1533,8 @@ a { color: inherit; text-decoration: none; }
   font-weight: 600;
 }
 .pbtn:hover {
-  background: var(--accent2);
-  border-color: var(--accent2);
+  background: var(--txt);
+  border-color: var(--txt);
   color: var(--b);
 }
 
@@ -1779,7 +1584,7 @@ a { color: inherit; text-decoration: none; }
 
 /* Topbar — separação clara da página */
 .topbar {
-  background: rgba(11, 13, 17, 0.9);
+  background: rgba(14, 14, 12, 0.9);
   border-bottom-width: 1px;
   border-bottom-color: var(--border2);
 }
@@ -1805,11 +1610,17 @@ a { color: inherit; text-decoration: none; }
   border-color: var(--accent);
 }
 
-/* ─── TEMA CLARO: ajustes específicos de contraste ─────────────────── */
+/* ─── TEMA CLARO: Ajustes específicos pra contraste ─────────────────── */
+:root[data-theme="light"] {
+  --surf: #ffffff;
+  --surf2: #f0e8d2;
+  --border: rgba(26, 22, 18, 0.18);
+  --border2: rgba(26, 22, 18, 0.32);
+}
 
 :root[data-theme="light"] .topbar {
-  background: rgba(220, 226, 240, 0.95);
-  border-bottom-color: rgba(20, 25, 40, 0.18);
+  background: rgba(245, 239, 223, 0.95);
+  border-bottom-color: rgba(26, 22, 18, 0.18);
 }
 
 :root[data-theme="light"] .pbtn {
@@ -1838,18 +1649,115 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   FADE/GRADIENTE — Profundidade nos cards (igual presenças e eventos)
+   FADE/GRADIENTE — Profundidade nos cards de aula (igual presenças)
    ═══════════════════════════════════════════════════════════════════════ */
-.dcol {
+.wgrid .ld {
   background: 
-    linear-gradient(180deg, rgba(180, 189, 204, 0.06) 0%, transparent 40%),
-    linear-gradient(135deg, #1d2030 0%, #13151f 100%);
-  border: 1px solid rgba(220, 226, 240, 0.18);
+    linear-gradient(180deg, rgba(200, 184, 154, 0.06) 0%, transparent 40%),
+    linear-gradient(135deg, #252521 0%, #1a1a17 100%);
+  border: 1px solid rgba(245, 239, 223, 0.18);
   position: relative;
   overflow: hidden;
   box-shadow: 
     0 2px 6px rgba(0,0,0,0.25),
-    inset 0 1px 0 rgba(220, 226, 240, 0.06);
+    inset 0 1px 0 rgba(245, 239, 223, 0.06);
+}
+.wgrid .ld::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--accent) 50%, transparent 100%);
+  opacity: 0.5;
+  transition: opacity var(--t-fast) var(--ease);
+}
+.wgrid .ld:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 6px 20px rgba(0,0,0,0.4), 
+    inset 0 1px 0 rgba(245, 239, 223, 0.1);
+}
+.wgrid .ld:hover::before { opacity: 1; }
+
+.cpill {
+  background: 
+    linear-gradient(135deg, #2e2e26 0%, #1f1f1c 100%);
+  border: 1px solid rgba(245, 239, 223, 0.22);
+  border-left-width: 3px;
+  position: relative;
+  transition: all var(--t-fast) var(--ease);
+  box-shadow: 
+    0 2px 4px rgba(0,0,0,0.2),
+    inset 0 1px 0 rgba(245, 239, 223, 0.06);
+}
+.cpill:hover {
+  transform: translateX(2px);
+  border-color: var(--accent);
+  box-shadow: 
+    0 3px 10px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(245, 239, 223, 0.1);
+}
+
+/* Light mode */
+:root[data-theme="light"] .wgrid .ld {
+  background: 
+    linear-gradient(180deg, rgba(122, 106, 74, 0.04) 0%, transparent 40%),
+    linear-gradient(135deg, #ffffff 0%, #ede4ca 100%);
+  border: 1px solid rgba(26, 22, 18, 0.18);
+  box-shadow: 
+    0 2px 6px rgba(26, 22, 18, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+:root[data-theme="light"] .cpill {
+  background: linear-gradient(135deg, #ffffff 0%, #e8dec0 100%);
+  border: 1px solid rgba(26, 22, 18, 0.22);
+  box-shadow: 
+    0 2px 4px rgba(26, 22, 18, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* Stats cards (sc) — mesmo fade */
+.sc {
+  background: 
+    linear-gradient(180deg, rgba(200, 184, 154, 0.06) 0%, transparent 40%),
+    linear-gradient(135deg, #252521 0%, #1a1a17 100%);
+  border: 1px solid rgba(245, 239, 223, 0.18);
+  box-shadow: 
+    0 2px 6px rgba(0,0,0,0.25),
+    inset 0 1px 0 rgba(245, 239, 223, 0.06);
+}
+:root[data-theme="light"] .sc {
+  background: 
+    linear-gradient(180deg, rgba(122, 106, 74, 0.04) 0%, transparent 40%),
+    linear-gradient(135deg, #ffffff 0%, #ede4ca 100%);
+  border: 1px solid rgba(26, 22, 18, 0.18);
+  box-shadow: 
+    0 2px 6px rgba(26, 22, 18, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   GRADE DE HORÁRIOS — Classes reais usadas pelo JS (.dcol, .dhead, .dname, .dnum)
+   Estilo consistente com o resto da aplicação
+   ═══════════════════════════════════════════════════════════════════════ */
+.dcol {
+  background:
+    linear-gradient(180deg, rgba(200, 184, 154, 0.06) 0%, transparent 40%),
+    linear-gradient(135deg, #252521 0%, #1a1a17 100%);
+  border: 1px solid rgba(245, 239, 223, 0.18);
+  border-radius: var(--r-sm);
+  padding: var(--sp-3);
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  position: relative;
+  overflow: hidden;
+  transition: all var(--t-fast) var(--ease);
+  box-shadow:
+    0 2px 6px rgba(0,0,0,0.25),
+    inset 0 1px 0 rgba(245, 239, 223, 0.06);
 }
 .dcol::before {
   content: '';
@@ -1863,84 +1771,52 @@ a { color: inherit; text-decoration: none; }
 .dcol:hover {
   border-color: var(--accent);
   transform: translateY(-2px);
-  box-shadow: 
-    0 6px 20px rgba(0,0,0,0.4), 
-    inset 0 1px 0 rgba(220, 226, 240, 0.1);
+  box-shadow:
+    0 6px 20px rgba(0,0,0,0.4),
+    inset 0 1px 0 rgba(245, 239, 223, 0.1);
 }
 .dcol:hover::before { opacity: 1; }
 
-.cpill {
-  background: 
-    linear-gradient(135deg, #262a3a 0%, #181b26 100%);
-  border: 1px solid rgba(220, 226, 240, 0.22);
-  border-left-width: 3px;
-  position: relative;
-  transition: all var(--t-fast) var(--ease);
-  box-shadow: 
-    0 2px 4px rgba(0,0,0,0.2),
-    inset 0 1px 0 rgba(220, 226, 240, 0.06);
+.dhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--sp-2);
 }
-.cpill:hover {
-  transform: translateX(2px);
-  border-color: var(--accent);
-  box-shadow: 
-    0 3px 10px rgba(0,0,0,0.3),
-    inset 0 1px 0 rgba(220, 226, 240, 0.1);
+.dname {
+  font-size: 10px;
+  letter-spacing: 2px;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--txt3);
 }
-
-.today-aula-card {
-  background: 
-    linear-gradient(180deg, rgba(180, 189, 204, 0.06) 0%, transparent 40%),
-    linear-gradient(135deg, #1d2030 0%, #13151f 100%);
-  border: 1px solid rgba(220, 226, 240, 0.18);
-  box-shadow: 
-    0 2px 6px rgba(0,0,0,0.25),
-    inset 0 1px 0 rgba(220, 226, 240, 0.06);
+.dnum {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  color: var(--txt);
+  line-height: 1;
+}
+.dnum.td {
+  color: var(--accent);
 }
 
-/* Light mode */
+/* Tema claro */
 :root[data-theme="light"] .dcol {
-  background: 
-    linear-gradient(180deg, rgba(40, 50, 75, 0.04) 0%, transparent 40%),
-    linear-gradient(135deg, #ffffff 0%, #e4e8f0 100%);
-  border: 1px solid rgba(20, 25, 40, 0.18);
-  box-shadow: 
-    0 2px 6px rgba(20, 25, 40, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
-}
-:root[data-theme="light"] .cpill {
-  background: linear-gradient(135deg, #ffffff 0%, #dde1eb 100%);
-  border: 1px solid rgba(20, 25, 40, 0.22);
-  box-shadow: 
-    0 2px 4px rgba(20, 25, 40, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
-}
-:root[data-theme="light"] .today-aula-card {
-  background: 
-    linear-gradient(180deg, rgba(40, 50, 75, 0.04) 0%, transparent 40%),
-    linear-gradient(135deg, #ffffff 0%, #e4e8f0 100%);
-  border: 1px solid rgba(20, 25, 40, 0.18);
-  box-shadow: 
-    0 2px 6px rgba(20, 25, 40, 0.08),
+  background:
+    linear-gradient(180deg, rgba(122, 106, 74, 0.04) 0%, transparent 40%),
+    linear-gradient(135deg, #ffffff 0%, #ede4ca 100%);
+  border: 1px solid rgba(26, 22, 18, 0.18);
+  box-shadow:
+    0 2px 6px rgba(26, 22, 18, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
-/* Stats cards (sc) — mesmo fade */
-.sc {
-  background: 
-    linear-gradient(180deg, rgba(180, 189, 204, 0.06) 0%, transparent 40%),
-    linear-gradient(135deg, #1d2030 0%, #13151f 100%);
-  border: 1px solid rgba(220, 226, 240, 0.18);
-  box-shadow: 
-    0 2px 6px rgba(0,0,0,0.25),
-    inset 0 1px 0 rgba(220, 226, 240, 0.06);
-}
-:root[data-theme="light"] .sc {
-  background: 
-    linear-gradient(180deg, rgba(40, 50, 75, 0.04) 0%, transparent 40%),
-    linear-gradient(135deg, #ffffff 0%, #e4e8f0 100%);
-  border: 1px solid rgba(20, 25, 40, 0.18);
-  box-shadow: 
-    0 2px 6px rgba(20, 25, 40, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+/* Mobile — colunas viram lista vertical */
+@media (max-width: 720px) {
+  .wgrid { grid-template-columns: 1fr; }
+  .dcol { min-height: auto; padding: var(--sp-3); }
+  .dname { font-size: 10px; }
+  .dnum { font-size: 18px; }
 }
