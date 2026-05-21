@@ -95,7 +95,8 @@ const DB = {
   },
 
   // Histórico de presenças do aluno (para a tela "Minhas presenças")
-  async getHistoricoAluno(alunoId) {
+  // Presenças (aulas frequentadas) de um aluno — usado no card "Total de aulas"
+  async getPresencasAluno(alunoId) {
     const { data, error } = await sb
       .from('presences')
       .select('data, presente')
@@ -103,7 +104,47 @@ const DB = {
       .eq('presente', true)
       .order('data', { ascending: false })
     if (error) throw error
-    return data
+    return data || []
+  },
+
+  // Presenças DETALHADAS (data + horário + nome da aula + tipo)
+  // Faz JOIN com schedule pra mostrar contexto
+  async getPresencasDetalhadasAluno(alunoId) {
+    const { data, error } = await sb
+      .from('presences')
+      .select('data, schedule_id, schedule:schedule_id(horario, nome, tipo)')
+      .eq('aluno_id', alunoId)
+      .eq('presente', true)
+      .order('data', { ascending: false })
+      .limit(200)
+    if (error) {
+      // Fallback se a relação não estiver configurada
+      const { data: simple } = await sb
+        .from('presences')
+        .select('*')
+        .eq('aluno_id', alunoId)
+        .eq('presente', true)
+        .order('data', { ascending: false })
+        .limit(200)
+      return simple || []
+    }
+    return data || []
+  },
+
+  // Histórico de graduação — tabela própria, não confundir com presences
+  async getHistoricoGraduacao(alunoId) {
+    const { data, error } = await sb
+      .from('graduacoes_historico')
+      .select('*')
+      .eq('aluno_id', alunoId)
+      .order('data', { ascending: false })
+    if (error) throw error
+    return data || []
+  },
+
+  // Alias antigo (compatibilidade) — retorna histórico de graduação
+  async getHistoricoAluno(alunoId) {
+    return this.getHistoricoGraduacao(alunoId)
   },
 
   // Total de presenças de cada aluno (para o card de estatística)
