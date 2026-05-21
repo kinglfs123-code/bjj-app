@@ -10,7 +10,7 @@
   <link rel="icon" href="/icon-192.png">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=8">
+  <link rel="stylesheet" href="app.css?v=7">
 </head>
 <body class="login-page">
   <div class="login-wrap">
@@ -72,11 +72,8 @@
 
         // Carrega config da academia (logo + nome) - não bloqueia login se falhar
         try {
-          const { data } = await sb.from('config').select('nome_academia, logo_url, brand_color').eq('id', 1).single();
+          const { data } = await sb.from('config').select('nome_academia, logo_url').eq('id', 1).single();
           if (data) {
-            if (data.brand_color && /^#[0-9a-fA-F]{6}$/.test(data.brand_color)) {
-              document.documentElement.style.setProperty('--brand', data.brand_color);
-            }
             if (data.logo_url) {
               const img = document.getElementById('brand-logo');
               img.src = data.logo_url;
