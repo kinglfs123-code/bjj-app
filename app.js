@@ -112,7 +112,6 @@ async function boot(){
     applyTheme(state.config.tema)
     applyName()
     applyLogo()
-    applyBrandColor()
     loadTermoConfig()
     loadRegrasGraduacao()
     carregarConfigMensalidade()
@@ -155,12 +154,13 @@ function setupNav(){
   const navEl = $('nav-bar')
   if(!navEl) return
   const isProf = Auth.isProfessor()
+  // Aluno NÃO vê "Presenças" (é controle do professor)
   const items = [
     { id:'schedule', label:'Aulas' },
-    { id:'presences', label:'Presenças' },
-    { id:'comunicacao', label:'Comunicação' },
-    { id:'videos', label:'Vídeos' },
   ]
+  if(isProf) items.push({ id:'presences', label:'Presenças' })
+  items.push({ id:'comunicacao', label:'Comunicação' })
+  items.push({ id:'videos', label:'Vídeos' })
   if(isProf) items.push({ id:'students', label:'Alunos' })
   if(isProf) items.push({ id:'financeiro', label:'Financeiro' })
   if(!isProf) items.push({ id:'perfil', label:'Perfil' })
@@ -315,69 +315,6 @@ function applyName(){
     document.title = n
   } catch(err){ console.warn('[applyName]', err) }
 }
-
-// ─── BRAND COLOR (cor do nome da equipe) ────────────────────────────────
-
-function applyBrandColor(){
-  try {
-    const c = state.config?.brand_color
-    if(c && /^#[0-9a-fA-F]{6}$/.test(c)){
-      document.documentElement.style.setProperty('--brand', c)
-    } else {
-      document.documentElement.style.removeProperty('--brand')
-    }
-    // Sincroniza inputs se a página de configurações estiver montada
-    const picker = $('cfg-brand-color')
-    const hex = $('cfg-brand-hex')
-    if(picker) picker.value = c || '#e8ebf2'
-    if(hex) hex.value = c || ''
-  } catch(err){ console.warn('[applyBrandColor]', err) }
-}
-
-async function saveBrandColor(){
-  const picker = $('cfg-brand-color')
-  const hexInput = $('cfg-brand-hex')
-  let c = (hexInput?.value || picker?.value || '').trim()
-  if(c && !c.startsWith('#')) c = '#' + c
-  if(c && !/^#[0-9a-fA-F]{6}$/.test(c)){
-    toast('Cor inválida. Use formato #RRGGBB.', true)
-    return
-  }
-  try {
-    await DB.saveConfig({ brand_color: c || null })
-    state.config.brand_color = c || null
-    applyBrandColor()
-    toast('Cor aplicada!')
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  }
-}
-
-async function resetBrandColor(){
-  try {
-    await DB.saveConfig({ brand_color: null })
-    state.config.brand_color = null
-    applyBrandColor()
-    toast('Cor padrão restaurada!')
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  }
-}
-
-// Sincroniza picker ↔ hex em tempo real
-document.addEventListener('input', (e) => {
-  if(e.target.id === 'cfg-brand-color'){
-    const hex = $('cfg-brand-hex')
-    if(hex) hex.value = e.target.value
-  } else if(e.target.id === 'cfg-brand-hex'){
-    let v = e.target.value.trim()
-    if(v && !v.startsWith('#')) v = '#' + v
-    if(/^#[0-9a-fA-F]{6}$/.test(v)){
-      const picker = $('cfg-brand-color')
-      if(picker) picker.value = v
-    }
-  }
-})
 
 async function saveName(){
   const v = $('cfg-name').value.trim()
@@ -550,20 +487,16 @@ function renderSchedule(){
   $('today-classes').innerHTML = tc.length
     ? tc.map(c => {
         const confirmed = Auth.isAluno() && state.minhasConfirmacoes[c.id + '_' + todayStr]
-        const cls = `today-aula-card ${c.tipo}${confirmed ? ' confirmed' : ''}`
-        const chev = confirmed
-          ? '<i class="ti ti-circle-check-filled today-aula-chev ok"></i>'
-          : '<i class="ti ti-chevron-right today-aula-chev"></i>'
-        return `<div class="${cls}" onclick="openAulaDetail('${c.id}','${todayStr}')">
-          <div class="today-aula-time">${c.horario.slice(0,5)}</div>
-          <div class="today-aula-info">
-            <div class="today-aula-name">${c.nome}</div>
-            <div class="today-aula-type">${TYPE_PT[c.tipo] || c.tipo}</div>
+        return `<div onclick="openAulaDetail('${c.id}','${todayStr}')" style="background:var(--surf);border:0.5px solid var(--border);border-radius:2px;padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;${confirmed ? 'border-left:3px solid #7ac890' : ''}">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--txt);line-height:1">${c.horario.slice(0,5)}</div>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:500;color:var(--txt)">${c.nome}</div>
+            <div style="font-size:9px;color:var(--txt3);letter-spacing:1.5px;text-transform:uppercase">${TYPE_PT[c.tipo] || c.tipo}</div>
           </div>
-          ${chev}
+          ${confirmed ? '<i class="ti ti-circle-check-filled" style="color:#7ac890;font-size:18px"></i>' : '<i class="ti ti-chevron-right" style="color:var(--txt3)"></i>'}
         </div>`
       }).join('')
-    : '<div class="today-empty">Sem aulas hoje.</div>'
+    : '<div style="color:var(--txt3);font-size:12px">Sem aulas hoje.</div>'
 }
 
 // ─── DETALHE DE AULA + CONFIRMAÇÃO ──────────────────────────────────────
@@ -841,29 +774,24 @@ function renderPresContentProfessor(){
   })
 
   $('pres-content').innerHTML = filtered.length ? `
-    <table class="tbl tbl-presencas">
-      <thead><tr>
-        <th class="col-l">Aluno</th>
-        <th class="col-l">Faixa</th>
-        <th class="col-c">Presenças</th>
-        <th class="col-c">Hoje</th>
-      </tr></thead>
+    <table class="tbl">
+      <thead><tr><th>Aluno</th><th>Faixa</th><th>Presenças</th><th>Hoje</th></tr></thead>
       <tbody>
         ${filtered.map(s => {
           const confirmou = state.confirmadosNoDia[s.id]
           return `<tr>
-            <td class="col-l td-nome">
+            <td style="font-weight:500;color:var(--txt)">
               ${s.nome}
               ${confirmou ? '<span class="pres-confirmed-badge"><i class="ti ti-circle-check-filled"></i> confirmou</span>' : ''}
             </td>
-            <td class="col-l"><span class="belt-cell"><span class="belt ${s.faixa}"></span><span class="belt-label">${BELT_PT[s.faixa] || s.faixa}</span></span></td>
-            <td class="col-c"><span class="pres-count">${state.totaisPresenca[s.id] || 0}</span></td>
-            <td class="col-c"><button class="ck ${state.presencas[s.id] ? 'on' : ''}" onclick="togglePres('${s.id}')">${state.presencas[s.id] ? '<i class="ti ti-check"></i>' : '<i class="ti ti-plus" style="color:var(--txt3)"></i>'}</button></td>
+            <td><span class="belt ${s.faixa}"></span><span style="font-size:10px;color:var(--txt3)">${BELT_PT[s.faixa] || s.faixa}</span></td>
+            <td><span style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--txt)">${state.totaisPresenca[s.id] || 0}</span></td>
+            <td><button class="ck ${state.presencas[s.id] ? 'on' : ''}" onclick="togglePres('${s.id}')">${state.presencas[s.id] ? '<i class="ti ti-check"></i>' : '<i class="ti ti-plus" style="color:var(--txt3)"></i>'}</button></td>
           </tr>`
         }).join('')}
       </tbody>
     </table>
-  ` : '<div class="empty-state">Nenhum aluno encontrado.</div>'
+  ` : '<div style="text-align:center;padding:30px;color:var(--txt3);font-size:13px">Nenhum aluno encontrado.</div>'
 }
 
 // Aluno vê apenas o próprio histórico
@@ -1252,7 +1180,7 @@ async function openPerfilAluno(alunoId){
       </div>
 
       <div class="stat-grid">
-        <div class="stat-cell">
+        <div class="stat-cell clickable" onclick="abrirModalAulasFreq('${alunoId}')" role="button" tabindex="0" title="Ver aulas frequentadas">
           <div class="stat-num">${totalAulas}</div>
           <div class="stat-label">Total de aulas</div>
         </div>
@@ -1311,6 +1239,74 @@ function voltarParaAlunos(){
 
 function openPerfilSelf(){
   if(Auth.currentProfile) openPerfilAluno(Auth.currentProfile.id)
+}
+
+// Modal: lista de aulas frequentadas (abre ao clicar no card "Total de aulas")
+async function abrirModalAulasFreq(alunoId){
+  const old = $('modal-aulas-freq'); if(old) old.remove()
+  // Cria modal já com estado de loading
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="mlay" id="modal-aulas-freq" style="display:flex" onclick="if(event.target===this) document.getElementById('modal-aulas-freq').remove()">
+      <div class="mbox" style="max-width:480px;width:100%">
+        <div class="mhead">
+          <span class="mtitle">Aulas Frequentadas</span>
+          <button class="mclose" onclick="document.getElementById('modal-aulas-freq').remove()" aria-label="Fechar">✕</button>
+        </div>
+        <div class="mbody" id="aulas-freq-body" style="max-height:60vh;overflow-y:auto">
+          <div style="padding:30px;text-align:center;color:var(--txt3);font-size:12px">Carregando...</div>
+        </div>
+      </div>
+    </div>
+  `)
+
+  try {
+    const presencas = await DB.getPresencasDetalhadasAluno(alunoId)
+    const body = $('aulas-freq-body')
+    if(!body) return
+
+    if(presencas.length === 0){
+      body.innerHTML = `<div style="padding:30px;text-align:center;color:var(--txt3);font-size:12px">Nenhuma aula registrada ainda.</div>`
+      return
+    }
+
+    // Mapa do schedule pra resolver detalhes mesmo sem JOIN
+    const schedById = {}
+    Object.values(state.schedule || {}).forEach(diaArr => {
+      ;(Array.isArray(diaArr)?diaArr:[]).forEach(s => { if(s && s.id) schedById[s.id] = s })
+    })
+
+    const MESES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ']
+
+    body.innerHTML = `
+      <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--txt3);margin-bottom:8px">
+        ${presencas.length} ${presencas.length===1?'aula':'aulas'}
+      </div>
+      <div class="aulas-freq-list">
+      ${presencas.map(p => {
+        const sch = (p.schedule && typeof p.schedule === 'object') ? p.schedule : schedById[p.schedule_id]
+        const dt = new Date(p.data + 'T00:00:00')
+        const dataLabel = dt.getDate() + ' ' + MESES[dt.getMonth()]
+        const nome = sch?.nome || 'Treino'
+        const horario = sch?.horario || ''
+        const tipo = (sch?.tipo || '').toLowerCase()
+        const tipoLabel = tipo === 'gi' ? 'Gi' : tipo === 'nogi' ? 'No-Gi' : tipo === 'kids' ? 'Kids' : ''
+        return `
+          <div class="aula-freq-item">
+            <div class="aula-freq-data">${dataLabel}</div>
+            <div class="aula-freq-info">
+              <div class="aula-freq-nome">${escapeHtml(nome)}</div>
+              ${horario ? `<div class="aula-freq-hora">${escapeHtml(horario)}</div>` : ''}
+            </div>
+            ${tipoLabel ? `<span class="aula-freq-badge ${tipo}">${tipoLabel}</span>` : ''}
+          </div>
+        `
+      }).join('')}
+      </div>
+    `
+  } catch(err){
+    const body = $('aulas-freq-body')
+    if(body) body.innerHTML = `<div style="padding:20px;color:#e05050;font-size:12px">Erro ao carregar: ${escapeHtml(err.message)}</div>`
+  }
 }
 
 // Modal de promoção
@@ -1536,7 +1532,7 @@ function renderMural(){
   const isProf = Auth.isProfessor()
 
   if(recs.length === 0){
-    $('mural-list').innerHTML = `<div class="empty-state" style="text-align:center;padding:60px 20px;background:var(--surf);border:0.5px dashed var(--border);border-radius:2px">
+    $('mural-list').innerHTML = `<div class="empty-state" style="text-align:center;padding:60px 20px;background:var(--surf);border:1px dashed var(--border);border-radius:var(--r-sm)">
       <i class="ti ti-pin" style="font-size:36px;color:var(--txt3);margin-bottom:12px;display:block"></i>
       <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--txt2);margin-bottom:6px">Nenhum recado ainda</div>
       <div style="font-size:12px;color:var(--txt3)">${isProf ? 'Clique em "Novo recado" para começar.' : 'Aguarde avisos do professor.'}</div>
@@ -1544,24 +1540,30 @@ function renderMural(){
     return
   }
 
+  const MESES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ']
+
   $('mural-list').innerHTML = recs.map(r => {
     const d = new Date(r.criado_em)
-    const dataStr = `${d.getDate()} ${['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][d.getMonth()]} ${d.getFullYear()}`
-    return `<div class="recado ${r.fixado ? 'fixed' : ''}">
-      <div class="recado-head">
-        <div class="recado-title-area">
-          <div class="recado-title">${escapeHtml(r.titulo)}</div>
-          <div class="recado-meta">
-            ${r.fixado ? '<span class="recado-pin"><i class="ti ti-pin-filled"></i> Fixado</span><span>·</span>' : ''}
-            <span>${dataStr}</span>
-          </div>
-        </div>
-        ${isProf ? `<div class="recado-actions">
-          <button class="ibtn" onclick="openRecadoModal('${r.id}')"><i class="ti ti-edit"></i></button>
-          <button class="dbtn" onclick="deleteRecado('${r.id}')"><i class="ti ti-trash"></i></button>
-        </div>` : ''}
+    const dia = d.getDate()
+    const mes = MESES[d.getMonth()]
+    const tempo = tempoAtras(r.criado_em)
+    return `<div class="mural-card ${r.fixado ? 'fixed' : ''}">
+      <div class="mural-date">
+        <div class="mural-dia">${dia}</div>
+        <div class="mural-mes">${mes}</div>
       </div>
-      <div class="recado-text">${escapeHtml(r.texto)}</div>
+      <div class="mural-info">
+        <div class="mural-tit">${escapeHtml(r.titulo)}</div>
+        <div class="mural-meta">
+          ${r.fixado ? '<i class="ti ti-pin-filled" style="font-size:11px"></i> Fixado · ' : ''}
+          ${tempo}
+        </div>
+        <div class="mural-txt">${escapeHtml(r.texto)}</div>
+      </div>
+      ${isProf ? `<div class="mural-acts">
+        <button class="ibtn" onclick="openRecadoModal('${r.id}')" aria-label="Editar"><i class="ti ti-edit"></i></button>
+        <button class="dbtn" onclick="deleteRecado('${r.id}')" aria-label="Excluir"><i class="ti ti-trash"></i></button>
+      </div>` : ''}
     </div>`
   }).join('')
 }
