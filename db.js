@@ -59,6 +59,17 @@ const DB = {
     return data
   },
 
+  async updateAula(id, { dia_semana, horario, nome, tipo }) {
+    const { data, error } = await sb
+      .from('schedule')
+      .update({ dia_semana, horario, nome, tipo })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
   async deleteAula(id) {
     const { error } = await sb
       .from('schedule')
