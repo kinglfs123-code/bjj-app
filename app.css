@@ -2220,18 +2220,493 @@ input:focus, textarea:focus, select:focus {
 }
 .ibtn:hover { color: var(--txt); border-color: var(--border2); }
 .dbtn:hover { color: var(--danger); border-color: var(--danger); }
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <script>/* PWA-KILL-SWITCH */ try { if ("serviceWorker" in navigator) { navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => { try { r.unregister(); } catch(e){} })).catch(()=>{}); } if (window.caches) { caches.keys().then(ks => ks.forEach(k => caches.delete(k))).catch(()=>{}); } } catch(e){}</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#080808">
+  <title>Carregando...</title>
+
+  <link rel="icon" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="app.css?v=11">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<!-- Loading inicial -->
+<div id="boot-loader" class="boot-loader">
+  <div class="boot-logo">·</div>
+  <div class="boot-status">Carregando...</div>
+</div>
+
+<!-- App -->
+<div class="app" id="APP" style="display:none">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+      <img id="logo-img" src="" alt="" style="display:none;height:32px;width:32px;border-radius:3px;object-fit:contain;flex-shrink:0">
+      <div class="logo" id="logo-text">·</div>
+    </div>
+    <div class="user-area">
+      <span class="user-name" id="user-name"></span>
+      <span class="user-role" id="user-role"></span>
+      <button class="logout-btn" id="bell-btn" aria-label="Notificações" onclick="toggleSinoNotif()" style="position:relative">
+        <i class="ti ti-bell" aria-hidden="true"></i>
+        <span id="bell-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:var(--accent);color:var(--b);font-size:9px;font-weight:600;padding:1px 5px;border-radius:8px;min-width:14px;text-align:center">0</span>
+      </button>
+      <button class="logout-btn" id="logout-btn" aria-label="Sair">
+        <i class="ti ti-logout" aria-hidden="true"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Dropdown de notificações -->
+  <div id="notif-dropdown" style="display:none;position:fixed;top:60px;right:20px;width:340px;max-height:480px;background:var(--b);border:0.5px solid var(--border2);border-radius:var(--r-md);box-shadow:var(--shadow-lg);z-index:200;overflow:hidden;animation:modalIn 0.2s var(--ease)">
+    <div style="padding:14px 16px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px">NOTIFICAÇÕES</div>
+      <button class="fbtn" style="padding:4px 8px;font-size:9px" onclick="marcarTodasLidas()">Marcar todas</button>
+    </div>
+    <div id="notif-list" style="max-height:400px;overflow-y:auto"></div>
+  </div>
+
+  <div class="nav-bar" id="nav-bar"></div>
+
+  <!-- Páginas -->
+  <div class="page on" id="page-schedule">
+    <div class="slabel">Semana atual</div>
+    <div class="stitle" id="sch-title">Grade de Aulas</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="leg">
+        <div class="li"><div class="ld" style="background:var(--txt)"></div>Gi</div>
+        <div class="li"><div class="ld" style="background:var(--txt3)"></div>No-Gi</div>
+        <div class="li"><div class="ld" style="background:var(--txt2)"></div>Kids</div>
+      </div>
+      <button class="fbtn prof-only" id="toggle-edit-btn" onclick="toggleScheduleEdit()">
+        <i class="ti ti-edit" aria-hidden="true"></i> Editar grade
+      </button>
+    </div>
+    <div id="view-mode">
+      <div class="wgrid" id="wgrid"></div>
+      <div class="slabel" style="margin-top:8px">Aulas de hoje</div>
+      <div id="today-classes"></div>
+    </div>
+    <div id="edit-mode" style="display:none">
+      <div class="info-banner">
+        <i class="ti ti-info-circle" aria-hidden="true"></i>
+        Adicione ou remova aulas por dia. As alterações são salvas automaticamente.
+      </div>
+      <div class="grade-editor" id="grade-editor"></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-presences">
+    <div class="slabel" id="pres-date-label">Hoje</div>
+    <div class="stitle" id="pres-title">Controle de Presenças</div>
+    <div class="dnav">
+      <button class="darrow" id="prev-day">‹</button>
+      <span class="ddate" id="cur-date-label"></span>
+      <button class="darrow" id="next-day">›</button>
+    </div>
+    <div class="scards" id="pres-stats"></div>
+    <div class="ctrl prof-only">
+      <input class="sinput" id="pres-search" placeholder="Buscar aluno...">
+      <button class="fbtn active" data-belt="all">Todos</button>
+      <button class="fbtn" data-belt="white">Branca</button>
+      <button class="fbtn" data-belt="blue">Azul</button>
+      <button class="fbtn" data-belt="purple">Roxa</button>
+      <button class="fbtn" data-belt="brown">Marrom</button>
+      <button class="fbtn" data-belt="black">Preta</button>
+    </div>
+    <div id="pres-content"></div>
+  </div>
+
+  <div class="page" id="page-comunicacao">
+    <div class="slabel">Avisos da academia</div>
+    <div class="stitle">Comunicação</div>
+    <div class="com-tabs">
+      <button class="com-tab active" data-com="mural" onclick="switchComTab('mural')"><i class="ti ti-pin" aria-hidden="true"></i> Mural</button>
+      <button class="com-tab" data-com="eventos" onclick="switchComTab('eventos')"><i class="ti ti-trophy" aria-hidden="true"></i> Eventos</button>
+    </div>
+
+    <!-- Aba Mural -->
+    <div class="com-pane on" id="com-pane-mural">
+      <div class="mural-header">
+        <div class="mural-count" id="mural-count">—</div>
+        <button class="pbtn prof-only" onclick="openRecadoModal(null)"><i class="ti ti-plus" aria-hidden="true"></i> Novo recado</button>
+      </div>
+      <div id="mural-list" class="recado-list"></div>
+    </div>
+
+    <!-- Aba Eventos -->
+    <div class="com-pane" id="com-pane-eventos">
+      <div class="mural-header">
+        <div class="mural-count" id="eventos-count">—</div>
+        <button class="pbtn prof-only" onclick="openEventoModal(null)"><i class="ti ti-plus" aria-hidden="true"></i> Novo evento</button>
+      </div>
+      <div id="eventos-list" class="evento-list"></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-perfil">
+    <button class="back-btn" id="perfil-back" style="display:none" onclick="voltarParaAlunos()"><i class="ti ti-arrow-left" aria-hidden="true"></i> Voltar para lista</button>
+    <div class="slabel" id="perfil-label">Meu Perfil</div>
+    <div id="perfil-content"></div>
+  </div>
+
+  <div class="page" id="page-videos">
+    <div class="slabel">Biblioteca técnica</div>
+    <div class="stitle">Vídeos Instrutivos</div>
+    <div class="ctrl" id="vid-filters">
+      <button class="fbtn active" data-cat="all">Todos</button>
+      <button class="fbtn" data-cat="guard">Guarda</button>
+      <button class="fbtn" data-cat="pass">Passagem</button>
+      <button class="fbtn" data-cat="sub">Finalização</button>
+      <button class="fbtn" data-cat="sweep">Raspagem</button>
+      <button class="fbtn" data-cat="position">Posição</button>
+      <button class="pbtn prof-only" onclick="openVidModal(null)"><i class="ti ti-plus" aria-hidden="true"></i> Adicionar</button>
+    </div>
+    <div class="vgrid" id="vgrid"></div>
+  </div>
+
+  <div class="page prof-only" id="page-students">
+    <div class="slabel">Gestão</div>
+    <div class="stitle">Alunos</div>
+    <div class="ctrl">
+      <input class="sinput" id="stu-search" placeholder="Buscar aluno...">
+      <button class="fbtn active" data-belt="all">Todos</button>
+      <button class="fbtn" data-belt="white">Branca</button>
+      <button class="fbtn" data-belt="blue">Azul</button>
+      <button class="fbtn" data-belt="purple">Roxa</button>
+      <button class="fbtn" data-belt="brown">Marrom</button>
+      <button class="fbtn" data-belt="black">Preta</button>
+      <button class="pbtn" onclick="openInviteModal()"><i class="ti ti-share" aria-hidden="true"></i> Compartilhar Link</button>
+    </div>
+    <table class="tbl" id="stu-tbl">
+      <thead><tr><th>Nome</th><th>E-mail</th><th>Faixa</th><th>Presenças</th><th>Ações</th></tr></thead>
+      <tbody id="stu-body"></tbody>
+    </table>
+  </div>
+
+  <div class="page prof-only" id="page-financeiro">
+    <div class="slabel">Gestão</div>
+    <div class="stitle">Financeiro</div>
+    <div class="dnav" style="margin-bottom:var(--sp-4)">
+      <button class="darrow" onclick="fin_mudaMes(-1)">‹</button>
+      <span class="ddate" id="fin-mes-label">—</span>
+      <button class="darrow" onclick="fin_mudaMes(1)">›</button>
+    </div>
+    <div class="scards" style="margin-bottom:var(--sp-5)">
+      <div class="sc"><div class="scv" id="fin-total-alunos">—</div><div class="scl">Alunos</div></div>
+      <div class="sc"><div class="scv" id="fin-pagos">—</div><div class="scl">Pagos</div></div>
+      <div class="sc"><div class="scv" id="fin-pendentes">—</div><div class="scl">Pendentes</div></div>
+      <div class="sc"><div class="scv" id="fin-receita">—</div><div class="scl">Receita</div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:var(--sp-4);flex-wrap:wrap">
+      <button class="pbtn" onclick="gerarMensalidadesDoMes()"><i class="ti ti-plus" aria-hidden="true"></i> Gerar cobranças do mês</button>
+    </div>
+    <table class="tbl">
+      <thead><tr><th>Aluno</th><th>Valor</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr></thead>
+      <tbody id="fin-body"></tbody>
+    </table>
+  </div>
+
+  <div class="page" id="page-settings">
+    <div class="slabel">Preferências</div>
+    <div class="stitle">Configurações</div>
+    <div class="scard prof-only">
+      <div class="scard-title">Nome da Academia</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="sinput" id="cfg-name" style="flex:1">
+        <button class="pbtn" onclick="saveName()">Salvar</button>
+      </div>
+    </div>
+    <div class="scard prof-only">
+      <div class="scard-title">Logo da Academia</div>
+      <div id="logo-preview-area" style="display:flex;align-items:center;gap:14px;margin-bottom:12px">
+        <div id="logo-preview" style="width:80px;height:80px;background:var(--surf2);border:0.5px solid var(--border);border-radius:3px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+          <i class="ti ti-photo" style="font-size:24px;color:var(--txt3)" aria-hidden="true"></i>
+        </div>
+        <div style="font-size:11px;color:var(--txt3);line-height:1.5">
+          Faça upload de PNG ou JPG.<br>
+          Será usada no topo do app e na tela de login.<br>
+          Imagem quadrada funciona melhor.
+        </div>
+      </div>
+      <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="onLogoFileSelected(event)">
+      <div style="display:flex;gap:6px">
+        <button class="pbtn" onclick="document.getElementById('logo-file-input').click()"><i class="ti ti-upload" aria-hidden="true"></i> Enviar logo</button>
+        <button class="fbtn" id="logo-remove-btn" onclick="removeLogo()" style="display:none"><i class="ti ti-trash" aria-hidden="true"></i> Remover</button>
+      </div>
+    </div>
+    <div class="scard">
+      <div class="scard-title">Tema</div>
+      <div class="theme-opts">
+        <div class="theme-opt" id="opt-dark" onclick="setTheme('dark')">
+          <div style="font-size:22px"><i class="ti ti-moon" aria-hidden="true"></i></div>
+          <div class="theme-opt-lbl">Escuro</div>
+        </div>
+        <div class="theme-opt" id="opt-light" onclick="setTheme('light')">
+          <div style="font-size:22px"><i class="ti ti-sun" aria-hidden="true"></i></div>
+          <div class="theme-opt-lbl">Claro</div>
+        </div>
+      </div>
+    </div>
+    <div class="scard prof-only">
+      <div class="scard-title">Termo de Aceite</div>
+      <div style="display:flex;align-items:center;gap:12px;padding:11px 13px;background:var(--surf2);border:0.5px solid var(--border);border-radius:2px;margin-bottom:12px">
+        <div style="flex:1">
+          <div style="font-size:12px;color:var(--txt);font-weight:500">Exigir aceite no cadastro</div>
+          <div style="font-size:10px;color:var(--txt3);margin-top:1px">Aluno precisa concordar pra criar conta</div>
+        </div>
+        <div class="switch" id="termo-switch" onclick="toggleTermoAtivo()"></div>
+      </div>
+      <div id="termo-config-area">
+        <label class="slabel">Texto do termo</label>
+        <textarea class="sinput" id="termo-texto" style="width:100%;min-height:120px;resize:vertical;font-family:'DM Sans',sans-serif;margin-bottom:10px" placeholder="Ex: Declaro estar ciente dos riscos inerentes à prática do jiu-jitsu..."></textarea>
+        <div style="display:flex;gap:6px;margin-bottom:14px">
+          <button class="pbtn" onclick="saveTermoTexto()"><i class="ti ti-check" aria-hidden="true"></i> Salvar texto</button>
+        </div>
+        <label class="slabel">Ou anexe um PDF</label>
+        <div id="termo-pdf-area" style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--surf2);border:0.5px solid var(--border);border-radius:2px;margin-bottom:10px">
+          <i class="ti ti-file-text" style="font-size:22px;color:var(--txt3)"></i>
+          <div style="flex:1;font-size:11px;color:var(--txt3)" id="termo-pdf-info">Nenhum PDF anexado.</div>
+        </div>
+        <input type="file" id="termo-pdf-input" accept="application/pdf" style="display:none" onchange="onTermoPdfSelected(event)">
+        <div style="display:flex;gap:6px">
+          <button class="pbtn" onclick="document.getElementById('termo-pdf-input').click()"><i class="ti ti-upload" aria-hidden="true"></i> Enviar PDF</button>
+          <button class="fbtn" id="termo-pdf-remove" onclick="removerTermoPdf()" style="display:none"><i class="ti ti-trash" aria-hidden="true"></i> Remover</button>
+        </div>
+      </div>
+    </div>
+    <div class="scard prof-only">
+      <div class="scard-title">Mensalidade Padrão</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <div style="flex:1">
+          <label class="aula-info-lbl" style="margin-bottom:4px;display:block">Valor (R$)</label>
+          <input class="sinput" type="number" id="cfg-mens-valor" step="0.01" style="width:100%">
+        </div>
+        <div style="flex:1">
+          <label class="aula-info-lbl" style="margin-bottom:4px;display:block">Dia de vencimento</label>
+          <input class="sinput" type="number" id="cfg-mens-dia" min="1" max="28" style="width:100%">
+        </div>
+      </div>
+      <button class="pbtn" onclick="salvarConfigMensalidade()"><i class="ti ti-check" aria-hidden="true"></i> Salvar</button>
+    </div>
+    <div class="scard prof-only">
+      <div class="scard-title">Regras de Graduação</div>
+      <div style="font-size:11px;color:var(--txt3);margin-bottom:12px;line-height:1.5">
+        Configure o mínimo de aulas e tempo (meses) para cada faixa. Serve como referência visual no perfil do aluno.
+      </div>
+      <div id="regras-list" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+    <div class="scard">
+      <div class="scard-title">Conta</div>
+      <div style="font-size:12px;color:var(--txt2);margin-bottom:10px" id="account-info"></div>
+      <button class="fbtn" onclick="Auth.logout()"><i class="ti ti-logout" aria-hidden="true"></i> Sair</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modais -->
+<!-- Modal: Detalhe da aula (clicado da grade) -->
+<div class="mlay" id="modal-aula-detail" style="display:none">
+  <div class="mbox">
+    <div class="mhead">
+      <span class="mtitle" id="aula-detail-title">Aula</span>
+      <button class="mclose" onclick="closeModal('modal-aula-detail')">✕</button>
+    </div>
+    <div class="mbody" id="aula-detail-body">
+      <!-- Conteúdo preenchido dinamicamente -->
+    </div>
+    <div class="mfoot" id="aula-detail-foot">
+      <!-- Botões preenchidos dinamicamente -->
+    </div>
+  </div>
+</div>
+
+<div class="mlay" id="modal-aula" style="display:none">
+  <div class="mbox">
+    <div class="mhead">
+      <span class="mtitle">Nova Aula</span>
+      <button class="mclose" onclick="closeModal('modal-aula')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="mrow"><label class="mlabel">Dia da semana</label>
+        <select class="mselect" id="aula-day">
+          <option value="1">Segunda-feira</option><option value="2">Terça-feira</option>
+          <option value="3">Quarta-feira</option><option value="4">Quinta-feira</option>
+          <option value="5">Sexta-feira</option><option value="6">Sábado</option>
+          <option value="0">Domingo</option>
+        </select>
+      </div>
+      <div class="mrow"><label class="mlabel">Horário</label>
+        <input class="sinput" id="aula-time" type="time" style="width:100%">
+      </div>
+      <div class="mrow"><label class="mlabel">Nome da aula</label>
+        <input class="sinput" id="aula-name" placeholder="Ex: Fundamentos Gi" style="width:100%">
+      </div>
+      <div class="mrow"><label class="mlabel">Tipo</label>
+        <select class="mselect" id="aula-type">
+          <option value="gi">Gi (Kimono)</option><option value="nogi">No-Gi</option><option value="kids">Kids</option>
+        </select>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="fbtn" onclick="closeModal('modal-aula')">Cancelar</button>
+      <button class="pbtn" onclick="saveAula()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="mlay" id="modal-invite" style="display:none">
+  <div class="mbox">
+    <div class="mhead">
+      <span class="mtitle">Compartilhar Link de Cadastro</span>
+      <button class="mclose" onclick="closeModal('modal-invite')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="info-banner" style="margin-bottom:14px">
+        <i class="ti ti-info-circle" aria-hidden="true"></i>
+        Compartilhe este link com seus alunos. Eles se cadastram sozinhos e aparecem aqui automaticamente.
+      </div>
+
+      <div class="mrow">
+        <label class="mlabel">Link de cadastro</label>
+        <div style="display:flex;gap:6px">
+          <input class="sinput" id="invite-link" readonly style="flex:1;font-family:'JetBrains Mono',monospace;font-size:11px" value="">
+          <button class="pbtn" onclick="copyInviteLink()" id="copy-btn"><i class="ti ti-copy" aria-hidden="true"></i> Copiar</button>
+        </div>
+      </div>
+
+      <div class="mrow" style="margin-top:14px">
+        <label class="mlabel">Compartilhar via</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="fbtn" onclick="shareWhatsApp()" style="flex:1;min-width:120px"><i class="ti ti-brand-whatsapp" aria-hidden="true"></i> WhatsApp</button>
+          <button class="fbtn" onclick="shareNative()" style="flex:1;min-width:120px"><i class="ti ti-share" aria-hidden="true"></i> Compartilhar</button>
+        </div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="fbtn" onclick="closeModal('modal-invite')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="mlay" id="modal-vid" style="display:none">
+  <div class="mbox">
+    <div class="mhead">
+      <span class="mtitle" id="vid-modal-title">Vídeo</span>
+      <button class="mclose" onclick="closeModal('modal-vid')">✕</button>
+    </div>
+    <div id="vid-modal-content"></div>
+  </div>
+</div>
+
+<!-- Modal: Recado -->
+<div class="mlay" id="modal-recado" style="display:none">
+  <div class="mbox">
+    <div class="mhead">
+      <span class="mtitle" id="rec-title">Novo Recado</span>
+      <button class="mclose" onclick="closeModal('modal-recado')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="mrow">
+        <label class="mlabel">Título</label>
+        <input class="sinput" id="rec-titulo" style="width:100%" placeholder="Ex: Seminário Out/2026">
+      </div>
+      <div class="mrow">
+        <label class="mlabel">Mensagem</label>
+        <textarea class="sinput" id="rec-texto" style="width:100%;min-height:110px;resize:vertical;font-family:'DM Sans',sans-serif"></textarea>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-pin">
+          <i class="ti ti-pin-filled toggle-pin-icon" aria-hidden="true"></i>
+          <div>
+            <div class="toggle-pin-title">Fixar no topo</div>
+            <div class="toggle-pin-desc">Recado aparece destacado para todos</div>
+          </div>
+        </div>
+        <div class="switch" id="rec-switch" onclick="this.classList.toggle('on')"></div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="fbtn" onclick="closeModal('modal-recado')">Cancelar</button>
+      <button class="pbtn" onclick="saveRecado()"><i class="ti ti-check" aria-hidden="true"></i> Salvar recado</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script src="db.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
 
 /* ═══════════════════════════════════════════════════════════════════════
-   PATCH v12 — Cole no FINAL do app.css (depois da última regra)
-   Substitui o patch v11 anterior se você já tinha colado.
-   Inclui:
-   • Cards full-width (v11 reescrito)
-   • Lista de presenças nova (com avatar)
-   • Botão Editar aula no editor de grade
-   • Botão "Pagar agora" do aluno
+   PATCH v13 — Garage Training
+   Inclui: alinhamentos, iOS optimizations, foto perfil, login renovado
+   Cole no FINAL do app.css. CSS é cascata → vence o que vem por último.
    ═══════════════════════════════════════════════════════════════════════ */
 
-/* ─── 1. Container .page ocupa toda a largura disponível ────────────── */
+/* ═══════════════════════════════════════════════════════════════════════
+   1. iOS OPTIMIZATIONS — Apple HIG / Mobile-first
+   ═══════════════════════════════════════════════════════════════════════ */
+
+* {
+  /* Remove highlight cinza ao tocar (Safari iOS) */
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  /* Scroll suave nativo no iOS */
+  -webkit-overflow-scrolling: touch;
+  /* Previne scroll horizontal acidental */
+  overflow-x: hidden;
+}
+
+body {
+  /* Padding bottom pra área segura do home indicator do iPhone */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+button, .pbtn, .fbtn, .ibtn, .dbtn {
+  /* Touch target mínimo Apple HIG: 44x44pt */
+  min-height: 44px;
+  /* Feedback visual ao pressionar (sensação tátil) */
+  transition: opacity 0.15s ease, transform 0.1s ease, background-color 0.15s ease;
+}
+button:active, .pbtn:active, .fbtn:active, .ibtn:active {
+  opacity: 0.6;
+  transform: scale(0.98);
+}
+
+/* Inputs: 16px mínimo no mobile pra evitar zoom auto do Safari */
+@media (max-width: 720px) {
+  .sinput, .form-input, .mselect, .lg2-input,
+  input[type="text"], input[type="email"], input[type="password"],
+  input[type="number"], input[type="date"], input[type="time"],
+  textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* Top bar e nav respeitam safe area do notch */
+.topbar {
+  padding-top: env(safe-area-inset-top);
+  min-height: calc(56px + env(safe-area-inset-top));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   2. PAGE LAYOUT — Container full-width com padding consistente
+   ═══════════════════════════════════════════════════════════════════════ */
+
 .page {
   width: 100%;
   max-width: 100%;
@@ -2239,27 +2714,27 @@ input:focus, textarea:focus, select:focus {
 }
 
 @media (max-width: 720px) {
-  .page { padding: var(--sp-4) var(--sp-2); }   /* 16px / 8px */
+  .page { padding: 18px 14px; }
 }
 
 @media (min-width: 720px) {
   .page {
-    padding: var(--sp-5) var(--sp-4);            /* 24px / 16px */
-    max-width: 960px;                            /* era 1200px */
+    padding: 24px 16px;
+    max-width: 960px;
+    margin: 0 auto;
   }
 }
 
-/* ─── 2. Containers de listas/grids sempre full-width ───────────────── */
+/* Containers sempre ocupam toda a largura disponível */
 .wgrid, .scards, .evento-list, .mural-list, .recado-list, .timeline,
 .tbl, .vgrid, #today-classes, #grade-editor, #pres-content,
 #mural-list, #eventos-list, #perfil-content, #stu-tbl, #fin-body,
-.pres-list {
+.pres-list, .stat-grid {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
 }
 
-/* ─── 3. Cards individuais full-width ───────────────────────────────── */
 .dcol, .evento-card, .mural-card, .recado, .scard, .mens-card,
 .mens-history, .timeline, .perfil-header, .info-banner,
 .grade-editor, .grade-day-block, .pres-row {
@@ -2267,15 +2742,105 @@ input:focus, textarea:focus, select:focus {
   box-sizing: border-box;
 }
 
-@media (max-width: 720px) {
-  .vgrid { grid-template-columns: 1fr; gap: var(--sp-3); }
+/* ═══════════════════════════════════════════════════════════════════════
+   3. STATS CARDS — Sempre 3 colunas no mobile (sem 2+1 quebrado)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#pres-stats.scards,
+.scards#pres-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+@media (max-width: 380px) {
+  #pres-stats.scards { gap: 4px; }
+}
+
+/* Stat grid do perfil: 3 colunas sempre */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   PRESENÇAS — Nova lista com avatar (substitui a tabela antiga)
+   4. GRADE — Filtros e botão Editar Grade em linhas próprias
    ═══════════════════════════════════════════════════════════════════════ */
+
+#page-schedule .leg {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+#page-schedule .leg::-webkit-scrollbar { display: none; }
+
+#page-schedule .leg .li {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+#page-schedule .leg .li .ld {
+  width: 8px; height: 8px; min-height: 0;
+  padding: 0; border: 0;
+  border-radius: 50%;
+  display: inline-block;
+}
+.li.gi .ld { background: var(--type-gi); }
+.li.nogi .ld { background: var(--type-nogi); }
+.li.kids .ld { background: var(--type-kids); }
+
+/* Botão Editar Grade: full-width em linha própria */
+.edit-grade-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   5. CARDS DE AULA (cpill) — Quase full-width dentro do dcol
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.dcol {
+  padding: 10px;
+}
+.dcol .dhead {
+  padding: 4px 6px 8px;
+  margin: 0;
+}
+.cpill {
+  margin: 6px 0 0;
+  padding: 11px 10px;
+}
+.cpill:first-of-type {
+  margin-top: 8px;
+}
+
+@media (max-width: 720px) {
+  .dcol { padding: 10px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   6. PRESENÇAS — Lista com avatar
+   ═══════════════════════════════════════════════════════════════════════ */
+
 .pres-list {
-  display: flex; flex-direction: column;
+  display: flex;
+  flex-direction: column;
   background: var(--surf);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
@@ -2283,7 +2848,8 @@ input:focus, textarea:focus, select:focus {
 }
 
 .pres-row {
-  display: flex; align-items: center;
+  display: flex;
+  align-items: center;
   gap: 12px;
   padding: 12px 14px;
   border-bottom: 0.5px solid var(--border);
@@ -2293,14 +2859,25 @@ input:focus, textarea:focus, select:focus {
 .pres-row:last-child { border-bottom: 0; }
 .pres-row:hover { background: var(--surf2); }
 
-.pres-avatar {
-  width: 36px; height: 36px;
+/* Avatar com imagem OU iniciais */
+.pres-avatar-img,
+.pres-avatar-initials {
+  width: 40px; height: 40px;
+  min-width: 40px;
+  border-radius: 50%;
   flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
+  border: 0.5px solid var(--border);
+}
+.pres-avatar-img {
+  object-fit: cover;
+  background: var(--surf2);
+}
+.pres-avatar-initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: var(--surf2);
   color: var(--txt2);
-  border: 1px solid var(--border);
-  border-radius: 50%;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -2308,31 +2885,47 @@ input:focus, textarea:focus, select:focus {
 
 .pres-info { flex: 1; min-width: 0; }
 .pres-nome {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--txt);
-  display: flex; align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  margin-bottom: 3px;
 }
 .pres-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
   font-size: 10px;
   color: var(--txt3);
-  margin-top: 2px;
   letter-spacing: 0.3px;
 }
 
+.pres-confirmed-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 8.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+  border-radius: 3px;
+}
+
 .pres-ck {
-  width: 36px; height: 36px;
+  width: 44px; height: 44px;
+  min-width: 44px;
   flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   color: var(--txt3);
   border: 1px solid var(--border);
   border-radius: 50%;
   cursor: pointer;
-  font-size: 14px;
-  transition: all var(--t-fast) var(--ease);
+  font-size: 16px;
 }
 .pres-ck:hover {
   border-color: var(--border2);
@@ -2343,69 +2936,134 @@ input:focus, textarea:focus, select:focus {
   border-color: #4ade80;
   color: #4ade80;
 }
-.pres-ck.on:hover {
-  background: rgba(74, 222, 128, 0.25);
+
+/* ═══════════════════════════════════════════════════════════════════════
+   7. AVATAR DO PERFIL — Com botão flutuante de câmera
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.perfil-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 80px; height: 80px;
+}
+.perfil-avatar {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: var(--surf2);
+  border: 1px solid var(--border2);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.perfil-avatar-img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.perfil-avatar-initials {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px;
+  letter-spacing: 2px;
+  color: var(--txt);
 }
 
-.pres-confirmed-badge {
-  display: inline-flex; align-items: center;
-  gap: 3px;
-  font-size: 9px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  padding: 2px 6px;
-  background: rgba(74, 222, 128, 0.12);
-  color: #4ade80;
-  border-radius: 3px;
+.perfil-avatar-btn {
+  position: absolute;
+  bottom: -2px; right: -2px;
+  width: 30px; height: 30px;
+  min-height: 30px;
+  border-radius: 50%;
+  background: var(--txt);
+  color: var(--b);
+  border: 2px solid var(--b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  font-size: 12px;
+  padding: 0;
+}
+.perfil-avatar-btn:hover { transform: scale(1.05); }
+.perfil-avatar-btn:active { transform: scale(0.95); opacity: 0.85; }
+.perfil-avatar-btn i { font-size: 14px; }
+
+@media (max-width: 720px) {
+  .perfil-avatar-wrap, .perfil-avatar { width: 64px; height: 64px; }
+  .perfil-avatar-initials { font-size: 22px; }
+  .perfil-avatar-btn { width: 26px; height: 26px; min-height: 26px; }
+  .perfil-avatar-btn i { font-size: 12px; }
+}
+
+.avatar-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: none;
+  justify-content: flex-start;
+  width: 100%;
+  text-align: left;
+  border-radius: var(--r-sm);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   GRADE EDITOR — botão "Editar" ao lado do remover
+   8. GRADE EDITOR — Botão Editar pequeno ao lado do remover
    ═══════════════════════════════════════════════════════════════════════ */
+
 .grade-aula-edit {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 5px 9px;
-  font-size: 9px; letter-spacing: 1.5px; font-weight: 500; text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px; height: 34px;
+  min-height: 34px;
   color: var(--txt2);
   background: transparent;
   border: 0.5px solid var(--border2);
   border-radius: var(--r-sm);
   cursor: pointer;
-  transition: all var(--t-fast) var(--ease);
   margin-right: 6px;
+  padding: 0;
 }
 .grade-aula-edit:hover {
   color: var(--txt);
   border-color: var(--accent);
   background: var(--surf2);
 }
-.grade-aula-edit i { font-size: 11px; }
+.grade-aula-edit i { font-size: 13px; }
 
-/* Ajuste no botão de remover pra ficar só ícone */
 .grade-aula-row .grade-aula-del {
-  padding: 5px 9px;
-  font-size: 11px;
+  width: 34px; height: 34px;
+  min-height: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
-
-@media (max-width: 720px) {
-  .grade-aula-edit { font-size: 8px; padding: 4px 7px; }
-  .grade-aula-edit i { font-size: 10px; }
-}
+.grade-aula-row .grade-aula-del i { font-size: 13px; }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   MENSALIDADE — Botão "Pagar agora" (visível só pro próprio aluno)
+   9. MENSALIDADE — Botão "Pagar agora"
    ═══════════════════════════════════════════════════════════════════════ */
+
 .mens-actions {
-  margin-top: var(--sp-3);
-  padding-top: var(--sp-3);
+  margin-top: 14px;
+  padding-top: 14px;
   border-top: 0.5px solid var(--border);
 }
 .mens-pay-btn {
   width: 100%;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 12px;
-  font-size: 12px; letter-spacing: 0.15em; font-weight: 600;
+  padding: 13px;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  font-weight: 600;
 }
 .mens-pay-btn i { font-size: 16px; }
 .mens-pay-hint {
@@ -2416,233 +3074,169 @@ input:focus, textarea:focus, select:focus {
   line-height: 1.4;
 }
 
-/* Mobile layout stabilization */
-html {
-  overflow-x: hidden;
+/* ═══════════════════════════════════════════════════════════════════════
+   10. LOGIN PAGE v13 — Identidade preservada + Google em PB
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.login-logo-fallback {
+  width: 64px; height: 64px;
+  margin: 0 auto 14px;
+  background: var(--txt);
+  color: var(--b);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 2px;
+  font-weight: 700;
 }
 
-.app,
-.topbar,
-.nav-bar,
-.page {
-  min-width: 0;
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 14px;
+}
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  height: 0.5px;
+  background: var(--border);
+}
+.login-divider span {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--txt3);
 }
 
-.topbar {
+.login-google-btn {
   width: 100%;
-  gap: var(--sp-3);
+  background: transparent;
+  color: #fff;
+  border: 0.5px solid var(--border2);
+  border-radius: var(--r-sm);
+  padding: 13px;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+.login-google-btn:hover:not(:disabled) {
+  background: var(--surf);
+  border-color: var(--accent);
+}
+.login-google-btn:disabled { opacity: 0.5; cursor: wait; }
+.login-google-btn svg { flex-shrink: 0; }
+
+/* Tema claro: Google fica com texto e G pretos (contraste) */
+:root[data-theme="light"] .login-google-btn { color: var(--txt); }
+:root[data-theme="light"] .login-google-btn svg path { fill: var(--txt) !important; }
+
+.login-link-btn {
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--txt3);
+  font-size: 12px;
+  padding: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+  margin-top: 4px;
+  min-height: 40px;
+}
+.login-link-btn:hover { color: var(--txt); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   11. CADASTRO — Etapa de foto opcional
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#photo-step {
+  display: flex;
+  flex-direction: column;
 }
 
-.topbar > div:first-child,
-.logo {
-  min-width: 0;
+.photo-upload-area {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto 22px;
+  position: relative;
+  width: 130px; height: 130px;
 }
 
-.logo {
+.photo-preview {
+  width: 130px; height: 130px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+  border: 1.5px dashed rgba(255,255,255,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+.photo-preview i {
+  font-size: 48px;
+  color: rgba(255,255,255,0.3);
+}
+.photo-preview.with-image {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--surf2);
+}
+.photo-preview img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
-.user-area {
-  flex-shrink: 0;
+.photo-camera-btn {
+  position: absolute;
+  bottom: 0; right: 0;
+  width: 40px; height: 40px;
+  min-height: 40px;
+  border-radius: 50%;
+  background: var(--txt);
+  color: var(--b);
+  border: 3px solid var(--surf);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  padding: 0;
 }
+.photo-camera-btn:hover { transform: scale(1.05); }
+.photo-camera-btn:active { transform: scale(0.95); }
+.photo-camera-btn i { font-size: 16px; }
 
-.nav-bar {
-  width: 100%;
-  scroll-padding-inline: var(--sp-4);
-}
+/* ═══════════════════════════════════════════════════════════════════════
+   12. POLISH FINAL — Detalhes que valem
+   ═══════════════════════════════════════════════════════════════════════ */
 
-.page {
-  width: 100%;
-  max-width: 960px;
-  padding: var(--sp-5) var(--sp-4) calc(var(--sp-6) + env(safe-area-inset-bottom));
-}
-
-.page > div[style*="justify-content:space-between"] {
-  gap: var(--sp-3);
-  flex-wrap: wrap;
-}
-
-#toggle-edit-btn {
-  margin-left: auto;
-}
-
-.wgrid,
-.evento-list,
-.recado-list,
-.mural-list,
-#eventos-list,
-#mural-list,
-#today-classes {
-  width: 100%;
-}
-
-.dcol,
-.cpill,
-.evento-card,
-.mural-card {
-  min-width: 0;
-}
-
-.cpill .cname,
-.evento-titulo,
-.mural-tit {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.com-tabs {
-  width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-  scroll-padding-inline: var(--sp-4);
-}
-
-.com-tabs::-webkit-scrollbar {
-  display: none;
-}
-
-.com-tab {
-  flex: 0 0 auto;
-  min-height: 44px;
-}
-
+/* Modal sheet mobile: ocupa toda largura */
 @media (max-width: 720px) {
-  .topbar {
-    padding-left: max(var(--sp-4), env(safe-area-inset-left));
-    padding-right: max(var(--sp-4), env(safe-area-inset-right));
-  }
-
-  .user-area {
-    gap: var(--sp-2);
-  }
-
-  .logout-btn {
-    width: 40px;
-    height: 40px;
-  }
-
-  .nav-bar {
-    gap: var(--sp-2);
-    padding: var(--sp-3) max(var(--sp-4), env(safe-area-inset-left));
-    padding-right: max(var(--sp-4), env(safe-area-inset-right));
-  }
-
-  .nb {
-    min-height: 40px;
-    padding: 9px 12px;
-    letter-spacing: 0.12em;
-  }
-
-  .page {
-    max-width: none;
-    padding: var(--sp-5) max(var(--sp-4), env(safe-area-inset-left)) calc(var(--sp-7) + env(safe-area-inset-bottom));
-  }
-
-  .slabel {
-    letter-spacing: 0.22em;
-  }
-
-  .stitle {
-    font-size: 30px;
-    letter-spacing: 1.5px;
-    margin-bottom: var(--sp-5);
-  }
-
-  .leg {
-    gap: var(--sp-2);
-    margin-bottom: var(--sp-5);
-  }
-
-  .li {
-    min-height: 38px;
-    padding: 8px 11px;
-  }
-
-  .wgrid {
-    grid-template-columns: 1fr;
-    gap: var(--sp-3);
-  }
-
-  .dcol {
-    width: 100%;
-    padding: var(--sp-4);
-    min-height: 112px;
-  }
-
-  .dhead {
-    margin-bottom: var(--sp-3);
-  }
-
-  .cpill {
-    gap: var(--sp-3);
-    padding: 12px 14px;
-  }
-
-  .cpill .ctime {
-    min-width: 56px;
-    font-size: 16px;
-  }
-
-  .cpill .cname {
-    font-size: 14px;
-  }
-
-  .com-tabs {
-    margin-bottom: var(--sp-5);
-  }
-
-  .evento-card,
-  .mural-card {
-    align-items: flex-start;
-    gap: var(--sp-4);
-    padding: var(--sp-4);
-  }
-
-  .evento-date,
-  .mural-date {
-    width: 48px;
-  }
-
-  .evento-meta,
-  .mural-meta {
-    flex-wrap: wrap;
-  }
+  .mbox { max-width: 100%; }
+  .mlay { padding: 0; align-items: flex-end; }
 }
 
-@media (max-width: 380px) {
-  .topbar {
-    padding-left: var(--sp-3);
-    padding-right: var(--sp-3);
-  }
-
-  .nav-bar {
-    padding-left: var(--sp-3);
-    padding-right: var(--sp-3);
-  }
-
-  .page {
-    padding-left: var(--sp-3);
-    padding-right: var(--sp-3);
-  }
-
-  .nb {
-    padding-left: 10px;
-    padding-right: 10px;
-  }
-
-  .stitle {
-    font-size: 28px;
-  }
+/* Vídeos: 1 coluna no mobile */
+@media (max-width: 720px) {
+  .vgrid { grid-template-columns: 1fr; gap: 12px; }
 }
 
-@media (min-width: 720px) {
-  .page {
-    padding: var(--sp-6) var(--sp-5);
-  }
+/* Botão de check da presença: highlight melhor */
+.pres-ck:active { transform: scale(0.92); }
 
-  .wgrid {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-  }
-}
+/* Image inside avatar: garantir crop bonito */
+.pres-avatar-img, .perfil-avatar-img { object-position: center; }
