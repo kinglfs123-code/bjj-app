@@ -57,16 +57,14 @@
   <div class="page on" id="page-schedule">
     <div class="slabel">Semana atual</div>
     <div class="stitle" id="sch-title">Grade de Aulas</div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div class="leg">
-        <div class="li"><div class="ld" style="background:var(--txt)"></div>Gi</div>
-        <div class="li"><div class="ld" style="background:var(--txt3)"></div>No-Gi</div>
-        <div class="li"><div class="ld" style="background:var(--txt2)"></div>Kids</div>
-      </div>
-      <button class="fbtn prof-only" id="toggle-edit-btn" onclick="toggleScheduleEdit()">
-        <i class="ti ti-edit" aria-hidden="true"></i> Editar grade
-      </button>
+    <div class="leg" style="margin-bottom:10px">
+      <div class="li gi"><div class="ld"></div>Gi</div>
+      <div class="li nogi"><div class="ld"></div>No-Gi</div>
+      <div class="li kids"><div class="ld"></div>Kids</div>
     </div>
+    <button class="fbtn prof-only edit-grade-btn" id="toggle-edit-btn" onclick="toggleScheduleEdit()">
+      <i class="ti ti-edit" aria-hidden="true"></i> Editar grade
+    </button>
     <div id="view-mode">
       <div class="wgrid" id="wgrid"></div>
       <div class="slabel" style="margin-top:8px">Aulas de hoje</div>
