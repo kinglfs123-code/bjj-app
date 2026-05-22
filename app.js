@@ -670,10 +670,10 @@ function renderGradeEditor(){
               <div class="grade-aula-name">${a.nome}</div>
               <div class="grade-aula-type">${TYPE_PT[a.tipo] || a.tipo}</div>
             </div>
-            <button class="grade-aula-edit" onclick="openAulaModal(${dn}, '${a.id}')" title="Editar aula">
-              <i class="ti ti-edit" aria-hidden="true"></i> Editar
+            <button class="grade-aula-edit" onclick="openAulaModal(${dn}, '${a.id}')" title="Editar aula" aria-label="Editar aula">
+              <i class="ti ti-edit" aria-hidden="true"></i>
             </button>
-            <button class="grade-aula-del" onclick="deleteAula('${a.id}')" title="Remover aula">
+            <button class="grade-aula-del" onclick="deleteAula('${a.id}')" title="Remover aula" aria-label="Remover aula">
               <i class="ti ti-trash" aria-hidden="true"></i>
             </button>
           </div>`).join('')
@@ -696,8 +696,8 @@ function toggleScheduleEdit(){
 }
 
 function openAulaModal(day, aulaId){
-  // Modo edição: preenche com a aula existente
   if(aulaId){
+    // Modo edição: busca a aula
     let aulaParaEditar = null
     for(const d in state.schedule){
       const found = (state.schedule[d] || []).find(a => a.id === aulaId)
@@ -712,7 +712,6 @@ function openAulaModal(day, aulaId){
     const titleEl = document.querySelector('#modal-aula .mtitle')
     if(titleEl) titleEl.textContent = 'Editar Aula'
   } else {
-    // Modo criação
     state.editingAulaId = null
     $('aula-day').value = String(day)
     $('aula-time').value = '06:00'
@@ -732,26 +731,22 @@ async function saveAula(){
   if(!nome){ toast('Nome da aula obrigatório.', true); return }
   if(!horario){ toast('Horário obrigatório.', true); return }
 
-  // ── Validação: bloquear horário duplicado no mesmo dia ──
+  // ── Bloqueio de horário duplicado no mesmo dia ──
   const horarioNormalizado = horario.length === 5 ? horario + ':00' : horario
   const aulasNoDia = state.schedule[day] || []
   const conflito = aulasNoDia.find(a => {
-    if(state.editingAulaId && a.id === state.editingAulaId) return false // ignora a própria aula
+    if(state.editingAulaId && a.id === state.editingAulaId) return false
     const hAtual = a.horario.length === 5 ? a.horario + ':00' : a.horario
     return hAtual === horarioNormalizado
   })
   if(conflito){
-    toast(`Já existe uma aula às ${horario} em ${DAYS_FULL[day]}: "${conflito.nome}". Mude o horário.`, true)
+    toast(`Já existe aula às ${horario} em ${DAYS_FULL[day]}: "${conflito.nome}".`, true)
     return
   }
 
   try {
     if(state.editingAulaId){
-      // EDITAR aula existente
-      const atualizada = await DB.updateAula(state.editingAulaId, {
-        dia_semana: day, horario, nome, tipo
-      })
-      // Remove da lista antiga (caso tenha mudado de dia) e insere na nova
+      const atualizada = await DB.updateAula(state.editingAulaId, { dia_semana: day, horario, nome, tipo })
       for(const d in state.schedule){
         state.schedule[d] = (state.schedule[d] || []).filter(a => a.id !== state.editingAulaId)
       }
@@ -763,7 +758,6 @@ async function saveAula(){
       renderGradeEditor()
       toast('Aula atualizada!')
     } else {
-      // CRIAR aula nova
       const nova = await DB.addAula({ dia_semana: day, horario, nome, tipo })
       if(!state.schedule[day]) state.schedule[day] = []
       state.schedule[day].push(nova)
@@ -811,43 +805,48 @@ function renderPresContentProfessor(){
   const total = state.alunos.length
   const present = Object.values(state.presencas).filter(Boolean).length
   const pct = total ? Math.round(present/total*100) : 0
-  const bc = {}
-  state.alunos.filter(s => state.presencas[s.id]).forEach(s => bc[s.faixa] = (bc[s.faixa] || 0) + 1)
-  const top = Object.entries(bc).sort((a,b) => b[1]-a[1])[0]
 
+  // 3 stat cards (removido "Faixa líder")
   $('pres-stats').innerHTML = `
     <div class="sc"><div class="scv">${total}</div><div class="scl">Alunos</div></div>
     <div class="sc"><div class="scv">${present}</div><div class="scl">Presentes</div></div>
     <div class="sc"><div class="scv">${pct}%</div><div class="scl">Taxa</div></div>
-    <div class="sc"><div class="scv">${top ? BELT_PT[top[0]] : '—'}</div><div class="scl">Faixa líder</div></div>
   `
 
   const q = state.filters.search
-  const bf = state.filters.presBelt
   const filtered = state.alunos.filter(s => {
-    if(bf !== 'all' && s.faixa !== bf) return false
     if(q && !s.nome.toLowerCase().includes(q)) return false
     return true
   })
 
+  function iniciaisDe(nome){
+    return (nome || '?').split(' ').filter(Boolean).map(p => p[0]).join('').slice(0,2).toUpperCase()
+  }
+
   $('pres-content').innerHTML = filtered.length ? `
-    <table class="tbl">
-      <thead><tr><th>Aluno</th><th>Faixa</th><th>Presenças</th><th>Hoje</th></tr></thead>
-      <tbody>
-        ${filtered.map(s => {
-          const confirmou = state.confirmadosNoDia[s.id]
-          return `<tr>
-            <td style="font-weight:500;color:var(--txt)">
-              ${s.nome}
+    <div class="pres-list">
+      ${filtered.map(s => {
+        const confirmou = state.confirmadosNoDia[s.id]
+        const totalAulas = state.totaisPresenca[s.id] || 0
+        const presenteHoje = state.presencas[s.id]
+        const avatarHtml = s.avatar_url
+          ? `<img class="pres-avatar-img" src="${s.avatar_url}" alt="" loading="lazy">`
+          : `<div class="pres-avatar-initials">${iniciaisDe(s.nome)}</div>`
+        return `<div class="pres-row" onclick="openPerfilAluno('${s.id}', true)">
+          ${avatarHtml}
+          <div class="pres-info">
+            <div class="pres-nome">${escapeHtml(s.nome)}</div>
+            <div class="pres-meta">
+              <span>${BELT_PT[s.faixa] || s.faixa || '—'} · ${totalAulas} ${totalAulas === 1 ? 'presença' : 'presenças'}</span>
               ${confirmou ? '<span class="pres-confirmed-badge"><i class="ti ti-circle-check-filled"></i> confirmou</span>' : ''}
-            </td>
-            <td><span class="belt ${s.faixa}"></span><span style="font-size:10px;color:var(--txt3)">${BELT_PT[s.faixa] || s.faixa}</span></td>
-            <td><span style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--txt)">${state.totaisPresenca[s.id] || 0}</span></td>
-            <td><button class="ck ${state.presencas[s.id] ? 'on' : ''}" onclick="togglePres('${s.id}')">${state.presencas[s.id] ? '<i class="ti ti-check"></i>' : '<i class="ti ti-plus" style="color:var(--txt3)"></i>'}</button></td>
-          </tr>`
-        }).join('')}
-      </tbody>
-    </table>
+            </div>
+          </div>
+          <button class="pres-ck ${presenteHoje ? 'on' : ''}" onclick="event.stopPropagation(); togglePres('${s.id}')" aria-label="${presenteHoje ? 'Desmarcar presença' : 'Marcar presença'}">
+            ${presenteHoje ? '<i class="ti ti-check"></i>' : '<i class="ti ti-plus"></i>'}
+          </button>
+        </div>`
+      }).join('')}
+    </div>
   ` : '<div style="text-align:center;padding:30px;color:var(--txt3);font-size:13px">Nenhum aluno encontrado.</div>'
 }
 
@@ -1210,12 +1209,26 @@ async function openPerfilAluno(alunoId){
     const grauAtual = aluno.grau || 0
     const faixaNome = FAIXAS.find(f=>f.id===faixaAtual)?.nome || 'Branca'
 
+    // Botão de editar avatar aparece pro próprio aluno OU pro professor/founder
+    const podeEditarAvatar = isSelf || Auth.isProfessor()
+    const avatarConteudo = aluno.avatar_url
+      ? `<img class="perfil-avatar-img" src="${aluno.avatar_url}" alt="Foto de ${escapeHtml(aluno.nome)}">`
+      : `<div class="perfil-avatar-initials">${initials}</div>`
+    const avatarBotao = podeEditarAvatar
+      ? `<button class="perfil-avatar-btn" onclick="openAvatarSheet('${alunoId}')" aria-label="Trocar foto" title="Trocar foto">
+          <i class="ti ti-camera" aria-hidden="true"></i>
+        </button>`
+      : ''
+
     pageEl.innerHTML = `
       ${isProf ? '<button class="back-btn" onclick="voltarParaAlunos()"><i class="ti ti-arrow-left"></i> Voltar</button>' : ''}
       <div class="slabel">${isSelf?'Meu Perfil':'Perfil do Aluno'}</div>
 
       <div class="perfil-header">
-        <div class="perfil-avatar">${initials}</div>
+        <div class="perfil-avatar-wrap">
+          <div class="perfil-avatar">${avatarConteudo}</div>
+          ${avatarBotao}
+        </div>
         <div class="perfil-info">
           <div class="perfil-nome">${escapeHtml(aluno.nome || '?')}</div>
           <div class="perfil-email">${escapeHtml(aluno.email || '')}</div>
@@ -1963,6 +1976,18 @@ async function carregarMensalidadeNoPerfil(alunoId){
       const cor = atrasado ? '#e05050' : (diasRest <= 3 ? '#e8c270' : 'var(--accent)')
       const status = atrasado ? `Atrasado há ${Math.abs(diasRest)} dia(s)` : diasRest === 0 ? 'Vence hoje' : `Vence em ${diasRest} dia(s)`
       const badge = atrasado ? '✕ ATRASADO' : (diasRest === 0 ? '⚠ HOJE' : '○ PENDENTE')
+
+      // Mostra "Pagar agora" só pro próprio aluno (não pro professor olhando outro)
+      const ehOProprioAluno = Auth.isAluno() && Auth.currentProfile?.id === alunoId
+      const botaoPagar = ehOProprioAluno ? `
+        <div class="mens-actions">
+          <button class="pbtn mens-pay-btn" onclick="pagarMinhaMensalidade('${pendente.id}', ${pendente.valor})">
+            <i class="ti ti-credit-card" aria-hidden="true"></i> Pagar agora
+          </button>
+          <div class="mens-pay-hint">Pagamento online em breve · por ora registramos manualmente</div>
+        </div>
+      ` : ''
+
       cardHtml = `
         <div class="mens-card" style="border-left:3px solid ${cor}">
           <div class="mens-header">
@@ -1973,6 +1998,7 @@ async function carregarMensalidadeNoPerfil(alunoId){
             <div class="mens-value">${fmtBRL(pendente.valor)}</div>
             <div class="mens-info" style="color:${cor}">${status}  ·  ${formatDate(pendente.data_vencimento)}</div>
           </div>
+          ${botaoPagar}
         </div>
       `
     } else if(ultimoPago){
@@ -2234,6 +2260,169 @@ document.addEventListener('click', (e) => {
     dd.style.display = 'none'
   }
 })
+
+// ═══════════════════════════════════════════════════════════════════════
+//   AVATAR (foto de perfil)
+// ═══════════════════════════════════════════════════════════════════════
+
+// Abre um pequeno modal com opções: trocar foto / remover
+function openAvatarSheet(alunoId){
+  // Verificação de permissão (defesa em profundidade)
+  const isSelf = Auth.currentProfile?.id === alunoId
+  if(!isSelf && !Auth.isProfessor()){
+    toast('Você não tem permissão pra trocar essa foto.', true)
+    return
+  }
+
+  // Acha o aluno na memória pra saber se já tem foto
+  let aluno = state.alunos.find(a => a.id === alunoId)
+  if(!aluno && Auth.currentProfile?.id === alunoId) aluno = Auth.currentProfile
+  const temFoto = !!(aluno && aluno.avatar_url)
+
+  // Cria modal sob demanda
+  let sheet = $('avatar-sheet')
+  if(!sheet){
+    sheet = document.createElement('div')
+    sheet.id = 'avatar-sheet'
+    sheet.className = 'mlay'
+    sheet.innerHTML = `
+      <div class="mbox" style="max-width:360px">
+        <div class="mhead">
+          <span class="mtitle">Foto de Perfil</span>
+          <button class="mclose" onclick="closeModal('avatar-sheet')">✕</button>
+        </div>
+        <div class="mbody" id="avatar-sheet-body"></div>
+      </div>
+    `
+    document.body.appendChild(sheet)
+  }
+  // Conteúdo dinâmico
+  $('avatar-sheet-body').innerHTML = `
+    <input type="file" id="avatar-file-input" accept="image/jpeg,image/png,image/webp" style="display:none">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="fbtn avatar-action-btn" onclick="document.getElementById('avatar-file-input').click()">
+        <i class="ti ti-upload" aria-hidden="true"></i>
+        ${temFoto ? 'Trocar foto' : 'Enviar foto'}
+      </button>
+      ${temFoto ? `<button class="dbtn avatar-action-btn" onclick="removerAvatar('${alunoId}')">
+        <i class="ti ti-trash" aria-hidden="true"></i>
+        Remover foto
+      </button>` : ''}
+    </div>
+    <p style="font-size:10px;color:var(--txt3);margin-top:14px;text-align:center;line-height:1.5">
+      JPG, PNG ou WEBP até 2 MB.<br>Imagem quadrada funciona melhor.
+    </p>
+  `
+  // Conecta o input file ao handler
+  $('avatar-file-input').onchange = (e) => handleAvatarFile(e, alunoId)
+  sheet.style.display = 'flex'
+}
+
+// Redimensiona a imagem pra 400×400 antes de enviar (economiza banda + storage)
+async function _redimensionarAvatar(file, maxSize = 400){
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const reader = new FileReader()
+    reader.onload = (e) => { img.src = e.target.result }
+    reader.onerror = reject
+    img.onload = () => {
+      // Crop quadrado central + resize
+      const minSide = Math.min(img.width, img.height)
+      const sx = (img.width - minSide) / 2
+      const sy = (img.height - minSide) / 2
+      const canvas = document.createElement('canvas')
+      canvas.width = maxSize
+      canvas.height = maxSize
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, maxSize, maxSize)
+      canvas.toBlob(
+        (blob) => blob ? resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' })) : reject(new Error('Falha ao processar imagem')),
+        'image/jpeg',
+        0.88
+      )
+    }
+    img.onerror = () => reject(new Error('Imagem inválida'))
+    reader.readAsDataURL(file)
+  })
+}
+
+async function handleAvatarFile(event, alunoId){
+  const file = event.target.files?.[0]
+  if(!file) return
+
+  // Limite de tamanho original (proteção)
+  if(file.size > 8 * 1024 * 1024){
+    toast('Imagem muito grande (máx 8MB original).', true)
+    return
+  }
+
+  closeModal('avatar-sheet')
+  toast('Enviando foto...')
+
+  try {
+    const fileResized = await _redimensionarAvatar(file)
+    const url = await DB.uploadAvatar(fileResized, alunoId)
+
+    // Atualizar estado local
+    if(Auth.currentProfile?.id === alunoId) Auth.currentProfile.avatar_url = url
+    const alunoNoState = state.alunos.find(a => a.id === alunoId)
+    if(alunoNoState) alunoNoState.avatar_url = url
+
+    // Re-renderiza o perfil atual
+    await openPerfilAluno(alunoId, alunoId !== Auth.currentProfile?.id)
+    toast('Foto atualizada!')
+  } catch(err){
+    console.error('[avatar upload]', err)
+    toast('Erro ao enviar: ' + err.message, true)
+  }
+}
+
+async function removerAvatar(alunoId){
+  if(!confirm('Remover a foto de perfil?')) return
+  closeModal('avatar-sheet')
+  try {
+    let urlAtual = null
+    if(Auth.currentProfile?.id === alunoId) urlAtual = Auth.currentProfile.avatar_url
+    const alunoNoState = state.alunos.find(a => a.id === alunoId)
+    if(alunoNoState && !urlAtual) urlAtual = alunoNoState.avatar_url
+
+    await DB.removeAvatar(alunoId, urlAtual)
+
+    if(Auth.currentProfile?.id === alunoId) Auth.currentProfile.avatar_url = null
+    if(alunoNoState) alunoNoState.avatar_url = null
+
+    await openPerfilAluno(alunoId, alunoId !== Auth.currentProfile?.id)
+    toast('Foto removida.')
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//   ALUNO PAGA A PRÓPRIA MENSALIDADE (base, sem gateway ainda)
+// ═══════════════════════════════════════════════════════════════════════
+
+async function pagarMinhaMensalidade(pagamentoId, valor){
+  if(!Auth.isAluno()){
+    toast('Apenas o próprio aluno paga a mensalidade aqui.', true)
+    return
+  }
+  const forma = prompt(
+    `Confirmar pagamento de ${fmtBRL(valor)}?\n\n` +
+    `Por enquanto registramos manualmente.\n` +
+    `(PIX, cartão e boleto entram em breve.)\n\n` +
+    `Forma de pagamento:`,
+    'PIX'
+  )
+  if(forma === null) return
+  try {
+    await DB.marcarPago(pagamentoId, new Date().toISOString().slice(0,10), forma || 'PIX')
+    toast('Pagamento registrado!')
+    if(Auth.currentProfile?.id) await carregarMensalidadeNoPerfil(Auth.currentProfile.id)
+  } catch(err){
+    toast('Erro: ' + err.message, true)
+  }
+}
 
 // ─── BOOT ───────────────────────────────────────────────────────────────
 boot()
