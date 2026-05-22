@@ -263,6 +263,60 @@ const DB = {
     await sb.storage.from('academia-assets').remove([filename])
   },
 
+  // ── AVATAR (foto de perfil do aluno) ──────────────────────────────────────
+
+  // Faz upload da foto e atualiza o profiles.avatar_url
+  // file: File object; userId: ID do aluno (aluno só pode subir o próprio)
+  async uploadAvatar(file, userId) {
+    if (!file || !userId) throw new Error('Arquivo e userId obrigatórios')
+
+    // Nome do arquivo: {userId}-{timestamp}.{ext} (timestamp p/ evitar cache)
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
+    const filename = `${userId}-${Date.now()}.${ext}`
+
+    // Upload pro bucket "avatars"
+    const { error: upErr } = await sb.storage
+      .from('avatars')
+      .upload(filename, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type
+      })
+    if (upErr) throw upErr
+
+    // URL pública
+    const { data } = sb.storage.from('avatars').getPublicUrl(filename)
+    const publicUrl = data.publicUrl
+
+    // Atualizar profiles.avatar_url
+    const { error: updErr } = await sb
+      .from('profiles')
+      .update({ avatar_url: publicUrl })
+      .eq('id', userId)
+    if (updErr) throw updErr
+
+    return publicUrl
+  },
+
+  async removeAvatar(userId, currentUrl) {
+    if (!userId) throw new Error('userId obrigatório')
+
+    // Remove arquivo do storage (se URL existe)
+    if (currentUrl) {
+      try {
+        const filename = currentUrl.split('/').pop()
+        if (filename) await sb.storage.from('avatars').remove([filename])
+      } catch(e) { /* segue mesmo que falhe, o que importa é zerar do DB */ }
+    }
+
+    // Zera no banco
+    const { error } = await sb
+      .from('profiles')
+      .update({ avatar_url: null })
+      .eq('id', userId)
+    if (error) throw error
+  },
+
   // ── CONFIRMAÇÕES DE PRESENÇA ──────────────────────────────────────────────
 
   // Confirmar/cancelar — usa upsert + delete
