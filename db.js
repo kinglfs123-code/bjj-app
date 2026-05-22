@@ -24,6 +24,13 @@ const DB = {
     if (error) throw error
   },
 
+  // Aluno atualiza o próprio e-mail. O Supabase manda link de confirmação
+  // pro NOVO e-mail. Só vira oficial depois que ele clica.
+  async updateMyEmail(novoEmail) {
+    const { error } = await sb.auth.updateUser({ email: novoEmail })
+    if (error) throw error
+  },
+
   async deleteAluno(id) {
     // Remove perfil (o usuário auth é removido via trigger no Supabase)
     const { error } = await sb
