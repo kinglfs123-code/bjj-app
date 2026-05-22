@@ -471,13 +471,18 @@ function renderSchedule(){
         <div class="dname">${DAYS[i]}</div>
         <div class="dnum ${isT ? 'td' : ''}">${d.getDate()}</div>
       </div>
-      ${cls.map(c => {
-        const confirmed = Auth.isAluno() && state.minhasConfirmacoes[c.id + '_' + dateStr]
-        return `<div class="cpill ${c.tipo}${confirmed ? ' confirmed' : ''}" onclick="openAulaDetail('${c.id}','${dateStr}')" style="cursor:pointer">
-          <span class="ctime">${c.horario.slice(0,5)}${confirmed ? ' <i class="ti ti-check" style="color:#7ac890" aria-hidden="true"></i>' : ''}</span>
-          <span class="cname">${c.nome}</span>
-        </div>`
-      }).join('') || '<div style="padding:8px 5px;font-size:9px;color:var(--border2);text-align:center">—</div>'}
+      ${cls.length ? `<div class="aulas-lista">
+        ${cls.map(c => {
+          const confirmed = Auth.isAluno() && state.minhasConfirmacoes[c.id + '_' + dateStr]
+          return `<div class="aula-linha ${c.tipo}${confirmed ? ' confirmed' : ''}" onclick="openAulaDetail('${c.id}','${dateStr}')">
+            <div class="aula-linha-time">${c.horario.slice(0,5)}${confirmed ? ' <i class="ti ti-check" style="color:#7ac890;font-size:12px" aria-hidden="true"></i>' : ''}</div>
+            <div class="aula-linha-info">
+              <div class="aula-linha-nome">${escapeHtml(c.nome)}</div>
+              <div class="aula-linha-sub">${TYPE_PT[c.tipo] || c.tipo}</div>
+            </div>
+          </div>`
+        }).join('')}
+      </div>` : '<div class="aulas-vazio">Sem aulas neste dia</div>'}
     </div>`
   }
   $('wgrid').innerHTML = h
@@ -1231,7 +1236,10 @@ async function openPerfilAluno(alunoId){
         </div>
         <div class="perfil-info">
           <div class="perfil-nome">${escapeHtml(aluno.nome || '?')}</div>
-          <div class="perfil-email">${escapeHtml(aluno.email || '')}</div>
+          <div class="perfil-email">
+            ${escapeHtml(aluno.email || '')}
+            ${isSelf ? `<button class="perfil-email-edit" onclick="openEditarEmailModal()" aria-label="Alterar e-mail" title="Alterar e-mail"><i class="ti ti-edit"></i></button>` : ''}
+          </div>
           ${aluno.created_at ? `<div style="font-size:10px;color:var(--txt3);margin-top:2px"><i class="ti ti-calendar" aria-hidden="true"></i> Cadastrado em ${formatDate(aluno.created_at)}</div>` : ''}
           <div class="perfil-faixa-atual" style="margin-top:8px">
             <div class="perfil-faixa-display">
@@ -1617,7 +1625,7 @@ function renderMural(){
     const dia = d.getDate()
     const mes = MESES[d.getMonth()]
     const tempo = tempoAtras(r.criado_em)
-    return `<div class="mural-card ${r.fixado ? 'fixed' : ''}">
+    return `<div class="mural-card ${r.fixado ? 'fixed' : ''}" onclick="openRecadoDetail('${r.id}')" style="cursor:pointer">
       <div class="mural-date">
         <div class="mural-dia">${dia}</div>
         <div class="mural-mes">${mes}</div>
@@ -1630,9 +1638,9 @@ function renderMural(){
         </div>
         <div class="mural-txt">${escapeHtml(r.texto)}</div>
       </div>
-      ${isProf ? `<div class="mural-acts">
-        <button class="ibtn" onclick="openRecadoModal('${r.id}')" aria-label="Editar"><i class="ti ti-edit"></i></button>
-        <button class="dbtn" onclick="deleteRecado('${r.id}')" aria-label="Excluir"><i class="ti ti-trash"></i></button>
+      ${isProf ? `<div class="mural-acts" onclick="event.stopPropagation()">
+        <button class="ibtn" onclick="event.stopPropagation();openRecadoModal('${r.id}')" aria-label="Editar"><i class="ti ti-edit"></i></button>
+        <button class="dbtn" onclick="event.stopPropagation();deleteRecado('${r.id}')" aria-label="Excluir"><i class="ti ti-trash"></i></button>
       </div>` : ''}
     </div>`
   }).join('')
@@ -2063,7 +2071,7 @@ async function renderEventos(){
     $('eventos-list').innerHTML = list.map(e => {
       const dt = new Date(e.data_evento + 'T00:00:00')
       const passou = dt < hoje
-      return `<div class="evento-card${passou?' past':''}">
+      return `<div class="evento-card${passou?' past':''}" onclick="openEventoDetail('${e.id}')" style="cursor:pointer">
         <div class="evento-date">
           <div class="evento-dia">${dt.getDate()}</div>
           <div class="evento-mes">${['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][dt.getMonth()]}</div>
@@ -2074,9 +2082,9 @@ async function renderEventos(){
           ${e.local ? `<div class="evento-meta"><i class="ti ti-map-pin"></i> ${escapeHtml(e.local)}</div>` : ''}
           ${e.descricao ? `<div class="evento-desc">${escapeHtml(e.descricao)}</div>` : ''}
         </div>
-        ${Auth.isProfessor() ? `<div class="evento-actions">
-          <button class="ibtn" onclick="openEventoModal('${e.id}')"><i class="ti ti-edit"></i></button>
-          <button class="dbtn" onclick="deleteEvento('${e.id}')"><i class="ti ti-trash"></i></button>
+        ${Auth.isProfessor() ? `<div class="evento-actions" onclick="event.stopPropagation()">
+          <button class="ibtn" onclick="event.stopPropagation();openEventoModal('${e.id}')"><i class="ti ti-edit"></i></button>
+          <button class="dbtn" onclick="event.stopPropagation();deleteEvento('${e.id}')"><i class="ti ti-trash"></i></button>
         </div>` : ''}
       </div>`
     }).join('')
@@ -2210,7 +2218,7 @@ function renderDropdownNotif(){
     return
   }
   $('notif-list').innerHTML = list.map(n => `
-    <div class="notif-item${n.lida ? '' : ' unread'}" onclick="marcarNotifLida('${n.id}')">
+    <div class="notif-item${n.lida ? '' : ' unread'}" onclick="openNotifDetail('${n.id}')">
       <div class="notif-titulo">${escapeHtml(n.titulo)}</div>
       ${n.texto ? `<div class="notif-texto">${escapeHtml(n.texto)}</div>` : ''}
       <div class="notif-time">${tempoAtras(n.criado_em)}</div>
@@ -2422,6 +2430,214 @@ async function pagarMinhaMensalidade(pagamentoId, valor){
   } catch(err){
     toast('Erro: ' + err.message, true)
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//   ALTERAR E-MAIL (próprio aluno)
+// ═══════════════════════════════════════════════════════════════════════
+
+function openEditarEmailModal(){
+  if(!Auth.isAluno()){
+    toast('Apenas o próprio aluno pode alterar o e-mail aqui.', true)
+    return
+  }
+  const emailAtual = Auth.currentProfile?.email || ''
+  const old = $('modal-editar-email'); if(old) old.remove()
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="mlay" id="modal-editar-email" style="display:flex">
+      <div class="mbox" style="max-width:420px">
+        <div class="mhead">
+          <span class="mtitle">Alterar E-mail</span>
+          <button class="mclose" onclick="document.getElementById('modal-editar-email').remove()">✕</button>
+        </div>
+        <div class="mbody">
+          <div class="mrow">
+            <label class="mlabel">E-mail atual</label>
+            <div class="email-atual-box">${escapeHtml(emailAtual)}</div>
+          </div>
+          <div class="mrow">
+            <label class="mlabel">Novo e-mail</label>
+            <input class="sinput" type="email" id="novo-email" style="width:100%" placeholder="novo@email.com">
+          </div>
+          <div class="email-warn">
+            <strong>Atenção:</strong> vai chegar um link no <strong>novo</strong> e-mail. Você precisa clicar pra confirmar. Após enviar, você será deslogado.
+          </div>
+        </div>
+        <div class="mfoot">
+          <button class="fbtn" onclick="document.getElementById('modal-editar-email').remove()">Cancelar</button>
+          <button class="pbtn" onclick="confirmarAlterarEmail()">
+            <i class="ti ti-mail" aria-hidden="true"></i> Enviar confirmação
+          </button>
+        </div>
+      </div>
+    </div>
+  `)
+  setTimeout(() => $('novo-email')?.focus(), 100)
+}
+
+async function confirmarAlterarEmail(){
+  const novo = $('novo-email')?.value.trim().toLowerCase()
+  if(!novo){ toast('Digite o novo e-mail.', true); return }
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(novo)){ toast('E-mail inválido.', true); return }
+  if(novo === (Auth.currentProfile?.email || '').toLowerCase()){
+    toast('Esse já é o seu e-mail atual.', true); return
+  }
+
+  try {
+    await DB.updateMyEmail(novo)
+    document.getElementById('modal-editar-email')?.remove()
+    toast('Link enviado pra ' + novo + '. Saindo...')
+    // Desloga depois de 2s pra dar tempo de ler o toast
+    setTimeout(() => Auth.logout(), 2000)
+  } catch(err){
+    toast('Erro: ' + (err.message || 'tente novamente'), true)
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//   POPUP: Detalhe do RECADO (Mural)
+// ═══════════════════════════════════════════════════════════════════════
+
+function openRecadoDetail(id){
+  const r = state_mural.recados.find(x => x.id === id)
+  if(!r) return
+  const MESES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ']
+  const d = new Date(r.criado_em)
+  const dia = d.getDate()
+  const mes = MESES[d.getMonth()]
+  const ano = d.getFullYear()
+  const old = $('modal-recado-detail'); if(old) old.remove()
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="mlay" id="modal-recado-detail" style="display:flex" onclick="if(event.target===this) this.remove()">
+      <div class="mbox" style="max-width:500px">
+        <div class="mhead">
+          <span class="mtitle">Recado</span>
+          <button class="mclose" onclick="document.getElementById('modal-recado-detail').remove()">✕</button>
+        </div>
+        <div class="mbody">
+          <div class="detail-header">
+            <div class="detail-date-box">
+              <div class="detail-date-dia">${dia}</div>
+              <div class="detail-date-mes">${mes}</div>
+            </div>
+            <div class="detail-header-info">
+              <h2 class="detail-titulo">${escapeHtml(r.titulo)}</h2>
+              <p class="detail-meta">${r.fixado ? '<i class="ti ti-pin-filled"></i> Fixado · ' : ''}${tempoAtras(r.criado_em)} · ${dia}/${String(d.getMonth()+1).padStart(2,'0')}/${ano}</p>
+            </div>
+          </div>
+          <div class="detail-body-text">${escapeHtml(r.texto)}</div>
+        </div>
+        <div class="mfoot">
+          <button class="fbtn" onclick="document.getElementById('modal-recado-detail').remove()">Fechar</button>
+        </div>
+      </div>
+    </div>
+  `)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//   POPUP: Detalhe do EVENTO
+// ═══════════════════════════════════════════════════════════════════════
+
+function openEventoDetail(id){
+  const e = state_eventos.list.find(x => x.id === id)
+  if(!e) return
+  const MESES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ']
+  const SEMANA = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado']
+  const dt = new Date(e.data_evento + 'T00:00:00')
+  const dia = dt.getDate()
+  const mes = MESES[dt.getMonth()]
+  const ano = dt.getFullYear()
+  const diaSem = SEMANA[dt.getDay()]
+  const hoje = new Date(); hoje.setHours(0,0,0,0)
+  const passou = dt < hoje
+  const old = $('modal-evento-detail'); if(old) old.remove()
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="mlay" id="modal-evento-detail" style="display:flex" onclick="if(event.target===this) this.remove()">
+      <div class="mbox" style="max-width:500px">
+        <div class="mhead">
+          <span class="mtitle">${passou ? 'Evento (passado)' : 'Evento'}</span>
+          <button class="mclose" onclick="document.getElementById('modal-evento-detail').remove()">✕</button>
+        </div>
+        <div class="mbody">
+          <div class="detail-header">
+            <div class="detail-date-box${passou ? ' past' : ''}">
+              <div class="detail-date-dia">${dia}</div>
+              <div class="detail-date-mes">${mes}</div>
+            </div>
+            <div class="detail-header-info">
+              <h2 class="detail-titulo">${escapeHtml(e.titulo)}</h2>
+              <p class="detail-meta">${diaSem} · ${dia}/${String(dt.getMonth()+1).padStart(2,'0')}/${ano}</p>
+            </div>
+          </div>
+          <div class="detail-fields">
+            ${e.hora ? `<div class="detail-field">
+              <i class="ti ti-clock" aria-hidden="true"></i>
+              <div>
+                <div class="detail-field-label">Horário</div>
+                <div class="detail-field-value">${escapeHtml(e.hora)}</div>
+              </div>
+            </div>` : ''}
+            ${e.local ? `<div class="detail-field">
+              <i class="ti ti-map-pin" aria-hidden="true"></i>
+              <div>
+                <div class="detail-field-label">Local</div>
+                <div class="detail-field-value">${escapeHtml(e.local)}</div>
+              </div>
+            </div>` : ''}
+          </div>
+          ${e.descricao ? `<div class="detail-section">
+            <div class="detail-section-label">Descrição</div>
+            <div class="detail-body-text">${escapeHtml(e.descricao)}</div>
+          </div>` : ''}
+        </div>
+        <div class="mfoot">
+          <button class="fbtn" onclick="document.getElementById('modal-evento-detail').remove()">Fechar</button>
+        </div>
+      </div>
+    </div>
+  `)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//   POPUP: Detalhe da NOTIFICAÇÃO
+// ═══════════════════════════════════════════════════════════════════════
+
+function openNotifDetail(id){
+  const n = state_notif.list.find(x => x.id === id)
+  if(!n) return
+
+  // Marca como lida ao abrir
+  if(!n.lida) marcarNotifLida(id)
+
+  // Fecha dropdown
+  state_notif.aberto = false
+  const dd = $('notif-dropdown'); if(dd) dd.style.display = 'none'
+
+  const dt = new Date(n.criado_em)
+  const old = $('modal-notif-detail'); if(old) old.remove()
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="mlay" id="modal-notif-detail" style="display:flex" onclick="if(event.target===this) this.remove()">
+      <div class="mbox" style="max-width:480px">
+        <div class="mhead">
+          <span class="mtitle">Notificação</span>
+          <button class="mclose" onclick="document.getElementById('modal-notif-detail').remove()">✕</button>
+        </div>
+        <div class="mbody">
+          <h2 class="detail-titulo" style="margin-bottom:8px">${escapeHtml(n.titulo)}</h2>
+          <p class="detail-meta" style="margin-bottom:16px">Recebido ${tempoAtras(n.criado_em)} · ${dt.toLocaleDateString('pt-BR')} ${dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</p>
+          ${n.texto ? `<div class="detail-body-text">${escapeHtml(n.texto)}</div>` : '<p style="color:var(--txt3);font-size:13px">Sem detalhes adicionais.</p>'}
+        </div>
+        <div class="mfoot">
+          <button class="fbtn" onclick="document.getElementById('modal-notif-detail').remove()">Fechar</button>
+        </div>
+      </div>
+    </div>
+  `)
 }
 
 // ─── BOOT ───────────────────────────────────────────────────────────────
