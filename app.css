@@ -3240,3 +3240,286 @@ button:active, .pbtn:active, .fbtn:active, .ibtn:active {
 
 /* Image inside avatar: garantir crop bonito */
 .pres-avatar-img, .perfil-avatar-img { object-position: center; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PATCH v14 — Garage Training
+   Cole no FINAL do app.css (depois do patch v13).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   1. NOVA GRADE — Lista contínua (estilo "Apple Calendar")
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Sobrescrever padding do dcol pra lista usar borda direta */
+.dcol {
+  padding: 0;
+  overflow: hidden;
+}
+
+.dcol .dhead {
+  padding: 12px 14px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 0.5px solid var(--border);
+  margin: 0;
+}
+
+:root[data-theme="light"] .dcol .dhead {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.aulas-lista {
+  display: flex;
+  flex-direction: column;
+}
+
+.aula-linha {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 14px;
+  border-bottom: 0.5px solid var(--border);
+  border-left: 3px solid var(--txt3);
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease);
+}
+.aula-linha:last-child { border-bottom: 0; }
+.aula-linha:hover { background: var(--surf2); }
+
+.aula-linha.gi { border-left-color: var(--type-gi); }
+.aula-linha.nogi { border-left-color: var(--type-nogi); }
+.aula-linha.kids { border-left-color: var(--type-kids); }
+
+.aula-linha.confirmed {
+  background: rgba(122, 200, 144, 0.06);
+}
+
+.aula-linha-time {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 17px;
+  letter-spacing: 1px;
+  color: var(--txt);
+  min-width: 54px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.aula-linha-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.aula-linha-nome {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--txt);
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aula-linha-sub {
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--txt3);
+}
+
+.aulas-vazio {
+  padding: 18px 14px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--txt3);
+  font-style: italic;
+}
+
+@media (max-width: 720px) {
+  .aula-linha { padding: 12px 12px; gap: 12px; }
+  .aula-linha-time { font-size: 16px; min-width: 50px; }
+  .aula-linha-nome { font-size: 13px; white-space: normal; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   2. EDITAR E-MAIL — Lápis no perfil
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.perfil-email {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.perfil-email-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--txt3);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 3px;
+  min-height: auto;
+}
+.perfil-email-edit:hover {
+  color: var(--txt);
+  background: var(--surf2);
+}
+.perfil-email-edit i { font-size: 13px; }
+
+.email-atual-box {
+  background: var(--b);
+  border: 0.5px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 12px;
+  color: var(--txt3);
+  font-size: 13px;
+}
+
+.email-warn {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: rgba(232, 194, 112, 0.08);
+  border: 0.5px solid rgba(232, 194, 112, 0.3);
+  border-left: 2px solid #e8c270;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #e8c270;
+  line-height: 1.5;
+}
+
+:root[data-theme="light"] .email-warn {
+  background: rgba(200, 130, 40, 0.08);
+  color: #a55a00;
+  border-color: rgba(200, 130, 40, 0.4);
+  border-left-color: #c87b1f;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   3. POPUPS DE DETALHE — Eventos, Recados, Notificações
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.detail-header {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.detail-date-box {
+  background: var(--b);
+  border: 0.5px solid var(--accent);
+  border-radius: 6px;
+  padding: 8px 12px;
+  text-align: center;
+  min-width: 64px;
+  flex-shrink: 0;
+}
+.detail-date-box.past {
+  border-color: var(--border);
+  opacity: 0.6;
+}
+
+.detail-date-dia {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 30px;
+  color: var(--accent);
+  line-height: 1;
+  letter-spacing: 1px;
+}
+.detail-date-box.past .detail-date-dia { color: var(--txt2); }
+
+.detail-date-mes {
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--txt3);
+  margin-top: 2px;
+}
+
+.detail-header-info {
+  flex: 1;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.detail-titulo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  letter-spacing: 1.5px;
+  color: var(--txt);
+  margin: 0 0 4px;
+  line-height: 1.15;
+  word-break: break-word;
+}
+
+.detail-meta {
+  font-size: 11px;
+  color: var(--txt3);
+  margin: 0;
+  letter-spacing: 0.3px;
+}
+
+.detail-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.detail-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--b);
+  border-radius: 4px;
+}
+.detail-field i {
+  font-size: 16px;
+  color: var(--txt3);
+  flex-shrink: 0;
+}
+
+.detail-field-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--txt3);
+}
+
+.detail-field-value {
+  font-size: 13px;
+  color: var(--txt);
+  margin-top: 2px;
+}
+
+.detail-section {
+  margin-top: 4px;
+}
+
+.detail-section-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--txt3);
+  margin-bottom: 6px;
+}
+
+.detail-body-text {
+  font-size: 13px;
+  color: var(--txt2);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 720px) {
+  .detail-header { gap: 12px; }
+  .detail-date-box { min-width: 56px; padding: 6px 10px; }
+  .detail-date-dia { font-size: 24px; }
+  .detail-titulo { font-size: 18px; }
+}
