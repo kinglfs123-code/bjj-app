@@ -9,15 +9,18 @@
 
   <link rel="icon" href="/icon-192.png">
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=10">
+  <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="app.css?v=13">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="login-page">
   <div class="login-wrap">
-    <div class="login-box">
+
+    <!-- ETAPA 1: Cadastro -->
+    <div class="login-box" id="signup-step">
       <img id="brand-logo" src="" alt="" style="display:none;width:70px;height:70px;object-fit:contain;margin:0 auto 14px;border-radius:4px">
       <div class="login-logo" id="brand-name">·</div>
-      <div class="login-sub">Cadastro de aluno</div>
+      <div class="login-sub">Cadastro de aluno · Etapa 1 de 2</div>
 
       <form id="signup-form" autocomplete="on">
         <div class="form-row">
@@ -53,6 +56,32 @@
         Já tem conta? <a href="/" style="color:var(--txt2);text-decoration:underline;margin-left:4px">Entrar</a>
       </div>
     </div>
+
+    <!-- ETAPA 2: Foto de perfil (opcional) -->
+    <div class="login-box" id="photo-step" style="display:none">
+      <div class="login-sub" style="text-align:center;margin-bottom:6px">Etapa 2 de 2</div>
+      <div class="login-logo" style="font-size:26px;margin-bottom:6px">FOTO DE PERFIL</div>
+      <p style="text-align:center;font-size:12px;color:var(--txt3);margin:0 0 22px;line-height:1.5">
+        Ajuda o professor a te identificar no tatame.<br>Você pode adicionar depois também.
+      </p>
+
+      <div class="photo-upload-area">
+        <div class="photo-preview" id="photo-preview">
+          <i class="ti ti-user" aria-hidden="true"></i>
+        </div>
+        <button class="photo-camera-btn" type="button" onclick="document.getElementById('photo-input').click()" aria-label="Escolher foto">
+          <i class="ti ti-camera" aria-hidden="true"></i>
+        </button>
+      </div>
+
+      <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" style="display:none">
+
+      <div class="form-err" id="photo-err"></div>
+
+      <button class="form-submit" type="button" id="photo-submit-btn" disabled>Enviar foto e continuar</button>
+      <button class="login-link-btn" type="button" id="photo-skip-btn">Pular por enquanto →</button>
+    </div>
+
   </div>
 
   <script src="config.js"></script>
@@ -65,8 +94,11 @@
     const submitBtn = document.getElementById('submit-btn');
     const form = document.getElementById('signup-form');
 
-    // Aguarda o sb ficar pronto
-    function waitForSb(maxTries = 50) {
+    let novoUsuarioId = null;
+    let fotoSelecionada = null;
+
+    function waitForSb(maxTries) {
+      maxTries = maxTries || 50;
       return new Promise((resolve, reject) => {
         let tries = 0;
         const check = () => {
@@ -79,11 +111,60 @@
       });
     }
 
+    function redimensionarImagem(file, maxSize) {
+      maxSize = maxSize || 400;
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const reader = new FileReader();
+        reader.onload = (e) => { img.src = e.target.result; };
+        reader.onerror = reject;
+        img.onload = () => {
+          const minSide = Math.min(img.width, img.height);
+          const sx = (img.width - minSide) / 2;
+          const sy = (img.height - minSide) / 2;
+          const canvas = document.createElement('canvas');
+          canvas.width = maxSize;
+          canvas.height = maxSize;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, maxSize, maxSize);
+          canvas.toBlob(
+            (blob) => blob ? resolve(new File([blob], 'avatar.jpg', { type: 'image/jpeg' })) : reject(new Error('Falha ao processar')),
+            'image/jpeg',
+            0.88
+          );
+        };
+        img.onerror = () => reject(new Error('Imagem inválida'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function mostrarPreviewFoto(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const preview = document.getElementById('photo-preview');
+        preview.innerHTML = '';
+        preview.classList.add('with-image');
+        const img = document.createElement('img');
+        img.src = e.target.result;
+        preview.appendChild(img);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function avancarParaFoto(userId) {
+      novoUsuarioId = userId;
+      document.getElementById('signup-step').style.display = 'none';
+      document.getElementById('photo-step').style.display = 'flex';
+    }
+
+    function finalizarEEntrar() {
+      window.location.href = '/app.html';
+    }
+
     async function init() {
       try {
         const sb = await waitForSb();
 
-        // Carrega logo/nome da academia
         let termoConfig = { termo_ativo: false, termo_texto: null, termo_pdf_url: null };
         try {
           const { data } = await sb.from('config').select('nome_academia, logo_url, termo_ativo, termo_texto, termo_pdf_url').eq('id', 1).single();
@@ -106,9 +187,8 @@
               termo_pdf_url: data.termo_pdf_url || null
             };
           }
-        } catch (e) { /* segue mesmo sem config */ }
+        } catch (e) { /* segue */ }
 
-        // Mostrar termo se ativo
         if (termoConfig.termo_ativo && (termoConfig.termo_texto || termoConfig.termo_pdf_url)) {
           document.getElementById('termo-area').style.display = 'block';
           if (termoConfig.termo_texto) {
@@ -123,7 +203,6 @@
           }
         }
 
-        // Se já está logado, redireciona pro app
         const { data: { session } } = await sb.auth.getSession();
         if (session) {
           window.location.href = '/app.html';
@@ -135,7 +214,6 @@
           errEl.textContent = '';
           okEl.textContent = '';
 
-          // Validar termo
           if (termoConfig.termo_ativo) {
             if (!document.getElementById('termo-checkbox').checked) {
               errEl.textContent = 'Você precisa aceitar o termo para se cadastrar.';
@@ -152,20 +230,11 @@
 
           try {
             const { data, error } = await sb.auth.signUp({
-              email,
-              password,
-              options: {
-                data: {
-                  nome,
-                  faixa: 'white',
-                  role: 'aluno'
-                }
-              }
+              email, password,
+              options: { data: { nome, faixa: 'white', role: 'aluno' } }
             });
-
             if (error) throw error;
 
-            // Registrar aceite do termo (se ativo e tem sessão)
             if (termoConfig.termo_ativo && data.user) {
               try {
                 let ip = null;
@@ -175,25 +244,22 @@
                   ip = d.ip;
                 } catch (e) { /* ok */ }
                 await sb.from('termo_aceites').insert({
-                  aluno_id: data.user.id,
-                  ip,
+                  aluno_id: data.user.id, ip,
                   user_agent: navigator.userAgent,
                   termo_texto_snapshot: termoConfig.termo_texto,
                   termo_pdf_url_snapshot: termoConfig.termo_pdf_url
                 });
-              } catch (e) {
-                console.warn('[termo] falha ao registrar aceite:', e);
-              }
+              } catch (e) { console.warn('[termo] falha:', e); }
             }
 
-            // Se tem sessão = entrou direto
-            if (data.session) {
-              window.location.href = '/app.html';
+            // Tem sessão (autoconfirma) → vai pra foto
+            if (data.session && data.user) {
+              avancarParaFoto(data.user.id);
               return;
             }
 
-            // Sem sessão = precisa confirmar e-mail
-            okEl.textContent = 'Cadastro feito! Verifique seu e-mail para confirmar e fazer login.';
+            // Sem sessão → confirmar email primeiro
+            okEl.textContent = 'Cadastro feito! Confirme seu e-mail e faça login pra adicionar a foto.';
             form.reset();
             submitBtn.textContent = 'Cadastrar';
             submitBtn.disabled = false;
@@ -211,6 +277,60 @@
             submitBtn.textContent = 'Cadastrar';
           }
         });
+
+        // ── ETAPA 2: Foto ──
+        const photoInput = document.getElementById('photo-input');
+        const photoSubmit = document.getElementById('photo-submit-btn');
+        const photoSkip = document.getElementById('photo-skip-btn');
+        const photoErr = document.getElementById('photo-err');
+
+        photoInput.addEventListener('change', (e) => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          if (file.size > 8 * 1024 * 1024) {
+            photoErr.textContent = 'Imagem muito grande (máx 8MB).';
+            return;
+          }
+          photoErr.textContent = '';
+          fotoSelecionada = file;
+          mostrarPreviewFoto(file);
+          photoSubmit.disabled = false;
+        });
+
+        photoSubmit.addEventListener('click', async () => {
+          if (!fotoSelecionada || !novoUsuarioId) {
+            finalizarEEntrar();
+            return;
+          }
+          photoErr.textContent = '';
+          photoSubmit.disabled = true;
+          photoSubmit.textContent = 'Enviando...';
+          try {
+            const resized = await redimensionarImagem(fotoSelecionada);
+            const filename = novoUsuarioId + '-' + Date.now() + '.jpg';
+
+            const { error: upErr } = await sb.storage
+              .from('avatars')
+              .upload(filename, resized, { cacheControl: '3600', upsert: false, contentType: 'image/jpeg' });
+            if (upErr) throw upErr;
+
+            const { data } = sb.storage.from('avatars').getPublicUrl(filename);
+            const { error: updErr } = await sb.from('profiles')
+              .update({ avatar_url: data.publicUrl })
+              .eq('id', novoUsuarioId);
+            if (updErr) throw updErr;
+
+            finalizarEEntrar();
+          } catch (err) {
+            console.error('[avatar cadastro]', err);
+            photoErr.textContent = 'Erro: ' + err.message + '. Você pode adicionar depois no perfil.';
+            photoSubmit.disabled = false;
+            photoSubmit.textContent = 'Tentar de novo';
+          }
+        });
+
+        photoSkip.addEventListener('click', finalizarEEntrar);
+
       } catch (err) {
         errEl.textContent = 'Erro ao carregar. Recarregue a página.';
       }
