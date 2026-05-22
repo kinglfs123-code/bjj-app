@@ -46,7 +46,12 @@ const Auth = {
   // Professor compartilha o link pelos meios dele (WhatsApp, etc.)
 
   isProfessor() {
-    return this.currentProfile?.role === 'professor'
+    const role = this.currentProfile?.role
+    return role === 'professor' || role === 'founder'
+  },
+
+  isFounder() {
+    return this.currentProfile?.role === 'founder'
   },
 
   isAluno() {
