@@ -141,7 +141,7 @@ async function boot(){
     if(loader) loader.innerHTML = `
       <div style="color:#e05050;font-size:13px;text-align:center;padding:20px;max-width:90%">
         <strong>Erro ao carregar</strong><br><br>
-        <span style="font-size:11px;color:#888;word-break:break-word">${err.message}</span><br><br>
+        <span style="font-size:11px;color:#888;word-break:break-word">${escapeHtml(err.message)}</span><br><br>
         <span style="font-size:10px;color:#666">${err.stack ? err.stack.split('\\n').slice(0,3).join('<br>') : ''}</span><br><br>
         <button onclick="Auth.logout()" style="background:none;border:1px solid #444;color:#aaa;padding:8px 14px;border-radius:2px;cursor:pointer;font-size:11px;letter-spacing:2px;text-transform:uppercase">Sair</button>
       </div>`
@@ -495,7 +495,7 @@ function renderSchedule(){
         return `<div onclick="openAulaDetail('${c.id}','${todayStr}')" style="background:var(--surf);border:0.5px solid var(--border);border-radius:2px;padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;${confirmed ? 'border-left:3px solid #7ac890' : ''}">
           <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--txt);line-height:1">${c.horario.slice(0,5)}</div>
           <div style="flex:1">
-            <div style="font-size:12px;font-weight:500;color:var(--txt)">${c.nome}</div>
+            <div style="font-size:12px;font-weight:500;color:var(--txt)">${escapeHtml(c.nome)}</div>
             <div style="font-size:9px;color:var(--txt3);letter-spacing:1.5px;text-transform:uppercase">${TYPE_PT[c.tipo] || c.tipo}</div>
           </div>
           ${confirmed ? '<i class="ti ti-circle-check-filled" style="color:#7ac890;font-size:18px"></i>' : '<i class="ti ti-chevron-right" style="color:var(--txt3)"></i>'}
@@ -615,13 +615,13 @@ async function openAulaDetail(aulaId, dateStr){
         area.innerHTML = '<div class="aula-confirm-list">' + rows.map(r => `
           <div class="aula-confirm-item">
             <span class="belt ${r.profiles?.faixa || 'white'}"></span>
-            <span class="aula-confirm-name">${r.profiles?.nome || '?'}</span>
-            <span style="font-size:10px;color:var(--txt3)">${BELT_PT[r.profiles?.faixa] || ''}</span>
+            <span class="aula-confirm-name">${escapeHtml(r.profiles?.nome || '?')}</span>
+            <span style="font-size:10px;color:var(--txt3)">${escapeHtml(BELT_PT[r.profiles?.faixa] || '')}</span>
           </div>`).join('') + '</div>' + 
           `<div style="font-size:10px;color:var(--txt3);text-align:center;margin-top:8px">Total: ${rows.length} ${rows.length === 1 ? 'aluno' : 'alunos'}</div>`
       }
     } catch(err){
-      $('confirm-list-area').innerHTML = `<div style="padding:14px;color:#e05050;font-size:11px">Erro ao carregar: ${err.message}</div>`
+      $('confirm-list-area').innerHTML = `<div style="padding:14px;color:#e05050;font-size:11px">Erro ao carregar: ${escapeHtml(err.message)}</div>`
     }
   }
 
@@ -672,7 +672,7 @@ function renderGradeEditor(){
           <div class="grade-aula-row ${a.tipo}">
             <div class="grade-aula-time">${a.horario.slice(0,5)}</div>
             <div class="grade-aula-info">
-              <div class="grade-aula-name">${a.nome}</div>
+              <div class="grade-aula-name">${escapeHtml(a.nome)}</div>
               <div class="grade-aula-type">${TYPE_PT[a.tipo] || a.tipo}</div>
             </div>
             <button class="grade-aula-edit" onclick="openAulaModal(${dn}, '${a.id}')" title="Editar aula" aria-label="Editar aula">
@@ -835,7 +835,7 @@ function renderPresContentProfessor(){
         const totalAulas = state.totaisPresenca[s.id] || 0
         const presenteHoje = state.presencas[s.id]
         const avatarHtml = s.avatar_url
-          ? `<img class="pres-avatar-img" src="${s.avatar_url}" alt="" loading="lazy">`
+          ? `<img class="pres-avatar-img" src="${safeUrl(s.avatar_url)}" alt="" loading="lazy">`
           : `<div class="pres-avatar-initials">${iniciaisDe(s.nome)}</div>`
         return `<div class="pres-row" onclick="openPerfilAluno('${s.id}', true)">
           ${avatarHtml}
@@ -921,7 +921,7 @@ function renderVideos(){
         <span class="vbadge">${CAT_LABELS[v.categoria] || v.categoria}</span>
         <div class="vplay"><i class="ti ti-player-play" style="color:var(--txt2);margin-left:2px" aria-hidden="true"></i></div>
       </div>
-      <div class="vinfo"><div class="vtitle">${v.titulo}</div><div class="vmeta"><i class="ti ti-clock" style="font-size:10px;vertical-align:-1px;margin-right:3px" aria-hidden="true"></i>${v.duracao || '00:00'}</div></div>
+      <div class="vinfo"><div class="vtitle">${escapeHtml(v.titulo)}</div><div class="vmeta"><i class="ti ti-clock" style="font-size:10px;vertical-align:-1px;margin-right:3px" aria-hidden="true"></i>${escapeHtml(v.duracao || '00:00')}</div></div>
     </div>`
   }).join('')
 }
@@ -933,9 +933,21 @@ function openVidDetail(id){
 
   let preHtml = ''
   if(v.src_type === 'youtube' && v.src_url){
-    preHtml = `<iframe src="${v.src_url}?rel=0" allowfullscreen></iframe>`
+    // Validar: só aceita embed do YouTube (bloqueia javascript:, data:, etc)
+    const ytSafe = safeYouTubeEmbed(v.src_url)
+    if(ytSafe){
+      preHtml = `<iframe src="${ytSafe}?rel=0" allowfullscreen></iframe>`
+    } else {
+      preHtml = `<div style="padding:20px;color:#e05050;text-align:center;font-size:12px">URL de vídeo inválida ou bloqueada</div>`
+    }
   } else if(v.src_type === 'file' && v.src_url){
-    preHtml = `<video controls style="width:100%;height:100%;object-fit:contain;background:#000"><source src="${v.src_url}"></video>`
+    // Só http/https
+    const safe = safeUrl(v.src_url)
+    if(safe){
+      preHtml = `<video controls style="width:100%;height:100%;object-fit:contain;background:#000"><source src="${safe}"></video>`
+    } else {
+      preHtml = `<div style="padding:20px;color:#e05050;text-align:center;font-size:12px">URL de vídeo inválida</div>`
+    }
   } else {
     preHtml = `<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column">
       <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--txt3);margin-bottom:10px">Sem mídia</div>
@@ -951,9 +963,9 @@ function openVidDetail(id){
   $('vid-modal-content').innerHTML = `
     <div class="vpre">${preHtml}</div>
     <div class="mbody">
-      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);margin-bottom:6px">${CAT_LABELS[v.categoria] || v.categoria} · ${v.duracao || ''}</div>
-      <p style="color:var(--txt2);font-size:12px;line-height:1.7;margin-bottom:10px">${v.descricao || ''}</p>
-      <div class="tags">${(v.tags || []).map(t => `<span class="tag">${t}</span>`).join('')}</div>
+      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);margin-bottom:6px">${escapeHtml(CAT_LABELS[v.categoria] || v.categoria)} · ${escapeHtml(v.duracao || '')}</div>
+      <p style="color:var(--txt2);font-size:12px;line-height:1.7;margin-bottom:10px">${escapeHtml(v.descricao || '')}</p>
+      <div class="tags">${(v.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>
     </div>
     <div class="mfoot">
       ${profButtons}
@@ -974,13 +986,13 @@ function openVidModal(id){
 function renderVidForm(v){
   $('vid-modal-content').innerHTML = `
     <div class="mbody">
-      <div class="mrow"><label class="mlabel">Título</label><input class="sinput" id="vid-title" value="${v?v.titulo:''}" placeholder="Ex: Armlock da guarda" style="width:100%"></div>
+      <div class="mrow"><label class="mlabel">Título</label><input class="sinput" id="vid-title" value="${v?escapeHtml(v.titulo):''}" placeholder="Ex: Armlock da guarda" style="width:100%"></div>
       <div class="mrow"><label class="mlabel">Categoria</label>
-        <select class="mselect" id="vid-cat">${Object.entries(CAT_LABELS).map(([k,l])=>`<option value="${k}"${v&&v.categoria===k?' selected':''}>${l}</option>`).join('')}</select>
+        <select class="mselect" id="vid-cat">${Object.entries(CAT_LABELS).map(([k,l])=>`<option value="${k}"${v&&v.categoria===k?' selected':''}>${escapeHtml(l)}</option>`).join('')}</select>
       </div>
-      <div class="mrow"><label class="mlabel">Duração</label><input class="sinput" id="vid-dur" value="${v?v.duracao||'':''}" placeholder="08:30" style="width:100%"></div>
-      <div class="mrow"><label class="mlabel">Descrição</label><textarea class="sinput" id="vid-desc" rows="2" style="width:100%;resize:vertical">${v?v.descricao||'':''}</textarea></div>
-      <div class="mrow"><label class="mlabel">Tags (separadas por vírgula)</label><input class="sinput" id="vid-tags" value="${v?(v.tags||[]).join(', '):''}" placeholder="Ex: Berimbolo, De La Riva" style="width:100%"></div>
+      <div class="mrow"><label class="mlabel">Duração</label><input class="sinput" id="vid-dur" value="${v?escapeHtml(v.duracao||''):''}" placeholder="08:30" style="width:100%"></div>
+      <div class="mrow"><label class="mlabel">Descrição</label><textarea class="sinput" id="vid-desc" rows="2" style="width:100%;resize:vertical">${v?escapeHtml(v.descricao||''):''}</textarea></div>
+      <div class="mrow"><label class="mlabel">Tags (separadas por vírgula)</label><input class="sinput" id="vid-tags" value="${v?escapeHtml((v.tags||[]).join(', ')):''}" placeholder="Ex: Berimbolo, De La Riva" style="width:100%"></div>
       <div class="mrow"><label class="mlabel">Mídia</label>
         <div class="vid-src-tabs">
           <button class="vs-tab ${state.vidSrcTab==='youtube'?'active':''}" onclick="switchVidTab('youtube')"><i class="ti ti-brand-youtube" aria-hidden="true"></i> YouTube</button>
@@ -1030,13 +1042,20 @@ async function saveVideo(){
   if(state.vidSrcTab === 'youtube'){
     const raw = $('vid-yt-url')?.value.trim() || ''
     if(raw){
-      const em = ytEmbedUrl(raw)
+      const em = safeYouTubeEmbed(raw)
       if(!em){ toast('URL do YouTube inválida.', true); return }
       src_type = 'youtube'; src_url = em
     }
   } else {
     const raw = $('vid-file-url')?.value.trim() || ''
-    if(raw){ src_type = 'file'; src_url = raw }
+    if(raw){
+      // Aceita apenas http:// ou https:// (bloqueia javascript:, data:, file:, etc)
+      if(!/^https?:\/\//i.test(raw)){
+        toast('URL do vídeo precisa começar com http:// ou https://', true)
+        return
+      }
+      src_type = 'file'; src_url = raw
+    }
   }
 
   const fields = { titulo, categoria, descricao, duracao, src_type, src_url, tags }
@@ -1083,8 +1102,8 @@ function renderStudents(){
     return true
   })
   $('stu-body').innerHTML = filtered.length ? filtered.map(s => `<tr class="stu-row-clickable" onclick="openPerfilAluno('${s.id}', true)">
-    <td style="font-weight:500;color:var(--txt)"><i class="ti ti-user" style="color:var(--txt3);margin-right:6px"></i>${s.nome}</td>
-    <td style="font-size:11px;color:var(--txt3)">${maskEmail(s.email)}</td>
+    <td style="font-weight:500;color:var(--txt)"><i class="ti ti-user" style="color:var(--txt3);margin-right:6px"></i>${escapeHtml(s.nome)}</td>
+    <td style="font-size:11px;color:var(--txt3)">${escapeHtml(maskEmail(s.email))}</td>
     <td><span class="belt ${s.faixa}"></span><span style="font-size:10px;color:var(--txt3)">${BELT_PT[s.faixa] || s.faixa}${s.grau > 0 ? ' ' + s.grau + 'º' : ''}</span></td>
     <td><span style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--txt)">${state.totaisPresenca[s.id] || 0}</span></td>
     <td><button class="dbtn" onclick="event.stopPropagation();deleteStudent('${s.id}')"><i class="ti ti-trash" aria-hidden="true"></i></button></td>
@@ -1217,7 +1236,7 @@ async function openPerfilAluno(alunoId){
     // Botão de editar avatar aparece pro próprio aluno OU pro professor/founder
     const podeEditarAvatar = isSelf || Auth.isProfessor()
     const avatarConteudo = aluno.avatar_url
-      ? `<img class="perfil-avatar-img" src="${aluno.avatar_url}" alt="Foto de ${escapeHtml(aluno.nome)}">`
+      ? `<img class="perfil-avatar-img" src="${safeUrl(aluno.avatar_url)}" alt="Foto de ${escapeHtml(aluno.nome)}">`
       : `<div class="perfil-avatar-initials">${initials}</div>`
     const avatarBotao = podeEditarAvatar
       ? `<button class="perfil-avatar-btn" onclick="openAvatarSheet('${alunoId}')" aria-label="Trocar foto" title="Trocar foto">
@@ -1303,7 +1322,7 @@ async function openPerfilAluno(alunoId){
     // Carrega mensalidade depois do HTML montar
     carregarMensalidadeNoPerfil(alunoId)
   } catch(err){
-    pageEl.innerHTML = `<div style="padding:20px;color:#e05050">Erro: ${err.message}</div>`
+    pageEl.innerHTML = `<div style="padding:20px;color:#e05050">Erro: ${escapeHtml(err.message)}</div>`
   }
 }
 
@@ -1409,7 +1428,7 @@ function openPromoverModal(){
               ${FAIXAS.map(f => `
                 <div class="promo-faixa-opt ${f.id===promoSel.faixa?'active':''}" data-faixa="${f.id}" onclick="selectPromoFaixa('${f.id}')">
                   <div class="belt ${f.id}"></div>
-                  <div class="promo-faixa-opt-name">${f.nome}</div>
+                  <div class="promo-faixa-opt-name">${escapeHtml(f.nome)}</div>
                 </div>
               `).join('')}
             </div>
@@ -1562,7 +1581,7 @@ async function loadRegrasGraduacao(){
       </div>`
     }).join('')
   } catch(err){
-    cont.innerHTML = `<div style="color:#e05050;font-size:11px">Erro: ${err.message}</div>`
+    cont.innerHTML = `<div style="color:#e05050;font-size:11px">Erro: ${escapeHtml(err.message)}</div>`
   }
 }
 
@@ -1580,6 +1599,51 @@ async function saveRegra(faixa){
 function escapeHtml(s){
   if(s == null) return ''
   return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))
+}
+
+// Valida URL pra usar em <a href>, <img src>, <source src>, etc.
+// Bloqueia javascript:, data:, vbscript: e outros protocolos perigosos.
+// Retorna a URL sanitizada (com aspas escapadas) ou string vazia se inválida.
+function safeUrl(url){
+  if(!url) return ''
+  const s = String(url).trim()
+  // Permite só http(s) e protocolo relativo //, ou path relativo /foo, ./foo
+  if(!/^(https?:\/\/|\/\/|\/|\.\/)/i.test(s)){
+    // Bloqueia javascript:, data:, vbscript:, file:, ftp:, etc
+    return ''
+  }
+  // Escapa aspas pra não quebrar o atributo HTML
+  return s.replace(/"/g, '%22').replace(/'/g, '%27').replace(/</g, '%3C').replace(/>/g, '%3E')
+}
+
+// Extrai um ID válido do YouTube e retorna URL de embed.
+// Aceita: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/embed/ID, /shorts/ID.
+// Retorna string vazia se a URL não for YouTube válido.
+function safeYouTubeEmbed(raw){
+  if(!raw) return ''
+  let id = null
+  try {
+    const u = new URL(raw)
+    const host = u.hostname.replace(/^www\./, '')
+    if(host === 'youtu.be'){
+      id = u.pathname.slice(1).split(/[?&#]/)[0]
+    } else if(host === 'youtube.com' || host === 'm.youtube.com' || host === 'youtube-nocookie.com'){
+      if(u.searchParams.get('v')){
+        id = u.searchParams.get('v')
+      } else if(u.pathname.startsWith('/embed/')){
+        id = u.pathname.split('/embed/')[1].split(/[?&#]/)[0]
+      } else if(u.pathname.startsWith('/shorts/')){
+        id = u.pathname.split('/shorts/')[1].split(/[?&#]/)[0]
+      }
+    }
+  } catch {
+    // Tentar extrair ID puro (11 chars)
+    const m = String(raw).match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/)
+    if(m) id = m[1]
+  }
+  // Validar ID: YouTube IDs são exatamente 11 caracteres alfanuméricos + _ -
+  if(!id || !/^[a-zA-Z0-9_-]{11}$/.test(id)) return ''
+  return `https://www.youtube.com/embed/${id}`
 }
 function formatDate(d){
   if(!d) return ''
@@ -1600,7 +1664,7 @@ async function renderComunicacao(){
     renderMural()
   } catch(err){
     console.error('[mural]', err)
-    $('mural-list').innerHTML = `<div class="empty-state"><div class="empty-text" style="color:#e05050">Erro ao carregar: ${err.message}</div></div>`
+    $('mural-list').innerHTML = `<div class="empty-state"><div class="empty-text" style="color:#e05050">Erro ao carregar: ${escapeHtml(err.message)}</div></div>`
   }
 }
 
@@ -1739,7 +1803,7 @@ function updateTermoPdfUI(){
   if(!info) return
   if(state_termo.pdf_url){
     const name = state_termo.pdf_url.split('/').pop()
-    info.innerHTML = `<strong style="color:var(--txt)">${name}</strong> · <a href="${state_termo.pdf_url}" target="_blank" style="color:var(--txt2);text-decoration:underline">Ver</a>`
+    info.innerHTML = `<strong style="color:var(--txt)">${escapeHtml(name)}</strong> · <a href="${safeUrl(state_termo.pdf_url) || '#'}" target="_blank" rel="noopener noreferrer" style="color:var(--txt2);text-decoration:underline">Ver</a>`
     if(rm) rm.style.display = 'inline-flex'
   } else {
     info.textContent = 'Nenhum PDF anexado.'
@@ -1888,7 +1952,7 @@ async function renderFinanceiro(){
       </tr>`
     }).join('')
   } catch(err){
-    $('fin-body').innerHTML = `<tr><td colspan="5" style="color:#e05050;padding:20px">Erro: ${err.message}</td></tr>`
+    $('fin-body').innerHTML = `<tr><td colspan="5" style="color:#e05050;padding:20px">Erro: ${escapeHtml(err.message)}</td></tr>`
   }
 }
 
@@ -2089,7 +2153,7 @@ async function renderEventos(){
       </div>`
     }).join('')
   } catch(err) {
-    $('eventos-list').innerHTML = `<div class="empty-state"><div class="empty-text" style="color:#e05050">Erro: ${err.message}</div></div>`
+    $('eventos-list').innerHTML = `<div class="empty-state"><div class="empty-text" style="color:#e05050">Erro: ${escapeHtml(err.message)}</div></div>`
   }
 }
 
@@ -2639,6 +2703,73 @@ function openNotifDetail(id){
     </div>
   `)
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+//   PWA · MODAL DE INSTALAÇÃO (aparece UMA vez no primeiro acesso)
+// ═══════════════════════════════════════════════════════════════════════
+
+// Detecta se já está rodando como PWA instalado
+function isPWAInstalled(){
+  // iOS: navigator.standalone
+  if(window.navigator.standalone === true) return true
+  // Outros: media query
+  if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true
+  if(window.matchMedia && window.matchMedia('(display-mode: fullscreen)').matches) return true
+  return false
+}
+
+// Detecta plataforma
+function detectPlatform(){
+  const ua = navigator.userAgent || ''
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) && !window.MSStream
+  const isAndroid = /Android/i.test(ua)
+  return { isIOS, isAndroid, isMobile: isIOS || isAndroid }
+}
+
+// Mostra o modal se: 1) é mobile, 2) NÃO está instalado, 3) NUNCA foi visto/dispensado antes
+function maybeShowInstallModal(){
+  try {
+    const { isIOS, isAndroid, isMobile } = detectPlatform()
+    if(!isMobile) return                    // desktop: não mostra
+    if(isPWAInstalled()) return             // já tá rodando como app
+    if(localStorage.getItem('garage:install-modal') === 'dismissed') return  // já dispensou
+
+    // Aparece após 1.5s (dá tempo do app carregar visualmente)
+    setTimeout(() => {
+      const modal = $('modal-install-pwa')
+      if(!modal) return
+      // Mostra a instrução certa pela plataforma
+      const iosBox = $('install-ios')
+      const androidBox = $('install-android')
+      if(isIOS){
+        if(iosBox) iosBox.style.display = ''
+        if(androidBox) androidBox.style.display = 'none'
+      } else {
+        if(iosBox) iosBox.style.display = 'none'
+        if(androidBox) androidBox.style.display = ''
+      }
+      modal.style.display = 'flex'
+    }, 1500)
+  } catch(e){
+    console.warn('[install-modal]', e)
+  }
+}
+
+// Dispensa o modal (e nunca mais mostra)
+function dismissInstallModal(reason){
+  try {
+    localStorage.setItem('garage:install-modal', 'dismissed')
+    if(reason) localStorage.setItem('garage:install-modal-reason', reason)
+  } catch(e){}
+  const modal = $('modal-install-pwa')
+  if(modal) modal.style.display = 'none'
+}
+
+// Roda no boot
+window.addEventListener('load', () => {
+  // Espera o app carregar primeiro
+  setTimeout(maybeShowInstallModal, 2000)
+})
 
 // ─── BOOT ───────────────────────────────────────────────────────────────
 boot()
