@@ -57,13 +57,9 @@ function ytEmbedUrl(raw){
 // ─── BOOT ───────────────────────────────────────────────────────────────
 async function boot(){
   const bootStart = Date.now()
-  const BOOT_MIN_MS = 600
+  const BOOT_MIN_MS = 800  // splash mínima de 800ms (não atrasa nada, só dá sensação de "app abrindo")
   const debugLog = (step, extra = '') => {
-    const el = document.getElementById('boot-loader')
-    if(el){
-      const status = el.querySelector('.boot-status') || el.appendChild(Object.assign(document.createElement('div'), { className: 'boot-status' }))
-      status.textContent = step + (extra ? ' · ' + extra : '')
-    }
+    // Log só no console em dev (não polui o splash)
     console.log('[BOOT]', step, extra)
   }
   try {
@@ -102,6 +98,23 @@ async function boot(){
     state.totaisPresenca = totais || {}
     debugLog('Dados ok')
 
+    // ─── Atualizar SPLASH com logo + nome reais (logo da academia) ───
+    try {
+      const bootLogoImg = $('boot-logo-img')
+      const bootLogoFb = $('boot-logo-fallback')
+      const bootName = $('boot-name')
+      if(state.config.logo_url && bootLogoImg){
+        bootLogoImg.onload = () => bootLogoImg.classList.add('loaded')
+        bootLogoImg.src = state.config.logo_url
+      } else if(bootLogoFb && state.config.nome_academia){
+        const initials = state.config.nome_academia.split(' ').filter(Boolean).map(p => p[0]).join('').slice(0,2).toUpperCase()
+        bootLogoFb.textContent = initials
+      }
+      if(bootName && state.config.nome_academia){
+        bootName.textContent = state.config.nome_academia.toUpperCase()
+      }
+    } catch(e){ console.warn('[boot] splash update:', e) }
+
     try { await loadPresences(state.curDate) } catch(e){ console.warn('[boot] presences:', e) }
     try { await loadConfirmacoes() } catch(e){ console.warn('[boot] confirmacoes:', e) }
 
@@ -123,18 +136,19 @@ async function boot(){
     setupListeners()
     
     debugLog('Pronto!')
+    // Splash mínima de 800ms (não atrasa de verdade — boot quase sempre é mais rápido que isso)
     const elapsed = Date.now() - bootStart
     if(elapsed < BOOT_MIN_MS) {
       await new Promise(r => setTimeout(r, BOOT_MIN_MS - elapsed))
     }
-    const loader = $('boot-loader')
-    if(loader){
-      loader.style.transition = 'opacity .25s ease'
-      loader.style.opacity = '0'
-      setTimeout(() => { loader.style.display = 'none' }, 250)
-    }
+    // Mostra app + esconde splash (fade-out de 350ms via CSS)
     const appEl = $('APP')
     if(appEl) appEl.style.display = 'flex'
+    const loader = $('boot-loader')
+    if(loader){
+      loader.classList.add('fade-out')
+      setTimeout(() => { loader.style.display = 'none' }, 400)
+    }
   } catch (err) {
     console.error('Erro no boot:', err)
     const loader = $('boot-loader')
