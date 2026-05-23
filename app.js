@@ -1,2789 +1,4122 @@
-// ════════════════════════════════════════════════════════════════════════
-// APP PRINCIPAL — Lógica do app conectada ao Supabase
-// ════════════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════════
+   GARAGE TRAINING — Design System v4 (Black & White)
+   • Dark: preto profundo + branco puro
+   • Light: cinza claro + branco
+   • Mobile-first · animações suaves · respiro generoso
+   ═══════════════════════════════════════════════════════════════════════ */
 
-// ─── CONSTANTES ─────────────────────────────────────────────────────────
-const DAYS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
-const DAYS_FULL = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado']
-const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
-const BELT_PT = {white:'Branca',blue:'Azul',purple:'Roxa',brown:'Marrom',black:'Preta'}
-const CAT_LABELS = {guard:'Guarda',pass:'Passagem',sub:'Finalização',sweep:'Raspagem',position:'Posição'}
-const TYPE_PT = {gi:'Gi · Kimono',nogi:'No-Gi',kids:'Kids'}
-const PATS = ['◈ ◈ ◈','▲  ▲','◉ ◈ ◉','▲ ◈ ▲','◈ ◉ ◈','◉ ◉ ◉']
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
 
-// ─── ESTADO ─────────────────────────────────────────────────────────────
-const state = {
-  alunos: [],
-  videos: [],
-  schedule: {},
-  config: { nome_academia: 'Art of BJJ', tema: 'dark' },
-  presencas: {},        // {alunoId: true}
-  totaisPresenca: {},   // {alunoId: count}
-  minhasConfirmacoes: {}, // {'aulaId_data': true} para o aluno logado
-  confirmadosNoDia: {}, // {alunoId: true} - quem confirmou em alguma aula no dia atual (pro professor)
-  curDate: new Date(),
-  filters: { presBelt:'all', stuBelt:'all', vid:'all', search:'' },
-  editMode: false,
-  editingStuId: null,
-  editingVidId: null,
-  vidSrcTab: 'youtube',
-  pendingFile: null,
+:root {
+  --b: #0a0a0a;
+  --b2: #111111;
+  --surf: #161616;
+  --surf2: #1f1f1f;
+  --border: rgba(255, 255, 255, 0.12);
+  --border2: rgba(255, 255, 255, 0.22);
+  --txt: #ffffff;
+  --txt2: rgba(255, 255, 255, 0.72);
+  --txt3: rgba(255, 255, 255, 0.45);
+  --accent: #ffffff;
+  --accent2: #e0e0e0;
+  --danger: #e05050;
+  --belt-white: #ffffff;
+  --belt-blue: #5a8dc8;
+  --belt-purple: #8866aa;
+  --belt-brown: #6e4528;
+  --belt-black: #0a0a0a;
+  --belt-stripe: #ffffff;
+  --type-gi: #5a8dc8;
+  --type-nogi: #888888;
+  --type-kids: #ffffff;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 24px; --sp-6: 32px; --sp-7: 40px; --sp-8: 56px;
+  --r-sm: 4px; --r-md: 6px; --r-lg: 10px;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --t-fast: 0.18s; --t-med: 0.28s;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.45);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,.6);
+  --topbar-h: 56px;
+  --content-max: 1200px;
 }
 
-// ─── UTILS ──────────────────────────────────────────────────────────────
-function dateKey(d){ return d.toISOString().slice(0,10) }
-function $(id){ return document.getElementById(id) }
-function toast(msg, err=false){
-  const t = $('toast')
-  t.textContent = msg
-  t.className = 'toast show' + (err?' err':'')
-  setTimeout(()=>t.className='toast', 2400)
+:root[data-theme="light"] {
+  --b: #f5f5f5;
+  --b2: #ffffff;
+  --surf: #ffffff;
+  --surf2: #fafafa;
+  --border: rgba(0, 0, 0, 0.12);
+  --border2: rgba(0, 0, 0, 0.22);
+  --txt: #0a0a0a;
+  --txt2: rgba(0, 0, 0, 0.66);
+  --txt3: rgba(0, 0, 0, 0.45);
+  --accent: #0a0a0a;
+  --accent2: #333333;
+  --danger: #c84a30;
+  --belt-white: #ffffff;
+  --belt-black: #0a0a0a;
+  --type-gi: #4a7db0;
+  --type-nogi: #666666;
+  --type-kids: #0a0a0a;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.06);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.08);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,.12);
 }
-function ytEmbedUrl(raw){
-  if(!raw) return null
-  let id = null
-  try {
-    const u = new URL(raw)
-    if(u.hostname.includes('youtu.be')) id = u.pathname.slice(1)
-    else if(u.searchParams.get('v')) id = u.searchParams.get('v')
-    else if(u.pathname.includes('/embed/')) id = u.pathname.split('/embed/')[1].split('?')[0]
-  } catch {
-    const m = raw.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/)
-    if(m) id = m[1]
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+*:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+html, body { height: 100%; }
+body {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px; line-height: 1.5;
+  color: var(--txt); background: var(--b);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+button { font: inherit; color: inherit; cursor: pointer; background: none; border: none; }
+input, select, textarea { font: inherit; color: inherit; }
+a { color: inherit; text-decoration: none; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes modalIn { from { opacity: 0; transform: scale(0.96) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+.boot-loader {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: var(--sp-4);
+  background: var(--b);
+  z-index: 9999;
+}
+.boot-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 32px; letter-spacing: 4px;
+  color: var(--txt);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+.boot-logo em { color: var(--accent); font-style: normal; }
+.boot-status { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--txt3); }
+
+.app { 
+  min-height: 100vh; 
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.4s var(--ease); 
+}
+
+.topbar {
+  height: var(--topbar-h);
+  display: flex; align-items: center;
+  padding: 0 var(--sp-5);
+  background: var(--b);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.brand { display: flex; align-items: center; gap: var(--sp-3); }
+.logo-img { width: 36px; height: 36px; object-fit: cover; border-radius: var(--r-md); }
+.logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px; letter-spacing: 3px;
+  color: var(--txt); line-height: 1;
+}
+.logo em { color: var(--accent); font-style: normal; }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: var(--sp-3); }
+.account-info { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.account-info .name { font-size: 13px; font-weight: 500; color: var(--txt); }
+.account-info .role {
+  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--txt3);
+  padding: 2px 6px;
+  border: 1px solid var(--border2);
+  border-radius: var(--r-sm);
+}
+.logout-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--txt2);
+  transition: all var(--t-fast) var(--ease);
+}
+.logout-btn:hover { background: var(--surf); color: var(--txt); border-color: var(--border2); }
+
+.nav-bar {
+  display: flex; gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.nav-bar::-webkit-scrollbar { display: none; }
+.nb {
+  padding: 8px 14px;
+  font-size: 10px; letter-spacing: 2px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  white-space: nowrap;
+  transition: all var(--t-fast) var(--ease);
+}
+.nb:hover { color: var(--txt); }
+.nb.active { color: var(--txt); background: var(--surf); border-color: var(--border); }
+
+.page {
+  display: none;
+  padding: var(--sp-6) var(--sp-5);
+  max-width: var(--content-max);
+  margin: 0 auto;
+  animation: slideUp 0.4s var(--ease);
+}
+.page.on { display: block; }
+.slabel {
+  font-size: 9px; letter-spacing: 3px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+  margin-bottom: var(--sp-2);
+}
+.stitle {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 38px; letter-spacing: 2px;
+  margin-bottom: var(--sp-5);
+  line-height: 1;
+  color: var(--txt);
+}
+
+.pbtn, .fbtn, .dbtn, .ibtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 14px;
+  font-size: 10px; letter-spacing: 1.5px; font-weight: 500; text-transform: uppercase;
+  border: 1px solid var(--border2);
+  border-radius: var(--r-sm);
+  transition: all var(--t-fast) var(--ease);
+}
+.pbtn { background: var(--txt); color: var(--b); border-color: var(--txt); }
+.pbtn:hover { background: var(--accent); border-color: var(--accent); transform: translateY(-1px); }
+.fbtn { background: transparent; color: var(--txt2); }
+.fbtn:hover { color: var(--txt); border-color: var(--border2); background: var(--surf); }
+.fbtn.active { color: var(--txt); border-color: var(--border2); background: var(--surf); }
+.dbtn { background: transparent; color: var(--txt3); padding: 6px 10px; }
+.dbtn:hover { color: var(--danger); border-color: var(--danger); }
+.ibtn { background: transparent; color: var(--txt3); padding: 6px 10px; }
+.ibtn:hover { color: var(--txt); border-color: var(--border2); }
+
+.scards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--sp-3);
+}
+.sc {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-4);
+  transition: all var(--t-fast) var(--ease);
+}
+.sc:hover { border-color: var(--border2); }
+.scv {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 32px; line-height: 1; letter-spacing: 1px;
+  margin-bottom: var(--sp-2);
+  color: var(--txt);
+}
+.scl { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--txt3); }
+
+.scard {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-5);
+  margin-bottom: var(--sp-4);
+  transition: all var(--t-fast) var(--ease);
+}
+.scard:hover { border-color: var(--border2); }
+.scard-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px; letter-spacing: 2px;
+  color: var(--txt);
+  margin-bottom: var(--sp-4);
+}
+
+.sinput, .mselect {
+  background: var(--b);
+  color: var(--txt);
+  border: 1px solid var(--border2);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  font-size: 13px;
+  transition: border-color var(--t-fast) var(--ease);
+}
+.sinput:focus, .mselect:focus { outline: none; border-color: var(--accent); }
+.slabel, .mlabel, .aula-info-lbl {
+  display: block;
+  font-size: 9px; letter-spacing: 2px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+  margin-bottom: 6px;
+}
+
+.mlay {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: none;
+  align-items: center; justify-content: center;
+  z-index: 1000;
+  padding: var(--sp-4);
+  animation: fadeIn 0.2s var(--ease);
+}
+.mbox {
+  background: var(--b);
+  border: 1px solid var(--border2);
+  border-radius: var(--r-md);
+  width: 100%; max-width: 480px;
+  max-height: 90vh;
+  display: flex; flex-direction: column;
+  box-shadow: var(--shadow-lg);
+  animation: modalIn 0.28s var(--ease);
+}
+.mhead {
+  display: flex; align-items: center;
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+}
+.mtitle {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px; letter-spacing: 2px;
+  color: var(--txt);
+  flex: 1;
+}
+.mclose {
+  width: 28px; height: 28px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--txt3);
+  font-size: 18px;
+  border-radius: var(--r-sm);
+  transition: all var(--t-fast) var(--ease);
+}
+.mclose:hover { color: var(--txt); background: var(--surf); }
+.mbody { padding: var(--sp-5); overflow-y: auto; flex: 1; }
+.mrow { margin-bottom: var(--sp-4); }
+.mrow:last-child { margin-bottom: 0; }
+.mfoot {
+  display: flex; justify-content: flex-end; gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-5);
+  border-top: 1px solid var(--border);
+}
+
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl thead th {
+  font-size: 9px; letter-spacing: 2px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+  text-align: left;
+  padding: var(--sp-3);
+  border-bottom: 1px solid var(--border);
+}
+.tbl tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background var(--t-fast) var(--ease);
+}
+.tbl tbody tr:hover { background: var(--surf); }
+.tbl td { padding: var(--sp-3); color: var(--txt2); }
+.stu-row-clickable { cursor: pointer; }
+
+.belt {
+  display: inline-block;
+  width: 40px; height: 10px;
+  position: relative;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+.belt.white { background: var(--belt-white); border: 1px solid var(--border2); }
+.belt.blue { background: var(--belt-blue); }
+.belt.purple { background: var(--belt-purple); }
+.belt.brown { background: var(--belt-brown); }
+.belt.black { background: var(--belt-black); border: 1px solid var(--border2); }
+.belt-graus { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: flex; gap: 2px; }
+.belt-graus span { width: 2px; height: 6px; background: var(--belt-stripe); border-radius: 0.5px; }
+
+.dnav { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+.darrow {
+  width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  color: var(--txt2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  transition: all var(--t-fast) var(--ease);
+}
+.darrow:hover { color: var(--txt); background: var(--surf); border-color: var(--border2); }
+.ddate {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px; letter-spacing: 2px;
+  color: var(--txt);
+}
+
+.ctrl { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-4); }
+
+.info-banner {
+  display: flex; align-items: flex-start; gap: var(--sp-3);
+  padding: var(--sp-4);
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--r-sm);
+  margin-bottom: var(--sp-4);
+  font-size: 12px;
+  color: var(--txt2);
+  line-height: 1.6;
+}
+
+.mural-header { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-4); flex-wrap: wrap; }
+.mural-count { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--txt3); }
+.recado-list { display: flex; flex-direction: column; gap: var(--sp-3); }
+.recado {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-4);
+  position: relative;
+  animation: fadeIn 0.3s var(--ease);
+  transition: all var(--t-fast) var(--ease);
+}
+.recado:hover { border-color: var(--border2); }
+.recado.fixed { border-left: 2px solid var(--accent); }
+
+.com-tabs {
+  display: flex; gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--sp-2);
+}
+.com-tab {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 12px;
+  font-size: 10px; letter-spacing: 1.5px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+  border-radius: var(--r-sm);
+  transition: all var(--t-fast) var(--ease);
+}
+.com-tab:hover:not(.disabled) { color: var(--txt); }
+.com-tab.active { color: var(--txt); background: var(--surf); }
+.com-tab.disabled { opacity: 0.3; cursor: not-allowed; }
+
+.back-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 10px; letter-spacing: 2px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+  margin-bottom: var(--sp-3);
+  padding: 6px 0;
+  transition: color var(--t-fast) var(--ease);
+}
+.back-btn:hover { color: var(--txt); }
+
+.perfil-header {
+  display: flex; gap: var(--sp-5);
+  padding: var(--sp-5);
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  margin-bottom: var(--sp-4);
+  flex-wrap: wrap;
+}
+.perfil-avatar {
+  width: 80px; height: 80px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surf2);
+  border: 1px solid var(--border2);
+  border-radius: 50%;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px; letter-spacing: 2px;
+  color: var(--txt);
+  flex-shrink: 0;
+}
+.perfil-info { flex: 1; min-width: 200px; }
+.perfil-nome {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 32px; letter-spacing: 2px;
+  line-height: 1;
+  color: var(--txt);
+}
+.perfil-email { font-size: 12px; color: var(--txt3); margin-top: 4px; }
+.perfil-faixa-display { display: flex; align-items: center; gap: var(--sp-3); margin-top: var(--sp-3); }
+.perfil-faixa-nome {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 14px; letter-spacing: 2px;
+  color: var(--txt);
+}
+.perfil-faixa-grau { font-size: 10px; color: var(--txt3); margin-top: 2px; }
+.perfil-actions { display: flex; gap: var(--sp-2); margin-top: var(--sp-4); flex-wrap: wrap; }
+
+.timeline-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+  flex-wrap: wrap;
+}
+.timeline-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px; letter-spacing: 2px;
+  color: var(--txt);
+}
+.tl-row {
+  display: flex; gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border);
+  animation: fadeIn 0.3s var(--ease);
+}
+.tl-row:last-child { border-bottom: none; }
+.tl-data { font-size: 11px; color: var(--txt3); min-width: 80px; }
+.tl-info { flex: 1; }
+.tl-faixa {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 14px; letter-spacing: 2px;
+  color: var(--txt);
+}
+.tl-aulas { font-size: 10px; color: var(--txt3); margin-top: 2px; }
+
+.empty-state { text-align: center; padding: var(--sp-8) var(--sp-4); }
+.empty-text { font-size: 13px; color: var(--txt3); }
+
+.switch {
+  width: 36px; height: 20px;
+  background: var(--surf2);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+  flex-shrink: 0;
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 14px; height: 14px;
+  background: var(--txt2);
+  border-radius: 50%;
+  transition: all var(--t-fast) var(--ease);
+}
+.switch.on { background: var(--accent); border-color: var(--accent); }
+.switch.on::after { left: 18px; background: var(--b); }
+
+.promo-faixas { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--sp-2); }
+.promo-faixa-opt {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: var(--sp-3) var(--sp-2);
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+}
+.promo-faixa-opt:hover { border-color: var(--border2); }
+.promo-faixa-opt.active { border-color: var(--accent); background: var(--surf2); }
+.promo-faixa-opt-name {
+  font-size: 9px; letter-spacing: 1.5px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt2);
+}
+.promo-grau-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--sp-2); }
+.promo-grau-btn {
+  padding: var(--sp-3);
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px;
+  color: var(--txt2);
+  transition: all var(--t-fast) var(--ease);
+}
+.promo-grau-btn:hover { border-color: var(--border2); color: var(--txt); }
+.promo-grau-btn.active { border-color: var(--accent); background: var(--surf2); color: var(--txt); }
+
+.cpill {
+  display: flex; align-items: center;
+  padding: 8px 12px;
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: 11px;
+  color: var(--txt2);
+  margin-bottom: 4px;
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+}
+.cpill:hover { background: var(--surf2); border-color: var(--border2); }
+.cpill.confirmed { border-left: 2px solid var(--accent); }
+.cpill.gi { border-left-color: var(--type-gi); }
+.cpill.nogi { border-left-color: var(--type-nogi); }
+.cpill.kids { border-left-color: var(--type-kids); }
+
+.toast {
+  position: fixed;
+  bottom: var(--sp-5); left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--txt);
+  color: var(--b);
+  padding: 10px 18px;
+  border-radius: var(--r-sm);
+  font-size: 12px; letter-spacing: 1px;
+  opacity: 0;
+  pointer-events: none;
+  transition: all var(--t-med) var(--ease);
+  z-index: 9999;
+  box-shadow: var(--shadow-md);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.error { background: var(--danger); color: #fff; }
+
+.role-aluno .prof-only { display: none !important; }
+
+@media (max-width: 720px) {
+  body { font-size: 13px; }
+  .topbar { height: 56px; padding: 0 var(--sp-3); padding-top: env(safe-area-inset-top); height: calc(56px + env(safe-area-inset-top)); }
+  .logo { font-size: 18px; }
+  .account-info .name { font-size: 12px; }
+  .account-info .role { font-size: 8px; }
+  .nav-bar { padding: var(--sp-2) var(--sp-3); }
+  .nb { padding: 6px 10px; font-size: 9px; }
+  .page { padding: var(--sp-4) var(--sp-3); }
+  .stitle { font-size: 28px; }
+  .scards { grid-template-columns: repeat(2, 1fr); gap: var(--sp-2); }
+  .sc { padding: var(--sp-3); }
+  .scv { font-size: 24px; }
+  .mlay { padding: 0; align-items: flex-end; }
+  .mbox {
+    max-width: 100%;
+    border-radius: var(--r-md) var(--r-md) 0 0;
+    max-height: 92vh;
+    animation: slideUp 0.3s var(--ease);
   }
-  return id ? `https://www.youtube.com/embed/${id}` : null
+  .mhead { padding: var(--sp-3) var(--sp-4); }
+  .mbody { padding: var(--sp-4); }
+  .mfoot { padding: var(--sp-3) var(--sp-4); flex-direction: column-reverse; }
+  .mfoot button { width: 100%; justify-content: center; }
+  .promo-faixas { grid-template-columns: repeat(3, 1fr); }
+  .pbtn, .fbtn { padding: 10px 14px; }
+  .dbtn, .ibtn { padding: 8px 12px; min-width: 32px; min-height: 32px; }
+  .perfil-header { padding: var(--sp-4); gap: var(--sp-3); }
+  .perfil-avatar { width: 64px; height: 64px; font-size: 22px; }
+  .perfil-nome { font-size: 26px; }
 }
 
-// ─── BOOT ───────────────────────────────────────────────────────────────
-async function boot(){
-  const bootStart = Date.now()
-  const BOOT_MIN_MS = 800  // splash mínima de 800ms (não atrasa nada, só dá sensação de "app abrindo")
-  const debugLog = (step, extra = '') => {
-    // Log só no console em dev (não polui o splash)
-    console.log('[BOOT]', step, extra)
+@media (max-width: 420px) {
+  .nb { padding: 6px 8px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LOGIN / CADASTRO PAGES
+   ═══════════════════════════════════════════════════════════════════════ */
+.login-page {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--sp-5);
+  background: var(--b);
+  animation: fadeIn 0.4s var(--ease);
+}
+.login-wrap {
+  width: 100%; max-width: 380px;
+  display: flex; flex-direction: column;
+  align-items: center;
+  gap: var(--sp-5);
+}
+.login-box {
+  width: 100%;
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-7) var(--sp-5);
+  display: flex; flex-direction: column;
+  gap: var(--sp-4);
+  box-shadow: var(--shadow-md);
+  animation: slideUp 0.4s var(--ease);
+}
+.login-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 38px; letter-spacing: 4px;
+  text-align: center;
+  color: var(--txt);
+  line-height: 1;
+  margin-bottom: var(--sp-2);
+}
+.login-logo em { color: var(--accent); font-style: normal; }
+.login-sub {
+  text-align: center;
+  font-size: 9px; letter-spacing: 3px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+  margin-bottom: var(--sp-5);
+}
+
+.form-row { display: flex; flex-direction: column; gap: 6px; }
+.form-label {
+  font-size: 9px; letter-spacing: 2px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+}
+.form-input {
+  background: var(--b);
+  color: var(--txt);
+  border: 1px solid var(--border2);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  font-size: 14px;
+  transition: border-color var(--t-fast) var(--ease);
+}
+.form-input:focus { outline: none; border-color: var(--accent); }
+.form-submit {
+  background: var(--txt);
+  color: var(--b);
+  border: none;
+  border-radius: var(--r-sm);
+  padding: 14px;
+  font-size: 11px; letter-spacing: 3px; font-weight: 500; text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+  margin-top: var(--sp-2);
+}
+.form-submit:hover:not(:disabled) {
+  background: var(--accent); transform: translateY(-1px);
+}
+.form-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+.form-err {
+  font-size: 11px;
+  color: var(--danger);
+  text-align: center;
+  min-height: 14px;
+}
+.form-ok {
+  font-size: 11px;
+  color: var(--accent);
+  text-align: center;
+}
+.login-hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--txt3);
+  margin-top: var(--sp-3);
+}
+.login-hint a { color: var(--txt); text-decoration: underline; }
+.login-hint a:hover { color: var(--accent); }
+
+#brand-logo {
+  max-width: 80px;
+  max-height: 80px;
+  object-fit: contain;
+  margin: 0 auto var(--sp-2);
+}
+
+@media (max-width: 480px) {
+  .login-box { padding: var(--sp-5) var(--sp-4); }
+  .login-logo { font-size: 30px; }
+  .form-input { padding: 11px 12px; font-size: 13px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   GRADE (SCHEDULE) — Grid semanal
+   ═══════════════════════════════════════════════════════════════════════ */
+.leg {
+  display: flex; gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+  flex-wrap: wrap;
+}
+.li {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  font-size: 9px; letter-spacing: 1.5px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt2);
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.wgrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+.wgrid .ld {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-3);
+  min-height: 120px;
+  display: flex; flex-direction: column;
+  transition: border-color var(--t-fast) var(--ease);
+}
+.wgrid .ld:hover { border-color: var(--border2); }
+.ld-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: var(--sp-2);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.ld-day {
+  font-size: 9px; letter-spacing: 2px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+}
+.ld-date {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px;
+  color: var(--txt);
+}
+
+/* Bolinha colorida dentro do filtro (li .ld) — sobrescreve o estilo de dia */
+.li .ld {
+  width: 8px;
+  height: 8px;
+  min-height: 0;
+  padding: 0;
+  border-radius: 50%;
+  display: inline-block;
+  border: none;
+  background: var(--txt3);
+  margin: 0;
+}
+
+.grade-editor {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-5);
+  margin-top: var(--sp-4);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   TOPBAR — User area
+   ═══════════════════════════════════════════════════════════════════════ */
+.user-area {
+  display: flex; align-items: center;
+  gap: var(--sp-3);
+}
+.user-name {
+  font-size: 13px; font-weight: 500;
+  color: var(--txt);
+}
+.user-role {
+  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--txt3);
+  padding: 2px 8px;
+  border: 1px solid var(--border2);
+  border-radius: var(--r-sm);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   VIDEOS GRID
+   ═══════════════════════════════════════════════════════════════════════ */
+.vgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--sp-3);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   TOGGLE (pin / favorito)
+   ═══════════════════════════════════════════════════════════════════════ */
+.toggle-row {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--surf2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.toggle-pin {
+  display: flex; align-items: center; gap: var(--sp-3);
+  flex: 1;
+}
+.toggle-pin-icon {
+  width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--b);
+  border-radius: var(--r-sm);
+  color: var(--txt2);
+  font-size: 16px;
+}
+.toggle-pin-title {
+  font-size: 12px; font-weight: 500;
+  color: var(--txt);
+}
+.toggle-pin-desc {
+  font-size: 10px;
+  color: var(--txt3);
+  margin-top: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THEME PICKER
+   ═══════════════════════════════════════════════════════════════════════ */
+.theme-opts {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-2);
+}
+.theme-opt {
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-4);
+  background: var(--surf2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+}
+.theme-opt:hover { border-color: var(--border2); }
+.theme-opt.active {
+  border-color: var(--accent);
+  background: var(--surf);
+}
+.theme-opt-lbl {
+  font-size: 10px; letter-spacing: 2px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt2);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MOBILE: grade vira lista vertical
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 720px) {
+  .wgrid { grid-template-columns: 1fr; }
+  .ld { min-height: auto; }
+  .vgrid { grid-template-columns: 1fr; }
+  .theme-opts { grid-template-columns: 1fr; }
+  .user-name { font-size: 12px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PERFIL — Stat grid + Timeline + Mensalidade
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Stats em grid */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+.stat-cell {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-4);
+  text-align: center;
+  transition: all var(--t-fast) var(--ease);
+}
+.stat-cell:hover { border-color: var(--border2); }
+.stat-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 32px;
+  color: var(--txt);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.stat-label {
+  font-size: 9px; letter-spacing: 2px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+}
+
+/* Timeline graduação */
+.timeline {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-5);
+  margin-bottom: var(--sp-4);
+}
+.timeline-list {
+  display: flex; flex-direction: column;
+  position: relative;
+  gap: var(--sp-4);
+}
+.timeline-list::before {
+  content: '';
+  position: absolute;
+  left: 13px; top: 30px; bottom: 30px;
+  width: 1px;
+  background: var(--border2);
+}
+.tl-item {
+  display: flex; gap: var(--sp-3);
+  position: relative;
+  animation: fadeIn 0.3s var(--ease);
+}
+.tl-marker {
+  width: 28px; height: 28px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surf2);
+  border: 1px solid var(--border2);
+  border-radius: 50%;
+  color: var(--txt3);
+  font-size: 14px;
+  z-index: 1;
+}
+.tl-marker.current {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--b);
+}
+.tl-content { flex: 1; padding-top: 2px; }
+.tl-faixa {
+  display: flex; align-items: center; gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.tl-faixa-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 14px; letter-spacing: 2px;
+  color: var(--txt);
+}
+.tl-faixa-grau {
+  font-size: 10px; letter-spacing: 1px;
+  color: var(--txt3);
+}
+.tl-date {
+  font-size: 11px;
+  color: var(--txt2);
+  margin-top: 4px;
+}
+.tl-note {
+  font-size: 11px;
+  color: var(--txt2);
+  font-style: italic;
+  margin-top: 4px;
+  padding: 6px 10px;
+  background: var(--b);
+  border-left: 2px solid var(--accent);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+.tl-aulas {
+  font-size: 10px;
+  color: var(--txt3);
+  margin-top: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MENSALIDADE no perfil
+   ═══════════════════════════════════════════════════════════════════════ */
+.mens-card {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-sm);
+  padding: var(--sp-4) var(--sp-5);
+  margin-bottom: var(--sp-3);
+  transition: all var(--t-fast) var(--ease);
+}
+.mens-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+  flex-wrap: wrap;
+}
+.mens-label {
+  font-size: 9px; letter-spacing: 2px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+}
+.mens-badge {
+  font-size: 10px; letter-spacing: 1.5px; font-weight: 500; text-transform: uppercase;
+  padding: 3px 8px;
+  border: 1px solid var(--border2);
+  border-radius: var(--r-sm);
+  color: var(--txt2);
+}
+.mens-badge.neutral { color: var(--txt3); border-color: var(--border); }
+.mens-body { margin-bottom: var(--sp-2); }
+.mens-value {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 32px; letter-spacing: 1px;
+  color: var(--txt);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.mens-info {
+  font-size: 12px;
+  color: var(--txt2);
+}
+.mens-footer {
+  font-size: 10px;
+  color: var(--txt3);
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border);
+}
+
+.mens-history {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-4) var(--sp-5);
+  margin-bottom: var(--sp-4);
+}
+.mens-history-title {
+  font-size: 9px; letter-spacing: 2px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+  margin-bottom: var(--sp-3);
+}
+.mens-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.mens-tbl th {
+  font-size: 9px; letter-spacing: 1.5px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+  text-align: left;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.mens-tbl td {
+  padding: 8px 0;
+  color: var(--txt2);
+  border-bottom: 1px solid var(--border);
+}
+.mens-tbl tr:last-child td { border-bottom: none; }
+.mens-tbl td:last-child { color: var(--accent); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
+
+/* Mobile */
+@media (max-width: 720px) {
+  .stat-grid { grid-template-columns: repeat(3, 1fr); gap: var(--sp-2); }
+  .stat-cell { padding: var(--sp-3); }
+  .stat-num { font-size: 22px; }
+  .stat-label { font-size: 8px; }
+  .timeline { padding: var(--sp-4); }
+  .mens-card { padding: var(--sp-3) var(--sp-4); }
+  .mens-value { font-size: 26px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   EVENTOS
+   ═══════════════════════════════════════════════════════════════════════ */
+.evento-list {
+  display: flex; flex-direction: column;
+  gap: var(--sp-3);
+}
+.evento-card {
+  display: flex; gap: var(--sp-4);
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-sm);
+  padding: var(--sp-4);
+  transition: all var(--t-fast) var(--ease);
+  animation: fadeIn 0.3s var(--ease);
+}
+.evento-card:hover { border-color: var(--border2); border-left-color: var(--accent); }
+.evento-card.past { border-left-color: var(--txt3); opacity: 0.6; }
+.evento-date {
+  width: 56px; flex-shrink: 0;
+  text-align: center;
+  padding-top: 2px;
+}
+.evento-dia {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 32px; line-height: 1;
+  color: var(--accent);
+}
+.evento-card.past .evento-dia { color: var(--txt2); }
+.evento-mes {
+  font-size: 9px; letter-spacing: 2px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+  margin-top: 2px;
+}
+.evento-info { flex: 1; min-width: 0; }
+.evento-titulo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px; letter-spacing: 1.5px;
+  color: var(--txt);
+  margin-bottom: var(--sp-2);
+}
+.evento-meta {
+  font-size: 11px;
+  color: var(--txt2);
+  margin-top: 2px;
+  display: flex; align-items: center; gap: 6px;
+}
+.evento-desc {
+  font-size: 12px;
+  color: var(--txt2);
+  margin-top: var(--sp-2);
+  line-height: 1.5;
+}
+.evento-actions {
+  display: flex; flex-direction: column; gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Sub-aba "pane" */
+.com-pane { display: none; }
+.com-pane.on { display: block; animation: fadeIn 0.2s var(--ease); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   NOTIFICAÇÕES DROPDOWN
+   ═══════════════════════════════════════════════════════════════════════ */
+.notif-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease);
+}
+.notif-item:hover { background: var(--surf); }
+.notif-item.unread {
+  background: var(--surf);
+  border-left: 2px solid var(--accent);
+}
+.notif-titulo {
+  font-size: 12px; font-weight: 500;
+  color: var(--txt);
+}
+.notif-texto {
+  font-size: 11px;
+  color: var(--txt2);
+  margin-top: 3px;
+  line-height: 1.4;
+}
+.notif-time {
+  font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--txt3);
+  margin-top: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ALINHAMENTO TOPBAR — botões com gap consistente
+   ═══════════════════════════════════════════════════════════════════════ */
+.user-area {
+  display: flex; align-items: center;
+  gap: var(--sp-2);
+}
+.user-area .user-name {
+  margin-right: var(--sp-2);
+}
+
+@media (max-width: 720px) {
+  .evento-card { gap: var(--sp-3); padding: var(--sp-3); }
+  .evento-date { width: 44px; }
+  .evento-dia { font-size: 24px; }
+  .evento-titulo { font-size: 16px; }
+  #notif-dropdown {
+    right: 8px !important;
+    width: calc(100vw - 16px) !important;
+    max-width: 360px;
   }
-  try {
-    debugLog('Iniciando...')
-    
-    // 1. Verifica sessão
-    debugLog('Verificando login')
-    const profile = await Auth.init()
-    if(!profile){
-      window.location.href = '/index.html'
-      return
-    }
-    debugLog('Logado', profile.role)
+  .user-area .user-name { display: none; }
+  .user-area .user-role { display: none; }
+}
 
-    document.body.classList.add('role-' + profile.role)
+/* ═══════════════════════════════════════════════════════════════════════
+   EDITOR DE GRADE (modo edição)
+   ═══════════════════════════════════════════════════════════════════════ */
+#grade-editor {
+  display: flex; flex-direction: column;
+  gap: var(--sp-4);
+}
 
-    const userNameEl = $('user-name')
-    if(userNameEl) userNameEl.textContent = profile.nome
-    const userRoleEl = $('user-role')
-    if(userRoleEl) userRoleEl.textContent = profile.role === 'professor' ? 'Professor' : 'Aluno'
-    const accInfo = $('account-info')
-    if(accInfo) accInfo.textContent = `${profile.nome} · ${profile.email}`
+.grade-day-block {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
 
-    debugLog('Carregando dados')
-    const [alunos, videos, schedule, config, totais] = await Promise.all([
-      DB.getAlunos().catch(e => { console.warn('[boot] alunos:', e); return [] }),
-      DB.getVideos().catch(e => { console.warn('[boot] videos:', e); return [] }),
-      DB.getSchedule().catch(e => { console.warn('[boot] schedule:', e); return {} }),
-      DB.getConfig().catch(e => { console.warn('[boot] config:', e); return { nome_academia: 'Garage Training', tema: 'dark' } }),
-      DB.getTotaisPresenca().catch(e => { console.warn('[boot] totais:', e); return {} })
-    ])
-    state.alunos = alunos || []
-    state.videos = videos || []
-    state.schedule = schedule || {}
-    state.config = config || { nome_academia: 'Garage Training', tema: 'dark' }
-    state.totaisPresenca = totais || {}
-    debugLog('Dados ok')
+.grade-day-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surf2);
+  border-bottom: 1px solid var(--border);
+}
 
-    // ─── Atualizar SPLASH com logo + nome reais (logo da academia) ───
-    try {
-      const bootLogoImg = $('boot-logo-img')
-      const bootLogoFb = $('boot-logo-fallback')
-      const bootName = $('boot-name')
-      if(state.config.logo_url && bootLogoImg){
-        bootLogoImg.onload = () => bootLogoImg.classList.add('loaded')
-        bootLogoImg.src = state.config.logo_url
-      } else if(bootLogoFb && state.config.nome_academia){
-        const initials = state.config.nome_academia.split(' ').filter(Boolean).map(p => p[0]).join('').slice(0,2).toUpperCase()
-        bootLogoFb.textContent = initials
-      }
-      if(bootName && state.config.nome_academia){
-        bootName.textContent = state.config.nome_academia.toUpperCase()
-      }
-    } catch(e){ console.warn('[boot] splash update:', e) }
+.grade-day-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px; letter-spacing: 2px;
+  color: var(--txt);
+}
 
-    try { await loadPresences(state.curDate) } catch(e){ console.warn('[boot] presences:', e) }
-    try { await loadConfirmacoes() } catch(e){ console.warn('[boot] confirmacoes:', e) }
+.grade-add-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  font-size: 10px; letter-spacing: 1.5px; font-weight: 500; text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-sm);
+  background: transparent;
+  transition: all var(--t-fast) var(--ease);
+}
+.grade-add-btn:hover {
+  background: var(--accent);
+  color: var(--b);
+}
 
-    debugLog('Montando nav')
-    setupNav()
+.grade-aulas {
+  display: flex; flex-direction: column;
+}
 
-    debugLog('Aplicando tema')
-    applyTheme(state.config.tema)
-    applyName()
-    applyLogo()
-    loadTermoConfig()
-    loadRegrasGraduacao()
-    carregarConfigMensalidade()
-    carregarNotificacoes()
-    setInterval(carregarNotificacoes, 60000)
+.grade-aula-row {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+  border-left: 2px solid var(--txt3);
+  transition: background var(--t-fast) var(--ease);
+}
+.grade-aula-row:last-child { border-bottom: none; }
+.grade-aula-row:hover { background: var(--surf2); }
+.grade-aula-row.gi { border-left-color: #5a8dc8; }
+.grade-aula-row.nogi { border-left-color: #b88a5a; }
+.grade-aula-row.kids { border-left-color: var(--accent); }
 
-    debugLog('Renderizando')
-    renderAll()
-    setupListeners()
-    
-    debugLog('Pronto!')
-    // Splash mínima de 800ms (não atrasa de verdade — boot quase sempre é mais rápido que isso)
-    const elapsed = Date.now() - bootStart
-    if(elapsed < BOOT_MIN_MS) {
-      await new Promise(r => setTimeout(r, BOOT_MIN_MS - elapsed))
-    }
-    // Mostra app + esconde splash (fade-out de 350ms via CSS)
-    const appEl = $('APP')
-    if(appEl) appEl.style.display = 'flex'
-    const loader = $('boot-loader')
-    if(loader){
-      loader.classList.add('fade-out')
-      setTimeout(() => { loader.style.display = 'none' }, 400)
-    }
-  } catch (err) {
-    console.error('Erro no boot:', err)
-    const loader = $('boot-loader')
-    if(loader) loader.innerHTML = `
-      <div style="color:#e05050;font-size:13px;text-align:center;padding:20px;max-width:90%">
-        <strong>Erro ao carregar</strong><br><br>
-        <span style="font-size:11px;color:#888;word-break:break-word">${escapeHtml(err.message)}</span><br><br>
-        <span style="font-size:10px;color:#666">${err.stack ? err.stack.split('\\n').slice(0,3).join('<br>') : ''}</span><br><br>
-        <button onclick="Auth.logout()" style="background:none;border:1px solid #444;color:#aaa;padding:8px 14px;border-radius:2px;cursor:pointer;font-size:11px;letter-spacing:2px;text-transform:uppercase">Sair</button>
-      </div>`
+.grade-aula-time {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px;
+  color: var(--txt);
+  min-width: 60px;
+}
+
+.grade-aula-info { flex: 1; min-width: 0; }
+.grade-aula-name {
+  font-size: 13px; font-weight: 500;
+  color: var(--txt);
+}
+.grade-aula-type {
+  font-size: 9px; letter-spacing: 2px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+  margin-top: 2px;
+}
+
+.grade-aula-del {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  font-size: 9px; letter-spacing: 1.5px; font-weight: 500; text-transform: uppercase;
+  color: var(--txt3);
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: var(--r-sm);
+  transition: all var(--t-fast) var(--ease);
+}
+.grade-aula-del:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.grade-empty {
+  padding: var(--sp-5) var(--sp-4);
+  text-align: center;
+  font-size: 11px;
+  color: var(--txt3);
+  font-style: italic;
+}
+
+/* Mobile */
+@media (max-width: 720px) {
+  .grade-day-header { padding: var(--sp-3); }
+  .grade-aula-row { padding: var(--sp-3); flex-wrap: wrap; }
+  .grade-aula-time { min-width: 50px; font-size: 16px; }
+  .grade-aula-del { font-size: 8px; padding: 4px 8px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MOBILE REFINEMENT v2 — Mais respiro, melhor toque, melhor leitura
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 720px) {
+  /* Topbar mais compacta */
+  .topbar { padding: 0 var(--sp-3); }
+  .logo { font-size: 16px; letter-spacing: 2px; }
+  .logo-img { width: 28px; height: 28px; }
+  
+  /* Nav fica mais legível */
+  .nb { padding: 8px 12px; font-size: 10px; letter-spacing: 1px; }
+
+  /* Páginas com mais respiro */
+  .page { padding: var(--sp-4) var(--sp-3); }
+  .stitle { font-size: 26px; letter-spacing: 1.5px; }
+  .slabel { font-size: 10px; }
+
+  /* Grade vira lista (mais legível no mobile) */
+  .wgrid { 
+    grid-template-columns: 1fr; 
+    gap: var(--sp-3);
   }
-}
-
-
-// ─── NAV ────────────────────────────────────────────────────────────────
-function setupNav(){
-  const navEl = $('nav-bar')
-  if(!navEl) return
-  const isProf = Auth.isProfessor()
-  // Aluno NÃO vê "Presenças" (é controle do professor)
-  const items = [
-    { id:'schedule', label:'Aulas' },
-  ]
-  if(isProf) items.push({ id:'presences', label:'Presenças' })
-  items.push({ id:'comunicacao', label:'Comunicação' })
-  items.push({ id:'videos', label:'Vídeos' })
-  if(isProf) items.push({ id:'students', label:'Alunos' })
-  if(isProf) items.push({ id:'financeiro', label:'Financeiro' })
-  if(!isProf) items.push({ id:'perfil', label:'Perfil' })
-  items.push({ id:'settings', label:'⚙️', isIcon:true })
-
-  navEl.innerHTML = items.map((it, i) => `
-    <button class="nb ${i===0?'active':''}" data-page="${it.id}">
-      ${it.isIcon ? '<i class="ti ti-settings" aria-hidden="true"></i>' : it.label}
-    </button>
-  `).join('')
-
-  navEl.querySelectorAll('.nb').forEach(btn => {
-    btn.addEventListener('click', () => {
-      navEl.querySelectorAll('.nb').forEach(b => b.classList.remove('active'))
-      document.querySelectorAll('.page').forEach(p => p.classList.remove('on'))
-      btn.classList.add('active')
-      const pageEl = $('page-' + btn.dataset.page)
-      if(pageEl) pageEl.classList.add('on')
-      if(btn.dataset.page === 'comunicacao') renderComunicacao()
-      if(btn.dataset.page === 'perfil') openPerfilSelf()
-      if(btn.dataset.page === 'financeiro') renderFinanceiro()
-    })
-  })
-}
-
-// ─── LISTENERS ──────────────────────────────────────────────────────────
-function setupListeners(){
-  $('logout-btn').addEventListener('click', () => Auth.logout())
-
-  // Filtros de presença
-  document.querySelectorAll('#page-presences .fbtn[data-belt]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#page-presences .fbtn[data-belt]').forEach(b => b.classList.remove('active'))
-      btn.classList.add('active')
-      state.filters.presBelt = btn.dataset.belt
-      renderPresContent()
-    })
-  })
-  $('pres-search')?.addEventListener('input', e => {
-    state.filters.search = e.target.value.toLowerCase()
-    renderPresContent()
-  })
-
-  // Date nav
-  $('prev-day').addEventListener('click', async () => {
-    state.curDate.setDate(state.curDate.getDate() - 1)
-    await loadPresences(state.curDate)
-    await loadConfirmacoes()
-    updateDateLabel(); renderPresContent()
-  })
-  $('next-day').addEventListener('click', async () => {
-    state.curDate.setDate(state.curDate.getDate() + 1)
-    await loadPresences(state.curDate)
-    await loadConfirmacoes()
-    updateDateLabel(); renderPresContent()
-  })
-
-  // Filtros de vídeo
-  document.querySelectorAll('#vid-filters .fbtn[data-cat]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#vid-filters .fbtn[data-cat]').forEach(b => b.classList.remove('active'))
-      btn.classList.add('active')
-      state.filters.vid = btn.dataset.cat
-      renderVideos()
-    })
-  })
-
-  // Filtros de alunos
-  document.querySelectorAll('#page-students .fbtn[data-belt]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#page-students .fbtn[data-belt]').forEach(b => b.classList.remove('active'))
-      btn.classList.add('active')
-      state.filters.stuBelt = btn.dataset.belt
-      renderStudents()
-    })
-  })
-  $('stu-search')?.addEventListener('input', () => renderStudents())
-
-  // Config
-  $('cfg-name').value = state.config.nome_academia
-
-  // Modal: fechar ao clicar fora
-  document.querySelectorAll('.mlay').forEach(m => {
-    m.addEventListener('click', e => { if(e.target === m){ m.style.display = 'none'; state.pendingFile = null } })
-  })
-}
-
-// ─── LOAD DATA ──────────────────────────────────────────────────────────
-async function loadPresences(date){
-  const key = dateKey(date)
-  const rows = await DB.getPresencas(key)
-  state.presencas = {}
-  rows.forEach(r => { if(r.presente) state.presencas[r.aluno_id] = true })
-}
-
-async function loadConfirmacoes(){
-  try {
-    if(Auth.isAluno()){
-      // Aluno: carrega as próprias confirmações dos próximos 14 dias
-      const myId = Auth.currentProfile.id
-      const hoje = new Date()
-      const fim = new Date(); fim.setDate(fim.getDate() + 14)
-      const rows = await DB.getMinhasConfirmacoes(myId, dateKey(hoje), dateKey(fim))
-      state.minhasConfirmacoes = {}
-      rows.forEach(r => { state.minhasConfirmacoes[r.aula_id + '_' + r.data] = true })
-    } else if(Auth.isProfessor()){
-      // Professor: carrega confirmações do dia selecionado
-      const rows = await DB.getAlunosConfirmadosNoDia(dateKey(state.curDate))
-      state.confirmadosNoDia = {}
-      rows.forEach(r => { state.confirmadosNoDia[r.aluno_id] = true })
-    }
-  } catch(err){
-    console.error('[confirmacoes]', err)
-    state.minhasConfirmacoes = {}
-    state.confirmadosNoDia = {}
+  .ld { 
+    min-height: auto; 
+    padding: var(--sp-3);
   }
-}
-
-function renderAll(){
-  renderSchedule()
-  renderGradeEditor()
-  renderPresContent()
-  renderVideos()
-  if(Auth.isProfessor()) renderStudents()
-  updateDateLabel()
-}
-
-// ─── THEME ──────────────────────────────────────────────────────────────
-function applyTheme(t){
-  state.config.tema = t
-  document.documentElement.setAttribute('data-theme', t)
-  const optD = $('opt-dark'); if(optD) optD.classList.toggle('active', t === 'dark')
-  const optL = $('opt-light'); if(optL) optL.classList.toggle('active', t === 'light')
-}
-async function setTheme(t){
-  applyTheme(t)
-  if(Auth.isProfessor()){
-    try { await DB.saveConfig({ tema: t }) } catch(e){}
+  .ld-head { 
+    margin-bottom: var(--sp-3); 
+    padding-bottom: var(--sp-2);
   }
-  toast(t === 'light' ? 'Tema claro ativado!' : 'Tema escuro ativado!')
-}
-
-function applyName(){
-  try {
-    const n = state.config?.nome_academia || 'Garage Training'
-    const parts = n.split(' ')
-    const last = parts.pop()
-    const logoEl = $('logo-text')
-    if(logoEl) logoEl.innerHTML = (parts.length ? parts.join(' ') + ' ' : '') + '<em>' + last + '</em>'
-    const schEl = $('sch-title')
-    if(schEl) schEl.textContent = 'Grade — ' + n
-    document.title = n
-  } catch(err){ console.warn('[applyName]', err) }
-}
-
-async function saveName(){
-  const v = $('cfg-name').value.trim()
-  if(!v){ toast('Nome não pode ser vazio.', true); return }
-  try {
-    await DB.saveConfig({ nome_academia: v })
-    state.config.nome_academia = v
-    applyName()
-    toast('Nome salvo!')
-  } catch(err) {
-    toast('Erro: ' + err.message, true)
-  }
-}
-
-// ─── LOGO ───────────────────────────────────────────────────────────────
-
-function applyLogo(){
-  const url = state.config.logo_url
-  const imgEl = $('logo-img')
-  const previewEl = $('logo-preview')
-  const removeBtn = $('logo-remove-btn')
-
-  if(url){
-    // Topbar
-    if(imgEl){
-      imgEl.src = url
-      imgEl.style.display = 'block'
-    }
-    // Preview na config
-    if(previewEl){
-      previewEl.innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:contain">`
-    }
-    // Botão remover
-    if(removeBtn) removeBtn.style.display = 'inline-flex'
-  } else {
-    if(imgEl){
-      imgEl.style.display = 'none'
-      imgEl.src = ''
-    }
-    if(previewEl){
-      previewEl.innerHTML = '<i class="ti ti-photo" style="font-size:24px;color:var(--txt3)" aria-hidden="true"></i>'
-    }
-    if(removeBtn) removeBtn.style.display = 'none'
-  }
-}
-
-// Comprime a imagem antes de fazer upload (max 512px, ~80KB)
-async function compressImage(file){
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = e => {
-      const img = new Image()
-      img.onload = () => {
-        const MAX = 512
-        let w = img.width, h = img.height
-        if(w > MAX || h > MAX){
-          if(w > h){ h = h * MAX / w; w = MAX }
-          else { w = w * MAX / h; h = MAX }
-        }
-        const canvas = document.createElement('canvas')
-        canvas.width = w; canvas.height = h
-        const ctx = canvas.getContext('2d')
-        ctx.drawImage(img, 0, 0, w, h)
-        canvas.toBlob(
-          blob => {
-            if(!blob) return reject(new Error('Erro ao processar imagem'))
-            // Cria um File do blob (preserva nome)
-            const compressed = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), { type: 'image/jpeg' })
-            resolve(compressed)
-          },
-          'image/jpeg',
-          0.85
-        )
-      }
-      img.onerror = () => reject(new Error('Arquivo inválido'))
-      img.src = e.target.result
-    }
-    reader.onerror = () => reject(new Error('Erro ao ler arquivo'))
-    reader.readAsDataURL(file)
-  })
-}
-
-async function onLogoFileSelected(event){
-  const file = event.target.files[0]
-  if(!file) return
-
-  // Validações
-  if(!file.type.startsWith('image/')){
-    toast('Selecione um arquivo de imagem.', true)
-    return
-  }
-  if(file.size > 5 * 1024 * 1024){
-    toast('Arquivo muito grande (máximo 5 MB).', true)
-    return
-  }
-
-  toast('Processando imagem...')
-
-  try {
-    // Comprimir
-    const compressed = await compressImage(file)
-
-    // Se já existe logo, deletar a antiga primeiro
-    if(state.config.logo_url){
-      try { await DB.removeLogoFile(state.config.logo_url) } catch(e){ /* ignora */ }
-    }
-
-    // Upload da nova
-    const url = await DB.uploadLogo(compressed)
-
-    // Salvar no config
-    await DB.saveConfig({ logo_url: url })
-    state.config.logo_url = url
-
-    applyLogo()
-    toast('Logo atualizada!')
-  } catch(err){
-    console.error('[logo upload]', err)
-    toast('Erro: ' + (err.message || 'falha no upload'), true)
-  } finally {
-    // Limpa o input pra permitir re-upload do mesmo arquivo
-    event.target.value = ''
-  }
-}
-
-async function removeLogo(){
-  if(!confirm('Remover a logo da academia?')) return
-  try {
-    if(state.config.logo_url){
-      try { await DB.removeLogoFile(state.config.logo_url) } catch(e){ /* ignora se falhar */ }
-    }
-    await DB.saveConfig({ logo_url: null })
-    state.config.logo_url = null
-    applyLogo()
-    toast('Logo removida.')
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  }
-}
-
-// ─── SCHEDULE (visualização) ────────────────────────────────────────────
-function renderSchedule(){
-  const today = new Date()
-  const dow = today.getDay()
-  let h = ''
-  for(let i = 0; i < 7; i++){
-    const d = new Date(today); d.setDate(today.getDate() - dow + i)
-    const dn = d.getDay()
-    const cls = state.schedule[dn] || []
-    const isT = dn === dow
-    const dateStr = dateKey(d)
-    h += `<div class="dcol">
-      <div class="dhead">
-        <div class="dname">${DAYS[i]}</div>
-        <div class="dnum ${isT ? 'td' : ''}">${d.getDate()}</div>
-      </div>
-      ${cls.length ? `<div class="aulas-lista">
-        ${cls.map(c => {
-          const confirmed = Auth.isAluno() && state.minhasConfirmacoes[c.id + '_' + dateStr]
-          return `<div class="aula-linha ${c.tipo}${confirmed ? ' confirmed' : ''}" onclick="openAulaDetail('${c.id}','${dateStr}')">
-            <div class="aula-linha-time">${c.horario.slice(0,5)}${confirmed ? ' <i class="ti ti-check" style="color:#7ac890;font-size:12px" aria-hidden="true"></i>' : ''}</div>
-            <div class="aula-linha-info">
-              <div class="aula-linha-nome">${escapeHtml(c.nome)}</div>
-              <div class="aula-linha-sub">${TYPE_PT[c.tipo] || c.tipo}</div>
-            </div>
-          </div>`
-        }).join('')}
-      </div>` : '<div class="aulas-vazio">Sem aulas neste dia</div>'}
-    </div>`
-  }
-  $('wgrid').innerHTML = h
-
-  const tc = state.schedule[dow] || []
-  const todayStr = dateKey(today)
-  $('today-classes').innerHTML = tc.length
-    ? tc.map(c => {
-        const confirmed = Auth.isAluno() && state.minhasConfirmacoes[c.id + '_' + todayStr]
-        return `<div onclick="openAulaDetail('${c.id}','${todayStr}')" style="background:var(--surf);border:0.5px solid var(--border);border-radius:2px;padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;${confirmed ? 'border-left:3px solid #7ac890' : ''}">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--txt);line-height:1">${c.horario.slice(0,5)}</div>
-          <div style="flex:1">
-            <div style="font-size:12px;font-weight:500;color:var(--txt)">${escapeHtml(c.nome)}</div>
-            <div style="font-size:9px;color:var(--txt3);letter-spacing:1.5px;text-transform:uppercase">${TYPE_PT[c.tipo] || c.tipo}</div>
-          </div>
-          ${confirmed ? '<i class="ti ti-circle-check-filled" style="color:#7ac890;font-size:18px"></i>' : '<i class="ti ti-chevron-right" style="color:var(--txt3)"></i>'}
-        </div>`
-      }).join('')
-    : '<div style="color:var(--txt3);font-size:12px">Sem aulas hoje.</div>'
-}
-
-// ─── DETALHE DE AULA + CONFIRMAÇÃO ──────────────────────────────────────
-
-async function openAulaDetail(aulaId, dateStr){
-  // Acha a aula no schedule
-  let aula = null
-  for(const dn in state.schedule){
-    const found = state.schedule[dn].find(a => a.id === aulaId)
-    if(found){ aula = found; break }
-  }
-  if(!aula){ toast('Aula não encontrada.', true); return }
-
-  const d = new Date(dateStr + 'T00:00:00')
-  const dateDisplay = `${DAYS_FULL[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]}`
-
-  // Verifica se a aula já passou
-  const now = new Date()
-  const aulaStart = new Date(dateStr + 'T' + aula.horario)
-  const yaEmpezou = aulaStart < now
-
-  $('aula-detail-title').textContent = aula.nome
-  const body = $('aula-detail-body')
-  const foot = $('aula-detail-foot')
-
-  // ──────── ALUNO ────────
-  if(Auth.isAluno()){
-    const myId = Auth.currentProfile.id
-    const isConfirmed = !!state.minhasConfirmacoes[aulaId + '_' + dateStr]
-
-    // Carrega quantos confirmaram (público pro aluno também — info motivacional)
-    let totalConfirmados = 0
-    try {
-      const conf = await DB.getConfirmacoesAula(aulaId, dateStr)
-      totalConfirmados = conf.length
-    } catch(e){ /* ignora */ }
-
-    body.innerHTML = `
-      <div class="aula-info-grid">
-        <div class="aula-info-cell">
-          <div class="aula-info-lbl">Dia</div>
-          <div class="aula-info-val" style="font-size:14px;letter-spacing:1px">${DAYS_FULL[d.getDay()].slice(0,3).toUpperCase()}</div>
-        </div>
-        <div class="aula-info-cell">
-          <div class="aula-info-lbl">Horário</div>
-          <div class="aula-info-val">${aula.horario.slice(0,5)}</div>
-        </div>
-        <div class="aula-info-cell">
-          <div class="aula-info-lbl">Tipo</div>
-          <div class="aula-info-val" style="font-size:13px;letter-spacing:1px">${(TYPE_PT[aula.tipo] || aula.tipo).split(' ')[0].toUpperCase()}</div>
-        </div>
-      </div>
-      <div style="font-size:11px;color:var(--txt3);text-align:center;margin-bottom:12px">${dateDisplay}</div>
-      <div class="aula-confirm-info">
-        <div class="aula-confirm-num">${totalConfirmados}</div>
-        <div class="aula-confirm-txt">${totalConfirmados === 1 ? 'aluno confirmou presença' : 'alunos confirmaram presença'} nessa aula</div>
-      </div>
-    `
-
-    if(yaEmpezou){
-      foot.innerHTML = `
-        <div style="flex:1;font-size:11px;color:var(--txt3);text-align:center;padding:8px">Esta aula já começou ou terminou.</div>
-        <button class="fbtn" onclick="closeModal('modal-aula-detail')">Fechar</button>
-      `
-    } else if(isConfirmed){
-      foot.innerHTML = `
-        <button class="fbtn" onclick="closeModal('modal-aula-detail')">Fechar</button>
-        <button class="btn-confirm-big confirmed" onclick="cancelarConfirmacao('${aulaId}','${dateStr}')" style="flex:1;margin-left:8px"><i class="ti ti-x"></i> Cancelar confirmação</button>
-      `
-    } else {
-      foot.innerHTML = `
-        <button class="fbtn" onclick="closeModal('modal-aula-detail')">Fechar</button>
-        <button class="btn-confirm-big" onclick="confirmarPresenca('${aulaId}','${dateStr}')" style="flex:1;margin-left:8px"><i class="ti ti-check"></i> Confirmar presença</button>
-      `
-    }
-  }
-
-  // ──────── PROFESSOR ────────
-  else if(Auth.isProfessor()){
-    body.innerHTML = `
-      <div class="aula-info-grid">
-        <div class="aula-info-cell">
-          <div class="aula-info-lbl">Dia</div>
-          <div class="aula-info-val" style="font-size:14px;letter-spacing:1px">${DAYS_FULL[d.getDay()].slice(0,3).toUpperCase()}</div>
-        </div>
-        <div class="aula-info-cell">
-          <div class="aula-info-lbl">Horário</div>
-          <div class="aula-info-val">${aula.horario.slice(0,5)}</div>
-        </div>
-        <div class="aula-info-cell">
-          <div class="aula-info-lbl">Tipo</div>
-          <div class="aula-info-val" style="font-size:13px;letter-spacing:1px">${(TYPE_PT[aula.tipo] || aula.tipo).split(' ')[0].toUpperCase()}</div>
-        </div>
-      </div>
-      <div style="font-size:11px;color:var(--txt3);text-align:center;margin-bottom:12px">${dateDisplay}</div>
-      <div class="slabel" style="margin-bottom:6px">Alunos confirmados</div>
-      <div id="confirm-list-area">
-        <div style="padding:14px;text-align:center;color:var(--txt3);font-size:11px">Carregando...</div>
-      </div>
-    `
-
-    foot.innerHTML = `<button class="fbtn" onclick="closeModal('modal-aula-detail')">Fechar</button>`
-
-    // Carrega lista assíncrona
-    try {
-      const rows = await DB.getConfirmacoesAula(aulaId, dateStr)
-      const area = $('confirm-list-area')
-      if(rows.length === 0){
-        area.innerHTML = '<div style="padding:14px;text-align:center;color:var(--txt3);font-size:11px">Nenhum aluno confirmou ainda.</div>'
-      } else {
-        area.innerHTML = '<div class="aula-confirm-list">' + rows.map(r => `
-          <div class="aula-confirm-item">
-            <span class="belt ${r.profiles?.faixa || 'white'}"></span>
-            <span class="aula-confirm-name">${escapeHtml(r.profiles?.nome || '?')}</span>
-            <span style="font-size:10px;color:var(--txt3)">${escapeHtml(BELT_PT[r.profiles?.faixa] || '')}</span>
-          </div>`).join('') + '</div>' + 
-          `<div style="font-size:10px;color:var(--txt3);text-align:center;margin-top:8px">Total: ${rows.length} ${rows.length === 1 ? 'aluno' : 'alunos'}</div>`
-      }
-    } catch(err){
-      $('confirm-list-area').innerHTML = `<div style="padding:14px;color:#e05050;font-size:11px">Erro ao carregar: ${escapeHtml(err.message)}</div>`
-    }
-  }
-
-  $('modal-aula-detail').style.display = 'flex'
-}
-
-async function confirmarPresenca(aulaId, dateStr){
-  const myId = Auth.currentProfile.id
-  try {
-    await DB.confirmarAula(myId, aulaId, dateStr)
-    state.minhasConfirmacoes[aulaId + '_' + dateStr] = true
-    toast('Presença confirmada!')
-    closeModal('modal-aula-detail')
-    renderSchedule()
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  }
-}
-
-async function cancelarConfirmacao(aulaId, dateStr){
-  const myId = Auth.currentProfile.id
-  try {
-    await DB.cancelarConfirmacao(myId, aulaId, dateStr)
-    delete state.minhasConfirmacoes[aulaId + '_' + dateStr]
-    toast('Confirmação cancelada.')
-    closeModal('modal-aula-detail')
-    renderSchedule()
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  }
-}
-
-// ─── GRADE EDITOR (professor) ───────────────────────────────────────────
-function renderGradeEditor(){
-  if(!Auth.isProfessor()) return
-  const ORDER = [1,2,3,4,5,6,0]
-  $('grade-editor').innerHTML = ORDER.map(dn => {
-    const aulas = state.schedule[dn] || []
-    return `<div class="grade-day-block">
-      <div class="grade-day-header">
-        <span class="grade-day-name">${DAYS_FULL[dn]}</span>
-        <button class="grade-add-btn" onclick="openAulaModal(${dn})">
-          <i class="ti ti-plus" aria-hidden="true"></i> Adicionar aula
-        </button>
-      </div>
-      <div class="grade-aulas">
-        ${aulas.length ? aulas.map(a => `
-          <div class="grade-aula-row ${a.tipo}">
-            <div class="grade-aula-time">${a.horario.slice(0,5)}</div>
-            <div class="grade-aula-info">
-              <div class="grade-aula-name">${escapeHtml(a.nome)}</div>
-              <div class="grade-aula-type">${TYPE_PT[a.tipo] || a.tipo}</div>
-            </div>
-            <button class="grade-aula-edit" onclick="openAulaModal(${dn}, '${a.id}')" title="Editar aula" aria-label="Editar aula">
-              <i class="ti ti-edit" aria-hidden="true"></i>
-            </button>
-            <button class="grade-aula-del" onclick="deleteAula('${a.id}')" title="Remover aula" aria-label="Remover aula">
-              <i class="ti ti-trash" aria-hidden="true"></i>
-            </button>
-          </div>`).join('')
-        : `<div class="grade-empty">Nenhuma aula cadastrada</div>`}
-      </div>
-    </div>`
-  }).join('')
-}
-
-function toggleScheduleEdit(){
-  state.editMode = !state.editMode
-  $('view-mode').style.display = state.editMode ? 'none' : 'block'
-  $('edit-mode').style.display = state.editMode ? 'block' : 'none'
-  const btn = $('toggle-edit-btn')
-  btn.innerHTML = state.editMode
-    ? '<i class="ti ti-eye" aria-hidden="true"></i> Ver grade'
-    : '<i class="ti ti-edit" aria-hidden="true"></i> Editar grade'
-  btn.classList.toggle('active', state.editMode)
-  if(!state.editMode) renderSchedule()
-}
-
-function openAulaModal(day, aulaId){
-  if(aulaId){
-    // Modo edição: busca a aula
-    let aulaParaEditar = null
-    for(const d in state.schedule){
-      const found = (state.schedule[d] || []).find(a => a.id === aulaId)
-      if(found){ aulaParaEditar = found; break }
-    }
-    if(!aulaParaEditar){ toast('Aula não encontrada.', true); return }
-    state.editingAulaId = aulaId
-    $('aula-day').value = String(aulaParaEditar.dia_semana)
-    $('aula-time').value = aulaParaEditar.horario.slice(0,5)
-    $('aula-name').value = aulaParaEditar.nome || ''
-    $('aula-type').value = aulaParaEditar.tipo || 'gi'
-    const titleEl = document.querySelector('#modal-aula .mtitle')
-    if(titleEl) titleEl.textContent = 'Editar Aula'
-  } else {
-    state.editingAulaId = null
-    $('aula-day').value = String(day)
-    $('aula-time').value = '06:00'
-    $('aula-name').value = ''
-    $('aula-type').value = 'gi'
-    const titleEl = document.querySelector('#modal-aula .mtitle')
-    if(titleEl) titleEl.textContent = 'Nova Aula'
-  }
-  $('modal-aula').style.display = 'flex'
-}
-
-async function saveAula(){
-  const day = parseInt($('aula-day').value)
-  const horario = $('aula-time').value
-  const nome = $('aula-name').value.trim()
-  const tipo = $('aula-type').value
-  if(!nome){ toast('Nome da aula obrigatório.', true); return }
-  if(!horario){ toast('Horário obrigatório.', true); return }
-
-  // ── Bloqueio de horário duplicado no mesmo dia ──
-  const horarioNormalizado = horario.length === 5 ? horario + ':00' : horario
-  const aulasNoDia = state.schedule[day] || []
-  const conflito = aulasNoDia.find(a => {
-    if(state.editingAulaId && a.id === state.editingAulaId) return false
-    const hAtual = a.horario.length === 5 ? a.horario + ':00' : a.horario
-    return hAtual === horarioNormalizado
-  })
-  if(conflito){
-    toast(`Já existe aula às ${horario} em ${DAYS_FULL[day]}: "${conflito.nome}".`, true)
-    return
-  }
-
-  try {
-    if(state.editingAulaId){
-      const atualizada = await DB.updateAula(state.editingAulaId, { dia_semana: day, horario, nome, tipo })
-      for(const d in state.schedule){
-        state.schedule[d] = (state.schedule[d] || []).filter(a => a.id !== state.editingAulaId)
-      }
-      if(!state.schedule[day]) state.schedule[day] = []
-      state.schedule[day].push(atualizada)
-      state.schedule[day].sort((a,b) => a.horario.localeCompare(b.horario))
-      state.editingAulaId = null
-      closeModal('modal-aula')
-      renderGradeEditor()
-      toast('Aula atualizada!')
-    } else {
-      const nova = await DB.addAula({ dia_semana: day, horario, nome, tipo })
-      if(!state.schedule[day]) state.schedule[day] = []
-      state.schedule[day].push(nova)
-      state.schedule[day].sort((a,b) => a.horario.localeCompare(b.horario))
-      closeModal('modal-aula')
-      renderGradeEditor()
-      toast('Aula adicionada!')
-    }
-  } catch(err) {
-    toast('Erro: ' + err.message, true)
-  }
-}
-
-async function deleteAula(id){
-  try {
-    await DB.deleteAula(id)
-    for(const day in state.schedule){
-      state.schedule[day] = state.schedule[day].filter(a => a.id !== id)
-    }
-    renderGradeEditor()
-    toast('Aula removida.')
-  } catch(err) {
-    toast('Erro: ' + err.message, true)
-  }
-}
-
-// ─── PRESENÇAS ──────────────────────────────────────────────────────────
-function updateDateLabel(){
-  const d = state.curDate
-  const isT = dateKey(d) === dateKey(new Date())
-  $('cur-date-label').textContent = `${DAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]}`
-  $('pres-date-label').textContent = isT ? 'Hoje' : 'Data selecionada'
-}
-
-function renderPresContent(){
-  if(Auth.isProfessor()){
-    renderPresContentProfessor()
-  } else {
-    renderPresContentAluno()
-  }
-}
-
-// Professor vê tabela com checkboxes para todos
-function renderPresContentProfessor(){
-  const total = state.alunos.length
-  const present = Object.values(state.presencas).filter(Boolean).length
-  const pct = total ? Math.round(present/total*100) : 0
-
-  // 3 stat cards (removido "Faixa líder")
-  $('pres-stats').innerHTML = `
-    <div class="sc"><div class="scv">${total}</div><div class="scl">Alunos</div></div>
-    <div class="sc"><div class="scv">${present}</div><div class="scl">Presentes</div></div>
-    <div class="sc"><div class="scv">${pct}%</div><div class="scl">Taxa</div></div>
-  `
-
-  const q = state.filters.search
-  const filtered = state.alunos.filter(s => {
-    if(q && !s.nome.toLowerCase().includes(q)) return false
-    return true
-  })
-
-  function iniciaisDe(nome){
-    return (nome || '?').split(' ').filter(Boolean).map(p => p[0]).join('').slice(0,2).toUpperCase()
+  .ld-day { font-size: 10px; letter-spacing: 2px; }
+  .ld-date { font-size: 20px; }
+  
+  /* Cpills maiores no mobile */
+  .cpill {
+    padding: 10px 12px;
+    font-size: 12px;
   }
 
-  $('pres-content').innerHTML = filtered.length ? `
-    <div class="pres-list">
-      ${filtered.map(s => {
-        const confirmou = state.confirmadosNoDia[s.id]
-        const totalAulas = state.totaisPresenca[s.id] || 0
-        const presenteHoje = state.presencas[s.id]
-        const avatarHtml = s.avatar_url
-          ? `<img class="pres-avatar-img" src="${safeUrl(s.avatar_url)}" alt="" loading="lazy">`
-          : `<div class="pres-avatar-initials">${iniciaisDe(s.nome)}</div>`
-        return `<div class="pres-row" onclick="openPerfilAluno('${s.id}', true)">
-          ${avatarHtml}
-          <div class="pres-info">
-            <div class="pres-nome">${escapeHtml(s.nome)}</div>
-            <div class="pres-meta">
-              <span>${BELT_PT[s.faixa] || s.faixa || '—'} · ${totalAulas} ${totalAulas === 1 ? 'presença' : 'presenças'}</span>
-              ${confirmou ? '<span class="pres-confirmed-badge"><i class="ti ti-circle-check-filled"></i> confirmou</span>' : ''}
-            </div>
-          </div>
-          <button class="pres-ck ${presenteHoje ? 'on' : ''}" onclick="event.stopPropagation(); togglePres('${s.id}')" aria-label="${presenteHoje ? 'Desmarcar presença' : 'Marcar presença'}">
-            ${presenteHoje ? '<i class="ti ti-check"></i>' : '<i class="ti ti-plus"></i>'}
-          </button>
-        </div>`
-      }).join('')}
+  /* Botões com touch target maior */
+  .pbtn, .fbtn { 
+    padding: 11px 14px; 
+    font-size: 10px;
+    min-height: 38px;
+  }
+
+  /* Cards de stat mais compactos */
+  .scards { grid-template-columns: repeat(2, 1fr); }
+  .sc { padding: var(--sp-3) var(--sp-2); }
+  .scv { font-size: 22px; }
+  .scl { font-size: 8px; letter-spacing: 1.5px; }
+  
+  /* Perfil mais compacto */
+  .perfil-header { padding: var(--sp-3); gap: var(--sp-3); }
+  .perfil-avatar { width: 56px; height: 56px; font-size: 18px; }
+  .perfil-nome { font-size: 22px; }
+  .perfil-email { font-size: 11px; }
+  
+  /* Stats do perfil */
+  .stat-grid { grid-template-columns: repeat(3, 1fr); gap: var(--sp-2); }
+  .stat-cell { padding: var(--sp-3) 6px; }
+  .stat-num { font-size: 20px; }
+  .stat-label { font-size: 8px; letter-spacing: 1.5px; }
+
+  /* Topbar oculta nome/role mas mantém icones */
+  .user-name { display: none; }
+  .user-role { display: none; }
+  
+  /* Filtros (legend) */
+  .leg { gap: 6px; }
+  .li { padding: 5px 8px; font-size: 9px; }
+
+  /* Settings cards */
+  .scard { padding: var(--sp-4); }
+  .scard-title { font-size: 16px; }
+  
+  /* Editor de grade no mobile */
+  .grade-day-header { padding: var(--sp-2) var(--sp-3); }
+  .grade-day-name { font-size: 14px; }
+  .grade-add-btn { padding: 5px 8px; font-size: 9px; }
+  .grade-aula-row { padding: var(--sp-2) var(--sp-3); }
+  .grade-aula-time { font-size: 16px; min-width: 50px; }
+  .grade-aula-name { font-size: 12px; }
+  .grade-aula-type { font-size: 8px; }
+  .grade-aula-del { padding: 4px 6px; font-size: 8px; }
+  
+  /* Eventos */
+  .evento-card { gap: var(--sp-3); padding: var(--sp-3); }
+  .evento-date { width: 42px; }
+  .evento-dia { font-size: 22px; }
+  .evento-mes { font-size: 8px; }
+  .evento-titulo { font-size: 14px; }
+  .evento-meta { font-size: 10px; }
+  .evento-desc { font-size: 11px; }
+  
+  /* Tabelas viram cards (já estava, mas refinando) */
+  .tbl tr {
+    padding: var(--sp-3);
+    margin-bottom: var(--sp-2);
+    background: var(--surf);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+  }
+  
+  /* Notif dropdown ocupa tela inteira no mobile */
+  #notif-dropdown {
+    top: 60px !important;
+    right: 8px !important;
+    left: 8px !important;
+    width: auto !important;
+  }
+
+  /* Mensalidade card */
+  .mens-card { padding: var(--sp-3); }
+  .mens-value { font-size: 24px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LIGHT THEME REFINEMENT — Garantir bom contraste e legibilidade
+   ═══════════════════════════════════════════════════════════════════════ */
+:root[data-theme="light"] body {
+  color: var(--txt);
+  background: var(--b);
+}
+
+:root[data-theme="light"] .topbar {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+:root[data-theme="light"] .pbtn {
+  background: var(--txt);
+  color: var(--b);
+  border-color: var(--txt);
+}
+:root[data-theme="light"] .pbtn:hover {
+  background: var(--accent2);
+  border-color: var(--accent2);
+  color: #fff;
+}
+
+:root[data-theme="light"] .belt.white {
+  background: #ffffff;
+  border-color: var(--border2);
+}
+
+:root[data-theme="light"] .nb.active {
+  background: var(--surf);
+  color: var(--txt);
+}
+
+:root[data-theme="light"] .cpill.gi { border-left-color: var(--type-gi); }
+:root[data-theme="light"] .cpill.nogi { border-left-color: var(--type-nogi); }
+:root[data-theme="light"] .cpill.kids { border-left-color: var(--type-kids); }
+
+:root[data-theme="light"] .form-input,
+:root[data-theme="light"] .sinput,
+:root[data-theme="light"] .mselect {
+  background: #ffffff;
+  color: var(--txt);
+  border-color: var(--border2);
+}
+
+:root[data-theme="light"] .mlay {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+:root[data-theme="light"] .form-submit {
+  background: var(--txt);
+  color: var(--b);
+}
+:root[data-theme="light"] .form-submit:hover:not(:disabled) {
+  background: var(--accent2);
+  color: #fff;
+}
+
+:root[data-theme="light"] .toast {
+  background: var(--txt);
+  color: var(--b);
+}
+
+:root[data-theme="light"] .switch.on::after { background: #fff; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CONTRASTE REFORÇADO — Versão final, distinção visual clara
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Filtros Gi/No-Gi/Kids — bolinha visível por tipo */
+.li {
+  background: var(--surf2);
+  border-width: 1px;
+  border-color: var(--border2);
+}
+.li .ld {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--txt3);
+}
+.li.gi .ld, .li[class*="gi"] .ld { background: var(--type-gi) !important; }
+.li.nogi .ld, .li[class*="nogi"] .ld { background: var(--type-nogi) !important; }
+.li.kids .ld, .li[class*="kids"] .ld { background: var(--type-kids) !important; }
+
+/* Cards de aula (cpill) — mais visíveis */
+.cpill {
+  background: var(--surf2);
+  border-color: var(--border2);
+  font-weight: 500;
+  border-left-width: 3px;
+}
+.cpill.gi { border-left-color: var(--type-gi); }
+.cpill.nogi { border-left-color: var(--type-nogi); }
+.cpill.kids { border-left-color: var(--type-kids); }
+
+/* Caixas de dia (ld) — separação clara do fundo */
+.wgrid .ld {
+  background: var(--surf);
+  border: 1px solid var(--border2);
+}
+.wgrid .ld:hover {
+  background: var(--surf2);
+  border-color: var(--accent);
+}
+
+/* Botão "Editar Grade" — mais destacado */
+.pbtn {
+  background: var(--accent);
+  color: var(--b);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.pbtn:hover {
+  background: var(--txt);
+  border-color: var(--txt);
+  color: var(--b);
+}
+
+/* Stats cards — mais destacados */
+.sc {
+  background: var(--surf);
+  border: 1px solid var(--border2);
+}
+
+/* Tabelas (tbl) — divisões mais visíveis */
+.tbl thead th {
+  border-bottom-width: 2px;
+  border-bottom-color: var(--border2);
+}
+.tbl tbody tr {
+  border-bottom-color: var(--border2);
+}
+
+/* Card "Aulas de Hoje" e similares — mais destaque */
+.tdy {
+  background: var(--surf);
+  border: 1px solid var(--border2);
+}
+
+/* Modais — destaque do fundo */
+.mbox {
+  background: var(--b2);
+  border: 1px solid var(--border2);
+}
+
+/* Inputs — mais visíveis */
+.sinput, .form-input, .mselect {
+  background: var(--b2);
+  border-width: 1px;
+  border-color: var(--border2);
+}
+.sinput:focus, .form-input:focus, .mselect:focus {
+  border-color: var(--accent);
+  background: var(--b);
+}
+
+/* Scards (settings) — separação clara */
+.scard {
+  background: var(--surf);
+  border: 1px solid var(--border2);
+}
+
+/* Topbar — separação clara da página */
+.topbar {
+  background: rgba(14, 14, 12, 0.9);
+  border-bottom-width: 1px;
+  border-bottom-color: var(--border2);
+}
+
+/* Nav bar — separação clara */
+.nav-bar {
+  border-bottom-width: 1px;
+  border-bottom-color: var(--border2);
+}
+
+.nb.active {
+  background: var(--surf2);
+  border-color: var(--border2);
+}
+
+/* Logout/Bell buttons — bordas mais visíveis */
+.logout-btn {
+  border: 1px solid var(--border2);
+  background: var(--surf);
+}
+.logout-btn:hover {
+  background: var(--surf2);
+  border-color: var(--accent);
+}
+
+/* ─── TEMA CLARO: Ajustes específicos pra contraste ─────────────────── */
+:root[data-theme="light"] {
+  --surf: #ffffff;
+  --surf2: var(--surf2);
+  --border: rgba(0, 0, 0, 0.18);
+  --border2: rgba(0, 0, 0, 0.32);
+}
+
+:root[data-theme="light"] .topbar {
+  background: rgba(255, 255, 255, 0.95);
+  border-bottom-color: rgba(0, 0, 0, 0.18);
+}
+
+:root[data-theme="light"] .pbtn {
+  background: var(--txt);
+  color: #fff;
+  border-color: var(--txt);
+}
+:root[data-theme="light"] .pbtn:hover {
+  background: var(--accent2);
+  border-color: var(--accent2);
+}
+
+:root[data-theme="light"] .sinput,
+:root[data-theme="light"] .form-input,
+:root[data-theme="light"] .mselect {
+  background: #ffffff;
+}
+
+:root[data-theme="light"] .mbox {
+  background: #ffffff;
+}
+
+:root[data-theme="light"] .li,
+:root[data-theme="light"] .cpill {
+  background: #ffffff;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   GRADE DE HORÁRIOS — Classes reais usadas pelo JS (.dcol, .dhead, .dname, .dnum)
+   Estilo consistente com o resto da aplicação
+   ═══════════════════════════════════════════════════════════════════════ */
+.dcol {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, transparent 40%),
+    linear-gradient(135deg, var(--surf) 0%, var(--b2) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--r-sm);
+  padding: var(--sp-3);
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  position: relative;
+  overflow: hidden;
+  transition: all var(--t-fast) var(--ease);
+  box-shadow:
+    0 2px 6px rgba(0,0,0,0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.dcol:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow:
+    0 6px 20px rgba(0,0,0,0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.dhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--sp-2);
+}
+.dname {
+  font-size: 10px;
+  letter-spacing: 2px;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--txt3);
+}
+.dnum {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  color: var(--txt);
+  line-height: 1;
+}
+.dnum.td {
+  color: var(--accent);
+}
+
+/* Tema claro */
+:root[data-theme="light"] .dcol {
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.04) 0%, transparent 40%),
+    linear-gradient(135deg, #ffffff 0%, var(--surf2) 100%);
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* Mobile — colunas viram lista vertical */
+@media (max-width: 720px) {
+  .wgrid { grid-template-columns: 1fr; }
+  .dcol { min-height: auto; padding: var(--sp-3); }
+  .dname { font-size: 10px; }
+  .dnum { font-size: 18px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FINAL MOBILE-FIRST OVERRIDE — Black & White v4
+   Garante consistência total da paleta + mobile experience
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Reset estilos antigos com cor creme/dourado nos elementos principais */
+.topbar {
+  background: rgba(10, 10, 10, 0.95) !important;
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+}
+:root[data-theme="light"] .topbar {
+  background: rgba(245, 245, 245, 0.95) !important;
+}
+
+.logo { color: var(--txt); letter-spacing: 3px; }
+.logo em { color: var(--txt3); font-style: normal; }
+
+.user-name { color: var(--txt); font-size: 12px; font-weight: 500; }
+.user-role {
+  color: var(--txt3); font-size: 9px;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 3px 8px; border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+
+.logout-btn {
+  width: 34px; height: 34px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surf);
+  color: var(--txt2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+}
+.logout-btn:hover {
+  background: var(--surf2);
+  color: var(--txt);
+  border-color: var(--border2);
+}
+
+.nav-bar {
+  background: var(--b);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.nav-bar::-webkit-scrollbar { display: none; }
+.nb {
+  background: transparent;
+  color: var(--txt3);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.nb:hover { color: var(--txt2); background: var(--surf); }
+.nb.active {
+  color: var(--txt);
+  background: var(--surf2);
+  border-color: var(--border);
+}
+
+/* Botão principal sempre alto contraste */
+.pbtn {
+  background: var(--accent);
+  color: var(--b);
+  border: 1px solid var(--accent);
+  font-weight: 600;
+}
+.pbtn:hover { opacity: 0.85; transform: none; }
+
+.fbtn, .ibtn {
+  background: var(--surf);
+  color: var(--txt2);
+  border: 1px solid var(--border);
+}
+.fbtn:hover, .ibtn:hover {
+  color: var(--txt);
+  border-color: var(--border2);
+  background: var(--surf2);
+}
+.fbtn.active {
+  color: var(--txt);
+  background: var(--surf2);
+  border-color: var(--border2);
+}
+
+/* Cards/surfaces unificados */
+.scard, .sc, .dcol, .mens-card, .mens-history, .timeline, .stat-cell,
+.evento-card, .recado, .tcard, .perfil-header {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+:root[data-theme="light"] .scard,
+:root[data-theme="light"] .sc,
+:root[data-theme="light"] .dcol,
+:root[data-theme="light"] .mens-card,
+:root[data-theme="light"] .mens-history,
+:root[data-theme="light"] .timeline,
+:root[data-theme="light"] .stat-cell,
+:root[data-theme="light"] .evento-card,
+:root[data-theme="light"] .recado,
+:root[data-theme="light"] .tcard,
+:root[data-theme="light"] .perfil-header {
+  background: var(--surf);
+}
+
+/* Inputs */
+.sinput, .form-input, .mselect, input[type="text"], input[type="email"],
+input[type="password"], input[type="date"], input[type="time"], textarea, select {
+  background: var(--b2);
+  color: var(--txt);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color var(--t-fast) var(--ease);
+}
+.sinput:focus, .form-input:focus, .mselect:focus,
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+:root[data-theme="light"] .sinput,
+:root[data-theme="light"] .form-input,
+:root[data-theme="light"] .mselect,
+:root[data-theme="light"] input,
+:root[data-theme="light"] textarea,
+:root[data-theme="light"] select {
+  background: var(--surf);
+}
+
+/* Modais */
+.mlay { background: rgba(0, 0, 0, 0.7); }
+.mbox {
+  background: var(--surf);
+  border: 1px solid var(--border2);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Faixas — manter cores reais, mas branca usa branco puro */
+.belt.white { background: var(--belt-white); border: 1px solid var(--border); }
+.belt.blue { background: var(--belt-blue); }
+.belt.purple { background: var(--belt-purple); }
+.belt.brown { background: var(--belt-brown); }
+.belt.black { background: var(--belt-black); border: 1px solid var(--border2); }
+
+/* Bolinhas dos filtros — coloridas pra distinguir tipo */
+.li .ld, .li .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.li.gi .ld, .li.gi .dot { background: var(--type-gi); }
+.li.nogi .ld, .li.nogi .dot { background: var(--type-nogi); }
+.li.kids .ld, .li.kids .dot { background: var(--type-kids); }
+
+/* Stat cards mais limpos */
+.sc { padding: var(--sp-4); }
+.scv {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px; line-height: 1;
+  color: var(--txt);
+  margin-bottom: 6px;
+  letter-spacing: 1px;
+}
+.scl {
+  font-size: 9px; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--txt3);
+  font-weight: 500;
+}
+
+/* Grade dias — minimalista */
+.wgrid { gap: 10px; }
+.dcol {
+  padding: var(--sp-3);
+  position: relative;
+  transition: border-color var(--t-fast) var(--ease);
+}
+.dcol::before { display: none; } /* remove linha dourada do topo */
+.dcol:hover { border-color: var(--border2); transform: none; box-shadow: var(--shadow-sm); }
+.dcol.today { border-color: var(--accent); }
+:root[data-theme="light"] .dcol.today { border-color: var(--accent); }
+
+.dhead {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.dname {
+  font-size: 10px; letter-spacing: 2px; font-weight: 500;
+  text-transform: uppercase; color: var(--txt3);
+}
+.dnum {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px; color: var(--txt);
+}
+.dcol.today .dnum, .dnum.td { color: var(--txt); }
+
+.cpill {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; margin-top: 6px;
+  background: var(--surf2);
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+}
+.cpill:hover {
+  border-color: var(--border2);
+  transform: translateX(2px);
+}
+.cpill .ctime {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 13px; color: var(--txt);
+  min-width: 44px;
+}
+.cpill .cname { color: var(--txt2); font-size: 12px; }
+
+/* Confirmação visual */
+.cpill.confirmed {
+  border-left-color: #4ade80;
+  background: rgba(74, 222, 128, 0.08);
+}
+
+/* Page padding mobile-first */
+.page { padding: var(--sp-4); max-width: var(--content-max); margin: 0 auto; }
+
+/* Mobile-first: grade em 1 coluna, expandindo no desktop */
+.wgrid { grid-template-columns: 1fr; }
+.scards { grid-template-columns: repeat(2, 1fr); gap: var(--sp-2); }
+
+@media (min-width: 720px) {
+  .wgrid { grid-template-columns: repeat(7, 1fr); }
+  .scards { grid-template-columns: repeat(4, 1fr); gap: var(--sp-3); }
+  .page { padding: var(--sp-6) var(--sp-5); }
+  .topbar { padding: 0 var(--sp-5); }
+  .nav-bar { padding: var(--sp-2) var(--sp-5); }
+  .stitle { font-size: 36px; }
+}
+
+/* Mobile específico — fontes/spacing menores */
+@media (max-width: 720px) {
+  .stitle { font-size: 22px; letter-spacing: 1.5px; }
+  .slabel { font-size: 9px; }
+  .scv { font-size: 22px; }
+  .user-name, .user-role { display: none; }
+  .logo { font-size: 14px; letter-spacing: 2px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MURAL no formato de card-com-data-lateral (igual eventos)
+   ═══════════════════════════════════════════════════════════════════════ */
+.mural-card {
+  display: flex; gap: var(--sp-4);
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-sm);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-3);
+  transition: border-color var(--t-fast) var(--ease);
+}
+.mural-card:hover { border-color: var(--border2); }
+.mural-card.fixed { border-left-color: var(--accent); background: var(--surf2); }
+
+.mural-date {
+  width: 56px; flex-shrink: 0; text-align: center; padding-top: 2px;
+}
+.mural-dia {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px; line-height: 1;
+  color: var(--accent);
+}
+.mural-mes {
+  font-size: 9px; letter-spacing: 2px; font-weight: 500;
+  text-transform: uppercase; color: var(--txt3);
+  margin-top: 2px;
+}
+.mural-info { flex: 1; min-width: 0; }
+.mural-tit {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px; letter-spacing: 1px;
+  color: var(--txt); margin-bottom: 4px;
+  word-break: break-word;
+}
+.mural-meta {
+  font-size: 10px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--txt3);
+  margin-bottom: var(--sp-2);
+  display: flex; align-items: center; gap: 4px;
+}
+.mural-txt {
+  font-size: 13px; color: var(--txt2); line-height: 1.5;
+  word-break: break-word;
+}
+.mural-acts {
+  display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;
+}
+.mural-acts .ibtn, .mural-acts .dbtn {
+  width: 28px; height: 28px;
+  padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+}
+
+/* Mobile compact */
+@media (max-width: 720px) {
+  .mural-card { padding: var(--sp-3); gap: var(--sp-3); }
+  .mural-date { width: 44px; }
+  .mural-dia { font-size: 24px; }
+  .mural-tit { font-size: 14px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   STAT CARD CLICÁVEL (Total de aulas)
+   ═══════════════════════════════════════════════════════════════════════ */
+.stat-cell.clickable {
+  cursor: pointer;
+  position: relative;
+  transition: all var(--t-fast) var(--ease);
+}
+.stat-cell.clickable:hover {
+  background: var(--surf2);
+  border-color: var(--border2);
+}
+.stat-cell.clickable::after {
+  content: '›';
+  position: absolute;
+  top: 8px; right: 12px;
+  color: var(--txt3);
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MODAL: Lista de aulas frequentadas
+   ═══════════════════════════════════════════════════════════════════════ */
+.aulas-freq-list {
+  display: flex; flex-direction: column;
+}
+.aula-freq-item {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.aula-freq-item:last-child { border-bottom: 0; }
+.aula-freq-data {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 14px; letter-spacing: 1px;
+  color: var(--txt);
+  min-width: 72px;
+}
+.aula-freq-info { flex: 1; min-width: 0; }
+.aula-freq-nome {
+  font-size: 12px; color: var(--txt);
+  font-weight: 500;
+}
+.aula-freq-hora {
+  font-size: 9px; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--txt3);
+  margin-top: 2px;
+}
+.aula-freq-badge {
+  font-size: 9px; letter-spacing: 1px; font-weight: 500;
+  padding: 3px 7px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.aula-freq-badge.gi { background: rgba(90, 141, 200, 0.18); color: #5a8dc8; }
+.aula-freq-badge.nogi { background: rgba(136, 136, 136, 0.25); color: rgba(255,255,255,0.85); }
+.aula-freq-badge.kids { background: rgba(255, 255, 255, 0.12); color: var(--txt); }
+:root[data-theme="light"] .aula-freq-badge.gi { background: rgba(74, 125, 176, 0.15); color: #4a7db0; }
+:root[data-theme="light"] .aula-freq-badge.nogi { background: rgba(102, 102, 102, 0.15); color: #555; }
+:root[data-theme="light"] .aula-freq-badge.kids { background: rgba(0, 0, 0, 0.08); color: var(--txt); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ALINHAMENTO GERAL — auditoria
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Topbar: itens consistentes */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: var(--topbar-h);
+  padding: 10px var(--sp-4);
+}
+.topbar .brand,
+.topbar > div:first-child {
+  display: flex; align-items: center; gap: 10px;
+  flex: 1; min-width: 0;
+}
+.user-area {
+  display: flex; align-items: center; gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+/* Nav-bar consistente */
+.nav-bar {
+  display: flex;
+  gap: 4px;
+  padding: var(--sp-2) var(--sp-4);
+  overflow-x: auto;
+}
+.nb {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+/* Page header consistente — sempre slabel + stitle com mesmo gap */
+.slabel + .stitle { margin-top: 4px; }
+.stitle + * { margin-top: var(--sp-4); }
+
+/* Filter row (filtros + ação à direita) — alinhamento padrão */
+.page > div[style*="justify-content:space-between"] {
+  margin-bottom: var(--sp-4);
+}
+
+/* Stat cards do perfil — alinhar conteúdo no topo pra ::after caber */
+.stat-cell {
+  display: flex; flex-direction: column;
+  justify-content: center;
+  padding: var(--sp-4);
+  min-height: 80px;
+  text-align: left;
+}
+.stat-cell.clickable { padding-right: 28px; }
+.stat-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px; line-height: 1.1;
+  color: var(--txt);
+  margin-bottom: 4px;
+}
+.stat-label {
+  font-size: 9px; letter-spacing: 2px; font-weight: 500;
+  text-transform: uppercase; color: var(--txt3);
+}
+
+/* Modal padrão — header e body com padding uniforme */
+.mbox { width: 100%; max-width: 500px; }
+.mhead {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+}
+.mtitle {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px; letter-spacing: 2px;
+  color: var(--txt);
+}
+.mclose {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: 0;
+  color: var(--txt3); cursor: pointer;
+  font-size: 16px;
+  border-radius: var(--r-sm);
+  transition: all var(--t-fast) var(--ease);
+}
+.mclose:hover { color: var(--txt); background: var(--surf2); }
+.mbody { padding: var(--sp-4) var(--sp-5); }
+.mfoot {
+  display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--border);
+}
+
+/* Botões de ação consistentes (ibtn, dbtn) */
+.ibtn, .dbtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 32px; padding: 0 10px;
+  font-size: 11px;
+  background: var(--surf);
+  border: 1px solid var(--border);
+  color: var(--txt2);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+}
+.ibtn:hover { color: var(--txt); border-color: var(--border2); }
+.dbtn:hover { color: var(--danger); border-color: var(--danger); }
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <script>/* PWA-KILL-SWITCH */ try { if ("serviceWorker" in navigator) { navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => { try { r.unregister(); } catch(e){} })).catch(()=>{}); } if (window.caches) { caches.keys().then(ks => ks.forEach(k => caches.delete(k))).catch(()=>{}); } } catch(e){}</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#080808">
+  <title>Carregando...</title>
+
+  <link rel="icon" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="app.css?v=11">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<!-- Loading inicial -->
+<div id="boot-loader" class="boot-loader">
+  <div class="boot-logo">·</div>
+  <div class="boot-status">Carregando...</div>
+</div>
+
+<!-- App -->
+<div class="app" id="APP" style="display:none">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+      <img id="logo-img" src="" alt="" style="display:none;height:32px;width:32px;border-radius:3px;object-fit:contain;flex-shrink:0">
+      <div class="logo" id="logo-text">·</div>
     </div>
-  ` : '<div style="text-align:center;padding:30px;color:var(--txt3);font-size:13px">Nenhum aluno encontrado.</div>'
-}
-
-// Aluno vê apenas o próprio histórico
-async function renderPresContentAluno(){
-  const myId = Auth.currentProfile.id
-  const total = state.totaisPresenca[myId] || 0
-  const presenteHoje = state.presencas[myId] ? 'Sim' : 'Não'
-
-  $('pres-stats').innerHTML = `
-    <div class="sc"><div class="scv">${total}</div><div class="scl">Total presenças</div></div>
-    <div class="sc"><div class="scv">${presenteHoje}</div><div class="scl">Presente hoje?</div></div>
-  `
-
-  try {
-    const historico = await DB.getHistoricoAluno(myId)
-    $('pres-content').innerHTML = historico.length ? `
-      <div class="slabel" style="margin-bottom:10px">Histórico</div>
-      <table class="tbl">
-        <thead><tr><th>Data</th></tr></thead>
-        <tbody>
-          ${historico.map(h => {
-            const d = new Date(h.data + 'T00:00:00')
-            return `<tr><td>${DAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}</td></tr>`
-          }).join('')}
-        </tbody>
-      </table>
-    ` : '<div style="text-align:center;padding:30px;color:var(--txt3);font-size:13px">Nenhuma presença registrada ainda.</div>'
-  } catch(err){
-    $('pres-content').innerHTML = `<div style="color:#e05050;padding:20px;font-size:12px">Erro ao carregar histórico.</div>`
-  }
-}
-
-async function togglePres(alunoId){
-  const presente = !state.presencas[alunoId]
-  try {
-    await DB.togglePresenca(alunoId, dateKey(state.curDate), presente)
-    if(presente){
-      state.presencas[alunoId] = true
-      state.totaisPresenca[alunoId] = (state.totaisPresenca[alunoId] || 0) + 1
-    } else {
-      delete state.presencas[alunoId]
-      state.totaisPresenca[alunoId] = Math.max(0, (state.totaisPresenca[alunoId] || 0) - 1)
-    }
-    renderPresContent()
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  }
-}
-
-// ─── VÍDEOS ─────────────────────────────────────────────────────────────
-function renderVideos(){
-  const f = state.videos.filter(v => state.filters.vid === 'all' || v.categoria === state.filters.vid)
-  const grid = $('vgrid')
-  if(!f.length){
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--txt3)">Nenhum vídeo nesta categoria.</div>'
-    return
-  }
-  grid.innerHTML = f.map((v, i) => {
-    const ytId = v.src_type === 'youtube' && v.src_url
-      ? (v.src_url.includes('/embed/') ? v.src_url.split('/embed/')[1].split('?')[0] : null) : null
-    const thumb = ytId
-      ? `<img class="yt-thumb" src="https://img.youtube.com/vi/${ytId}/mqdefault.jpg" alt="" onerror="this.style.display='none'">`
-      : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:7px;color:var(--surf2)">${PATS[i%PATS.length]}</div>`
-    return `<div class="vc" onclick="openVidDetail('${v.id}')">
-      <div class="vthumb">${thumb}
-        <span class="vbadge">${CAT_LABELS[v.categoria] || v.categoria}</span>
-        <div class="vplay"><i class="ti ti-player-play" style="color:var(--txt2);margin-left:2px" aria-hidden="true"></i></div>
-      </div>
-      <div class="vinfo"><div class="vtitle">${escapeHtml(v.titulo)}</div><div class="vmeta"><i class="ti ti-clock" style="font-size:10px;vertical-align:-1px;margin-right:3px" aria-hidden="true"></i>${escapeHtml(v.duracao || '00:00')}</div></div>
-    </div>`
-  }).join('')
-}
-
-function openVidDetail(id){
-  const v = state.videos.find(x => x.id === id)
-  if(!v) return
-  $('vid-modal-title').textContent = v.titulo
-
-  let preHtml = ''
-  if(v.src_type === 'youtube' && v.src_url){
-    // Validar: só aceita embed do YouTube (bloqueia javascript:, data:, etc)
-    const ytSafe = safeYouTubeEmbed(v.src_url)
-    if(ytSafe){
-      preHtml = `<iframe src="${ytSafe}?rel=0" allowfullscreen></iframe>`
-    } else {
-      preHtml = `<div style="padding:20px;color:#e05050;text-align:center;font-size:12px">URL de vídeo inválida ou bloqueada</div>`
-    }
-  } else if(v.src_type === 'file' && v.src_url){
-    // Só http/https
-    const safe = safeUrl(v.src_url)
-    if(safe){
-      preHtml = `<video controls style="width:100%;height:100%;object-fit:contain;background:#000"><source src="${safe}"></video>`
-    } else {
-      preHtml = `<div style="padding:20px;color:#e05050;text-align:center;font-size:12px">URL de vídeo inválida</div>`
-    }
-  } else {
-    preHtml = `<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column">
-      <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--txt3);margin-bottom:10px">Sem mídia</div>
-      <div style="width:44px;height:44px;border:0.5px solid var(--border2);border-radius:50%;display:flex;align-items:center;justify-content:center"><i class="ti ti-player-play" style="font-size:16px;color:var(--txt2);margin-left:2px" aria-hidden="true"></i></div>
-    </div>`
-  }
-
-  const profButtons = Auth.isProfessor() ? `
-    <button class="ibtn" onclick="openVidModal('${v.id}')"><i class="ti ti-edit" aria-hidden="true"></i> Editar</button>
-    <button class="dbtn" onclick="deleteVideo('${v.id}')"><i class="ti ti-trash" aria-hidden="true"></i> Excluir</button>
-  ` : ''
-
-  $('vid-modal-content').innerHTML = `
-    <div class="vpre">${preHtml}</div>
-    <div class="mbody">
-      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--txt3);margin-bottom:6px">${escapeHtml(CAT_LABELS[v.categoria] || v.categoria)} · ${escapeHtml(v.duracao || '')}</div>
-      <p style="color:var(--txt2);font-size:12px;line-height:1.7;margin-bottom:10px">${escapeHtml(v.descricao || '')}</p>
-      <div class="tags">${(v.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>
-    </div>
-    <div class="mfoot">
-      ${profButtons}
-      <button class="fbtn" onclick="closeModal('modal-vid')">Fechar</button>
-    </div>`
-  $('modal-vid').style.display = 'flex'
-}
-
-function openVidModal(id){
-  state.editingVidId = id
-  const v = id ? state.videos.find(x => x.id === id) : null
-  state.vidSrcTab = v?.src_type === 'file' ? 'file' : 'youtube'
-  $('vid-modal-title').textContent = v ? 'Editar Vídeo' : 'Novo Vídeo'
-  renderVidForm(v)
-  $('modal-vid').style.display = 'flex'
-}
-
-function renderVidForm(v){
-  $('vid-modal-content').innerHTML = `
-    <div class="mbody">
-      <div class="mrow"><label class="mlabel">Título</label><input class="sinput" id="vid-title" value="${v?escapeHtml(v.titulo):''}" placeholder="Ex: Armlock da guarda" style="width:100%"></div>
-      <div class="mrow"><label class="mlabel">Categoria</label>
-        <select class="mselect" id="vid-cat">${Object.entries(CAT_LABELS).map(([k,l])=>`<option value="${k}"${v&&v.categoria===k?' selected':''}>${escapeHtml(l)}</option>`).join('')}</select>
-      </div>
-      <div class="mrow"><label class="mlabel">Duração</label><input class="sinput" id="vid-dur" value="${v?escapeHtml(v.duracao||''):''}" placeholder="08:30" style="width:100%"></div>
-      <div class="mrow"><label class="mlabel">Descrição</label><textarea class="sinput" id="vid-desc" rows="2" style="width:100%;resize:vertical">${v?escapeHtml(v.descricao||''):''}</textarea></div>
-      <div class="mrow"><label class="mlabel">Tags (separadas por vírgula)</label><input class="sinput" id="vid-tags" value="${v?escapeHtml((v.tags||[]).join(', ')):''}" placeholder="Ex: Berimbolo, De La Riva" style="width:100%"></div>
-      <div class="mrow"><label class="mlabel">Mídia</label>
-        <div class="vid-src-tabs">
-          <button class="vs-tab ${state.vidSrcTab==='youtube'?'active':''}" onclick="switchVidTab('youtube')"><i class="ti ti-brand-youtube" aria-hidden="true"></i> YouTube</button>
-          <button class="vs-tab ${state.vidSrcTab==='file'?'active':''}" onclick="switchVidTab('file')"><i class="ti ti-link" aria-hidden="true"></i> URL direta</button>
-        </div>
-        <div id="vid-src-area"></div>
-      </div>
-    </div>
-    <div class="mfoot">
-      <button class="fbtn" onclick="closeModal('modal-vid')">Cancelar</button>
-      <button class="pbtn" onclick="saveVideo()">Salvar</button>
-    </div>`
-  renderVidSrcArea(v)
-}
-
-function switchVidTab(tab){
-  state.vidSrcTab = tab
-  document.querySelectorAll('.vs-tab').forEach((t,i) => {
-    t.classList.toggle('active', (tab==='youtube'&&i===0) || (tab==='file'&&i===1))
-  })
-  renderVidSrcArea(state.editingVidId ? state.videos.find(x => x.id === state.editingVidId) : null)
-}
-
-function renderVidSrcArea(v){
-  const area = $('vid-src-area')
-  if(!area) return
-  if(state.vidSrcTab === 'youtube'){
-    const val = v && v.src_type === 'youtube' ? v.src_url : ''
-    area.innerHTML = `<input class="sinput" id="vid-yt-url" value="${val}" placeholder="https://youtube.com/watch?v=..." style="width:100%;margin-top:7px">
-      <div style="font-size:10px;color:var(--txt3);margin-top:5px">Cole a URL do YouTube — o player é incorporado automaticamente.</div>`
-  } else {
-    const val = v && v.src_type === 'file' ? v.src_url : ''
-    area.innerHTML = `<input class="sinput" id="vid-file-url" value="${val}" placeholder="https://exemplo.com/video.mp4" style="width:100%;margin-top:7px">
-      <div style="font-size:10px;color:var(--txt3);margin-top:5px">Cole a URL direta de um arquivo MP4/WebM.</div>`
-  }
-}
-
-async function saveVideo(){
-  const titulo = $('vid-title').value.trim()
-  const categoria = $('vid-cat').value
-  const duracao = $('vid-dur').value.trim() || '00:00'
-  const descricao = $('vid-desc').value.trim()
-  const tags = $('vid-tags').value.split(',').map(t => t.trim()).filter(Boolean)
-  if(!titulo){ toast('Título obrigatório.', true); return }
-
-  let src_type = 'none', src_url = ''
-  if(state.vidSrcTab === 'youtube'){
-    const raw = $('vid-yt-url')?.value.trim() || ''
-    if(raw){
-      const em = safeYouTubeEmbed(raw)
-      if(!em){ toast('URL do YouTube inválida.', true); return }
-      src_type = 'youtube'; src_url = em
-    }
-  } else {
-    const raw = $('vid-file-url')?.value.trim() || ''
-    if(raw){
-      // Aceita apenas http:// ou https:// (bloqueia javascript:, data:, file:, etc)
-      if(!/^https?:\/\//i.test(raw)){
-        toast('URL do vídeo precisa começar com http:// ou https://', true)
-        return
-      }
-      src_type = 'file'; src_url = raw
-    }
-  }
-
-  const fields = { titulo, categoria, descricao, duracao, src_type, src_url, tags }
-  try {
-    if(state.editingVidId){
-      await DB.updateVideo(state.editingVidId, fields)
-      const i = state.videos.findIndex(v => v.id === state.editingVidId)
-      if(i > -1) state.videos[i] = { ...state.videos[i], ...fields }
-      toast('Vídeo atualizado!')
-    } else {
-      const novo = await DB.addVideo(fields)
-      state.videos.unshift(novo)
-      toast('Vídeo adicionado!')
-    }
-    closeModal('modal-vid')
-    renderVideos()
-    state.editingVidId = null
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  }
-}
-
-async function deleteVideo(id){
-  if(!confirm('Remover este vídeo?')) return
-  try {
-    await DB.deleteVideo(id)
-    state.videos = state.videos.filter(v => v.id !== id)
-    closeModal('modal-vid')
-    renderVideos()
-    toast('Vídeo removido.')
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  }
-}
-
-// ─── ALUNOS ─────────────────────────────────────────────────────────────
-function renderStudents(){
-  if(!Auth.isProfessor()) return
-  const q = ($('stu-search')?.value || '').toLowerCase()
-  const bf = state.filters.stuBelt
-  const filtered = state.alunos.filter(s => {
-    if(bf !== 'all' && s.faixa !== bf) return false
-    if(q && !s.nome.toLowerCase().includes(q)) return false
-    return true
-  })
-  $('stu-body').innerHTML = filtered.length ? filtered.map(s => `<tr class="stu-row-clickable" onclick="openPerfilAluno('${s.id}', true)">
-    <td style="font-weight:500;color:var(--txt)"><i class="ti ti-user" style="color:var(--txt3);margin-right:6px"></i>${escapeHtml(s.nome)}</td>
-    <td style="font-size:11px;color:var(--txt3)">${escapeHtml(maskEmail(s.email))}</td>
-    <td><span class="belt ${s.faixa}"></span><span style="font-size:10px;color:var(--txt3)">${BELT_PT[s.faixa] || s.faixa}${s.grau > 0 ? ' ' + s.grau + 'º' : ''}</span></td>
-    <td><span style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--txt)">${state.totaisPresenca[s.id] || 0}</span></td>
-    <td><button class="dbtn" onclick="event.stopPropagation();deleteStudent('${s.id}')"><i class="ti ti-trash" aria-hidden="true"></i></button></td>
-  </tr>`).join('') : `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--txt3)">Nenhum aluno encontrado.</td></tr>`
-}
-
-// Censura email: v***@gmail.com
-function maskEmail(email){
-  if(!email) return '—'
-  const at = email.indexOf('@')
-  if(at < 1) return email
-  const user = email.slice(0, at)
-  const dom = email.slice(at)
-  return user[0] + '***' + dom
-}
-
-function openInviteModal(){
-  const link = window.location.origin + '/cadastro.html'
-  $('invite-link').value = link
-  $('modal-invite').style.display = 'flex'
-}
-
-async function copyInviteLink(){
-  const link = $('invite-link').value
-  try {
-    await navigator.clipboard.writeText(link)
-    const btn = $('copy-btn')
-    const orig = btn.innerHTML
-    btn.innerHTML = '<i class="ti ti-check" aria-hidden="true"></i> Copiado!'
-    setTimeout(() => { btn.innerHTML = orig }, 2000)
-    toast('Link copiado!')
-  } catch(err){
-    // Fallback: seleciona o texto
-    $('invite-link').select()
-    document.execCommand('copy')
-    toast('Link copiado!')
-  }
-}
-
-function shareWhatsApp(){
-  const link = $('invite-link').value
-  const msg = `🥋 *Art of BJJ* — cadastre-se no app da academia:\n\n${link}`
-  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
-}
-
-async function shareNative(){
-  const link = $('invite-link').value
-  if(navigator.share){
-    try {
-      await navigator.share({
-        title: 'Art of BJJ',
-        text: 'Cadastre-se no app da academia:',
-        url: link
-      })
-    } catch(err){
-      // Usuário cancelou — tudo bem
-    }
-  } else {
-    // Sem API de compartilhamento (desktop) → copia
-    copyInviteLink()
-  }
-}
-
-async function deleteStudent(id){
-  if(!confirm('Remover este aluno? Esta ação não pode ser desfeita.')) return
-  try {
-    await DB.deleteAluno(id)
-    state.alunos = state.alunos.filter(s => s.id !== id)
-    renderStudents()
-    renderPresContent()
-    toast('Aluno removido.')
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  }
-}
-
-// ─── MODAL ──────────────────────────────────────────────────────────────
-function closeModal(id){
-  $(id).style.display = 'none'
-  state.pendingFile = null
-}
-
-// ════════════════════════════════════════════════════════════════════════
-// ═════════════════════════════════════════════════════════════════════════
-// PERFIL DO ALUNO + GRADUAÇÃO
-// ═════════════════════════════════════════════════════════════════════════
-
-const FAIXAS = [
-  { id:'white', nome:'Branca' },
-  { id:'blue', nome:'Azul' },
-  { id:'purple', nome:'Roxa' },
-  { id:'brown', nome:'Marrom' },
-  { id:'black', nome:'Preta' }
-]
-
-async function openPerfilAluno(alunoId){
-  perfilAlunoId = alunoId
-  // Esconde todas as páginas e mostra a do perfil
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'))
-  let pageEl = $('page-perfil')
-  if(!pageEl){
-    document.querySelector('.app').insertAdjacentHTML('beforeend', '<div class="page" id="page-perfil"></div>')
-    pageEl = $('page-perfil')
-  }
-  pageEl.classList.add('on')
-  pageEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--txt3)">Carregando...</div>'
-
-  try {
-    const aluno = state.alunos.find(a => a.id === alunoId) || Auth.currentProfile
-    if(!aluno){
-      pageEl.innerHTML = `<div style="padding:20px;color:#e05050">Erro: perfil não encontrado.</div>`
-      return
-    }
-
-    // Carrega histórico e total de aulas em paralelo — com fallback se algo falhar
-    const [historico, totalAulas] = await Promise.all([
-      DB.getHistoricoAluno(alunoId).catch(e => { console.warn('[perfil] histórico:', e); return [] }),
-      DB.getTotalAulasAluno(alunoId).catch(e => { console.warn('[perfil] total aulas:', e); return 0 })
-    ])
-
-    const isProf = Auth.isProfessor()
-    const isSelf = Auth.currentProfile && Auth.currentProfile.id === alunoId
-    const ultimaPromocao = historico[0]
-    const aulasDesdeUltimaPromocao = ultimaPromocao ? totalAulas - (ultimaPromocao.aulas_acumuladas || 0) : totalAulas
-    const initials = (aluno.nome || '?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()
-    const faixaAtual = aluno.faixa || 'white'
-    const grauAtual = aluno.grau || 0
-    const faixaNome = FAIXAS.find(f=>f.id===faixaAtual)?.nome || 'Branca'
-
-    // Botão de editar avatar aparece pro próprio aluno OU pro professor/founder
-    const podeEditarAvatar = isSelf || Auth.isProfessor()
-    const avatarConteudo = aluno.avatar_url
-      ? `<img class="perfil-avatar-img" src="${safeUrl(aluno.avatar_url)}" alt="Foto de ${escapeHtml(aluno.nome)}">`
-      : `<div class="perfil-avatar-initials">${initials}</div>`
-    const avatarBotao = podeEditarAvatar
-      ? `<button class="perfil-avatar-btn" onclick="openAvatarSheet('${alunoId}')" aria-label="Trocar foto" title="Trocar foto">
-          <i class="ti ti-camera" aria-hidden="true"></i>
-        </button>`
-      : ''
-
-    pageEl.innerHTML = `
-      ${isProf ? '<button class="back-btn" onclick="voltarParaAlunos()"><i class="ti ti-arrow-left"></i> Voltar</button>' : ''}
-      <div class="slabel">${isSelf?'Meu Perfil':'Perfil do Aluno'}</div>
-
-      <div class="perfil-header">
-        <div class="perfil-avatar-wrap">
-          <div class="perfil-avatar">${avatarConteudo}</div>
-          ${avatarBotao}
-        </div>
-        <div class="perfil-info">
-          <div class="perfil-nome">${escapeHtml(aluno.nome || '?')}</div>
-          <div class="perfil-email">
-            ${escapeHtml(aluno.email || '')}
-            ${isSelf ? `<button class="perfil-email-edit" onclick="openEditarEmailModal()" aria-label="Alterar e-mail" title="Alterar e-mail"><i class="ti ti-edit"></i></button>` : ''}
-          </div>
-          ${aluno.created_at ? `<div style="font-size:10px;color:var(--txt3);margin-top:2px"><i class="ti ti-calendar" aria-hidden="true"></i> Cadastrado em ${formatDate(aluno.created_at)}</div>` : ''}
-          <div class="perfil-faixa-atual" style="margin-top:8px">
-            <div class="perfil-faixa-display">
-              <div class="belt ${faixaAtual}">${grauAtual>0?'<div class="belt-graus">'+'<span></span>'.repeat(grauAtual)+'</div>':''}</div>
-              <div>
-                <div class="perfil-faixa-nome">FAIXA ${String(faixaNome).toUpperCase()}</div>
-                <div class="perfil-faixa-grau">${grauAtual>0?grauAtual+'º grau · ':''}${ultimaPromocao?'desde '+formatDate(ultimaPromocao.data):''}</div>
-              </div>
-            </div>
-          </div>
-          ${isProf && !isSelf ? `<div class="perfil-actions">
-            <button class="pbtn" onclick="openPromoverModal()"><i class="ti ti-arrow-up"></i> Graduar</button>
-            <button class="fbtn" onclick="openEditarAlunoModal()"><i class="ti ti-edit"></i> Editar dados</button>
-          </div>` : ''}
-        </div>
-      </div>
-
-      <div class="stat-grid">
-        <div class="stat-cell clickable" onclick="abrirModalAulasFreq('${alunoId}')" role="button" tabindex="0" title="Ver aulas frequentadas">
-          <div class="stat-num">${totalAulas}</div>
-          <div class="stat-label">Total de aulas</div>
-        </div>
-        <div class="stat-cell">
-          <div class="stat-num">${aulasDesdeUltimaPromocao}</div>
-          <div class="stat-label">Desde última graduação</div>
-        </div>
-        <div class="stat-cell">
-          <div class="stat-num">${historico.length}</div>
-          <div class="stat-label">Graduações</div>
-        </div>
-      </div>
-
-      <div id="perfil-mensalidade-area"></div>
-
-      <div class="timeline-header">
-        <div class="timeline-title">Histórico de Graduação</div>
-      </div>
-      <div class="timeline">
-        ${historico.length === 0 ? '<div style="padding:20px;text-align:center;color:var(--txt3);font-size:12px">Nenhuma graduação registrada ainda.</div>' :
-        `<div class="timeline-list">
-          ${historico.map((h, i) => {
-            const fnome = FAIXAS.find(f=>f.id===h.faixa)?.nome || h.faixa || 'Branca'
-            return `<div class="tl-item">
-              <div class="tl-marker ${i===0?'current':''}"><i class="ti ti-${i===0?'circle-check-filled':'arrow-up'}"></i></div>
-              <div class="tl-content">
-                <div class="tl-faixa">
-                  <div class="belt ${h.faixa || 'white'}"></div>
-                  <span class="tl-faixa-name">FAIXA ${String(fnome).toUpperCase()}</span>
-                  ${h.grau>0?'<span class="tl-faixa-grau">· '+h.grau+'º grau</span>':''}
-                  ${i===0?'<span class="tl-faixa-grau">(atual)</span>':''}
-                </div>
-                <div class="tl-date">${formatDate(h.data)}</div>
-                ${h.nota?'<div class="tl-note">"'+escapeHtml(h.nota)+'"</div>':''}
-                <div class="tl-aulas">${h.aulas_acumuladas||0} aulas acumuladas</div>
-              </div>
-            </div>`
-          }).join('')}
-        </div>`}
-      </div>
-    `
-    // Carrega mensalidade depois do HTML montar
-    carregarMensalidadeNoPerfil(alunoId)
-  } catch(err){
-    pageEl.innerHTML = `<div style="padding:20px;color:#e05050">Erro: ${escapeHtml(err.message)}</div>`
-  }
-}
-
-function voltarParaAlunos(){
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'))
-  $('page-students').classList.add('on')
-  $('nav-bar').querySelectorAll('.nb').forEach(b => {
-    b.classList.toggle('active', b.dataset.page === 'students')
-  })
-}
-
-function openPerfilSelf(){
-  if(Auth.currentProfile) openPerfilAluno(Auth.currentProfile.id)
-}
-
-// Modal: lista de aulas frequentadas (abre ao clicar no card "Total de aulas")
-async function abrirModalAulasFreq(alunoId){
-  const old = $('modal-aulas-freq'); if(old) old.remove()
-  // Cria modal já com estado de loading
-  document.body.insertAdjacentHTML('beforeend', `
-    <div class="mlay" id="modal-aulas-freq" style="display:flex" onclick="if(event.target===this) document.getElementById('modal-aulas-freq').remove()">
-      <div class="mbox" style="max-width:480px;width:100%">
-        <div class="mhead">
-          <span class="mtitle">Aulas Frequentadas</span>
-          <button class="mclose" onclick="document.getElementById('modal-aulas-freq').remove()" aria-label="Fechar">✕</button>
-        </div>
-        <div class="mbody" id="aulas-freq-body" style="max-height:60vh;overflow-y:auto">
-          <div style="padding:30px;text-align:center;color:var(--txt3);font-size:12px">Carregando...</div>
-        </div>
-      </div>
-    </div>
-  `)
-
-  try {
-    const presencas = await DB.getPresencasDetalhadasAluno(alunoId)
-    const body = $('aulas-freq-body')
-    if(!body) return
-
-    if(presencas.length === 0){
-      body.innerHTML = `<div style="padding:30px;text-align:center;color:var(--txt3);font-size:12px">Nenhuma aula registrada ainda.</div>`
-      return
-    }
-
-    // Mapa do schedule pra resolver detalhes mesmo sem JOIN
-    const schedById = {}
-    Object.values(state.schedule || {}).forEach(diaArr => {
-      ;(Array.isArray(diaArr)?diaArr:[]).forEach(s => { if(s && s.id) schedById[s.id] = s })
-    })
-
-    const MESES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ']
-
-    body.innerHTML = `
-      <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--txt3);margin-bottom:8px">
-        ${presencas.length} ${presencas.length===1?'aula':'aulas'}
-      </div>
-      <div class="aulas-freq-list">
-      ${presencas.map(p => {
-        const sch = (p.schedule && typeof p.schedule === 'object') ? p.schedule : schedById[p.schedule_id]
-        const dt = new Date(p.data + 'T00:00:00')
-        const dataLabel = dt.getDate() + ' ' + MESES[dt.getMonth()]
-        const nome = sch?.nome || 'Treino'
-        const horario = sch?.horario || ''
-        const tipo = (sch?.tipo || '').toLowerCase()
-        const tipoLabel = tipo === 'gi' ? 'Gi' : tipo === 'nogi' ? 'No-Gi' : tipo === 'kids' ? 'Kids' : ''
-        return `
-          <div class="aula-freq-item">
-            <div class="aula-freq-data">${dataLabel}</div>
-            <div class="aula-freq-info">
-              <div class="aula-freq-nome">${escapeHtml(nome)}</div>
-              ${horario ? `<div class="aula-freq-hora">${escapeHtml(horario)}</div>` : ''}
-            </div>
-            ${tipoLabel ? `<span class="aula-freq-badge ${tipo}">${tipoLabel}</span>` : ''}
-          </div>
-        `
-      }).join('')}
-      </div>
-    `
-  } catch(err){
-    const body = $('aulas-freq-body')
-    if(body) body.innerHTML = `<div style="padding:20px;color:#e05050;font-size:12px">Erro ao carregar: ${escapeHtml(err.message)}</div>`
-  }
-}
-
-// Modal de promoção
-let promoSel = { faixa:'white', grau:0 }
-
-function openPromoverModal(){
-  const aluno = state.alunos.find(a => a.id === perfilAlunoId)
-  if(!aluno) return
-  promoSel = { faixa: aluno.faixa || 'white', grau: aluno.grau || 0 }
-  const today = new Date().toISOString().slice(0,10)
-  const html = `
-    <div class="mlay" id="modal-promover" style="display:flex">
-      <div class="mbox">
-        <div class="mhead">
-          <span class="mtitle">Graduar ${escapeHtml(aluno.nome)}</span>
-          <button class="mclose" onclick="closeModal('modal-promover')">✕</button>
-        </div>
-        <div class="mbody">
-          <div class="form-row">
-            <label class="form-label">Nova faixa</label>
-            <div class="promo-faixas" id="promo-faixas">
-              ${FAIXAS.map(f => `
-                <div class="promo-faixa-opt ${f.id===promoSel.faixa?'active':''}" data-faixa="${f.id}" onclick="selectPromoFaixa('${f.id}')">
-                  <div class="belt ${f.id}"></div>
-                  <div class="promo-faixa-opt-name">${escapeHtml(f.nome)}</div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-          <div class="form-row">
-            <label class="form-label">Novo grau</label>
-            <div class="promo-grau-row" id="promo-graus">
-              ${[0,1,2,3,4].map(g => `
-                <button class="promo-grau-btn ${g===promoSel.grau?'active':''}" data-grau="${g}" onclick="selectPromoGrau(${g})">${g}</button>
-              `).join('')}
-            </div>
-          </div>
-          <div class="form-row">
-            <label class="form-label">Nota (opcional)</label>
-            <textarea class="form-textarea" id="promo-nota" style="min-height:70px" placeholder="Ex: Evolução técnica notável..."></textarea>
-          </div>
-          <div class="form-row">
-            <label class="form-label">Data da graduação</label>
-            <input class="form-input" type="date" id="promo-data" value="${today}">
-          </div>
-        </div>
-        <div class="mfoot">
-          <button class="fbtn" onclick="closeModal('modal-promover')">Cancelar</button>
-          <button class="pbtn" onclick="confirmarPromover()"><i class="ti ti-check"></i> Confirmar</button>
-        </div>
-      </div>
-    </div>
-  `
-  const old = $('modal-promover'); if(old) old.remove()
-  document.body.insertAdjacentHTML('beforeend', html)
-}
-
-function selectPromoFaixa(f){
-  promoSel.faixa = f
-  document.querySelectorAll('#promo-faixas .promo-faixa-opt').forEach(el => {
-    el.classList.toggle('active', el.dataset.faixa === f)
-  })
-}
-function selectPromoGrau(g){
-  promoSel.grau = g
-  document.querySelectorAll('#promo-graus .promo-grau-btn').forEach(el => {
-    el.classList.toggle('active', parseInt(el.dataset.grau) === g)
-  })
-}
-
-async function confirmarPromover(){
-  const nota = $('promo-nota').value.trim()
-  const data = $('promo-data').value
-  if(!data){ toast('Selecione a data.', true); return }
-  try {
-    const totalAulas = await DB.getTotalAulasAluno(perfilAlunoId)
-    await DB.promoverAluno(perfilAlunoId, promoSel.faixa, promoSel.grau, data, nota || null, totalAulas)
-    // Atualiza no state
-    const aluno = state.alunos.find(a => a.id === perfilAlunoId)
-    if(aluno){ aluno.faixa = promoSel.faixa; aluno.grau = promoSel.grau }
-    closeModal('modal-promover'); $('modal-promover').remove()
-    toast('Aluno promovido!')
-    openPerfilAluno(perfilAlunoId)
-  } catch(err){ toast('Erro: '+err.message, true) }
-}
-
-// ─── EDITAR DADOS DO ALUNO (do perfil) ──────────────────────────────────
-
-function openEditarAlunoModal(){
-  const aluno = state.alunos.find(a => a.id === perfilAlunoId)
-  if(!aluno) return
-  const old = $('modal-edit-aluno'); if(old) old.remove()
-  document.body.insertAdjacentHTML('beforeend', `
-    <div class="mlay" id="modal-edit-aluno" style="display:flex">
-      <div class="mbox">
-        <div class="mhead">
-          <span class="mtitle">Editar Dados</span>
-          <button class="mclose" onclick="closeModal('modal-edit-aluno');document.getElementById('modal-edit-aluno').remove()">✕</button>
-        </div>
-        <div class="mbody">
-          <div class="mrow">
-            <label class="mlabel">Nome completo</label>
-            <input class="sinput" id="ea-nome" style="width:100%" value="${escapeHtml(aluno.nome || '')}">
-          </div>
-          <div class="mrow">
-            <label class="mlabel">Email</label>
-            <input class="sinput" id="ea-email" style="width:100%" value="${escapeHtml(aluno.email || '')}" type="email">
-            <div style="font-size:10px;color:var(--txt3);margin-top:4px">Email não pode ser alterado por aqui (vinculado ao login).</div>
-          </div>
-          <div class="mrow">
-            <label class="mlabel">Faixa atual (sem registro de graduação)</label>
-            <select class="mselect" id="ea-faixa" style="width:100%">
-              <option value="white">Branca</option>
-              <option value="blue">Azul</option>
-              <option value="purple">Roxa</option>
-              <option value="brown">Marrom</option>
-              <option value="black">Preta</option>
-            </select>
-            <div style="font-size:10px;color:var(--txt3);margin-top:4px">Use "Graduar" pra registrar no histórico. Aqui é só ajuste manual.</div>
-          </div>
-        </div>
-        <div class="mfoot">
-          <button class="fbtn" onclick="closeModal('modal-edit-aluno');document.getElementById('modal-edit-aluno').remove()">Cancelar</button>
-          <button class="pbtn" onclick="salvarEdicaoAluno()"><i class="ti ti-check"></i> Salvar</button>
-        </div>
-      </div>
-    </div>
-  `)
-  $('ea-email').disabled = true
-  $('ea-faixa').value = aluno.faixa || 'white'
-}
-
-async function salvarEdicaoAluno(){
-  const nome = $('ea-nome').value.trim()
-  const faixa = $('ea-faixa').value
-  if(!nome){ toast('Nome obrigatório.', true); return }
-  try {
-    await DB.updateAluno(perfilAlunoId, { nome, faixa })
-    const a = state.alunos.find(a => a.id === perfilAlunoId)
-    if(a){ a.nome = nome; a.faixa = faixa }
-    toast('Dados atualizados!')
-    closeModal('modal-edit-aluno'); $('modal-edit-aluno').remove()
-    openPerfilAluno(perfilAlunoId)
-  } catch(err){ toast('Erro: '+err.message, true) }
-}
-
-// ─── REGRAS DE GRADUAÇÃO (settings) ─────────────────────────────────────
-
-const FAIXAS_REGRAS = [
-  { id: 'white', nome: 'Branca' },
-  { id: 'blue', nome: 'Azul' },
-  { id: 'purple', nome: 'Roxa' },
-  { id: 'brown', nome: 'Marrom' },
-  { id: 'black', nome: 'Preta' },
-]
-
-async function loadRegrasGraduacao(){
-  if(!Auth.isProfessor()) return
-  const cont = $('regras-list')
-  if(!cont) return
-  try {
-    const regras = await DB.getRegrasGraduacao()
-    const map = {}
-    regras.forEach(r => { map[r.faixa] = r })
-    cont.innerHTML = FAIXAS_REGRAS.map(f => {
-      const r = map[f.id] || { aulas_min: 0, meses_min: 0 }
-      return `<div style="display:flex;align-items:center;gap:10px;background:var(--surf2);border:0.5px solid var(--border);border-radius:2px;padding:10px 12px">
-        <div class="belt ${f.id}" style="width:30px;height:8px;flex-shrink:0"></div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:1px;min-width:70px">${f.nome.toUpperCase()}</div>
-        <input class="sinput" type="number" min="0" id="reg-aulas-${f.id}" value="${r.aulas_min || 0}" style="width:80px;text-align:center" placeholder="aulas">
-        <span style="font-size:10px;color:var(--txt3)">aulas</span>
-        <input class="sinput" type="number" min="0" id="reg-meses-${f.id}" value="${r.meses_min || 0}" style="width:70px;text-align:center" placeholder="meses">
-        <span style="font-size:10px;color:var(--txt3)">meses</span>
-        <button class="pbtn" style="margin-left:auto;padding:6px 10px;font-size:9px" onclick="saveRegra('${f.id}')">Salvar</button>
-      </div>`
-    }).join('')
-  } catch(err){
-    cont.innerHTML = `<div style="color:#e05050;font-size:11px">Erro: ${escapeHtml(err.message)}</div>`
-  }
-}
-
-async function saveRegra(faixa){
-  const aulas = parseInt($(`reg-aulas-${faixa}`).value) || 0
-  const meses = parseInt($(`reg-meses-${faixa}`).value) || 0
-  try {
-    await DB.saveRegraGraduacao(faixa, aulas, meses)
-    toast('Regra salva!')
-  } catch(err){ toast('Erro: '+err.message, true) }
-}
-
-// ─── UTILS ──────────────────────────────────────────────────────────────
-
-function escapeHtml(s){
-  if(s == null) return ''
-  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))
-}
-
-// Valida URL pra usar em <a href>, <img src>, <source src>, etc.
-// Bloqueia javascript:, data:, vbscript: e outros protocolos perigosos.
-// Retorna a URL sanitizada (com aspas escapadas) ou string vazia se inválida.
-function safeUrl(url){
-  if(!url) return ''
-  const s = String(url).trim()
-  // Permite só http(s) e protocolo relativo //, ou path relativo /foo, ./foo
-  if(!/^(https?:\/\/|\/\/|\/|\.\/)/i.test(s)){
-    // Bloqueia javascript:, data:, vbscript:, file:, ftp:, etc
-    return ''
-  }
-  // Escapa aspas pra não quebrar o atributo HTML
-  return s.replace(/"/g, '%22').replace(/'/g, '%27').replace(/</g, '%3C').replace(/>/g, '%3E')
-}
-
-// Extrai um ID válido do YouTube e retorna URL de embed.
-// Aceita: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/embed/ID, /shorts/ID.
-// Retorna string vazia se a URL não for YouTube válido.
-function safeYouTubeEmbed(raw){
-  if(!raw) return ''
-  let id = null
-  try {
-    const u = new URL(raw)
-    const host = u.hostname.replace(/^www\./, '')
-    if(host === 'youtu.be'){
-      id = u.pathname.slice(1).split(/[?&#]/)[0]
-    } else if(host === 'youtube.com' || host === 'm.youtube.com' || host === 'youtube-nocookie.com'){
-      if(u.searchParams.get('v')){
-        id = u.searchParams.get('v')
-      } else if(u.pathname.startsWith('/embed/')){
-        id = u.pathname.split('/embed/')[1].split(/[?&#]/)[0]
-      } else if(u.pathname.startsWith('/shorts/')){
-        id = u.pathname.split('/shorts/')[1].split(/[?&#]/)[0]
-      }
-    }
-  } catch {
-    // Tentar extrair ID puro (11 chars)
-    const m = String(raw).match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/)
-    if(m) id = m[1]
-  }
-  // Validar ID: YouTube IDs são exatamente 11 caracteres alfanuméricos + _ -
-  if(!id || !/^[a-zA-Z0-9_-]{11}$/.test(id)) return ''
-  return `https://www.youtube.com/embed/${id}`
-}
-function formatDate(d){
-  if(!d) return ''
-  const dt = new Date(d)
-  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
-  return `${dt.getDate()} ${meses[dt.getMonth()]} ${dt.getFullYear()}`
-}
-
-// ════════════════════════════════════════════════════════════════════════
-// FASE 3: MURAL DE RECADOS
-// ════════════════════════════════════════════════════════════════════════
-
-const state_mural = { recados: [], editing: null }
-
-async function renderComunicacao(){
-  try {
-    state_mural.recados = await DB.getRecados()
-    renderMural()
-  } catch(err){
-    console.error('[mural]', err)
-    $('mural-list').innerHTML = `<div class="empty-state"><div class="empty-text" style="color:#e05050">Erro ao carregar: ${escapeHtml(err.message)}</div></div>`
-  }
-}
-
-function renderMural(){
-  const recs = state_mural.recados
-  $('mural-count').textContent = recs.length === 1 ? '1 recado' : recs.length + ' recados'
-  const isProf = Auth.isProfessor()
-
-  if(recs.length === 0){
-    $('mural-list').innerHTML = `<div class="empty-state" style="text-align:center;padding:60px 20px;background:var(--surf);border:1px dashed var(--border);border-radius:var(--r-sm)">
-      <i class="ti ti-pin" style="font-size:36px;color:var(--txt3);margin-bottom:12px;display:block"></i>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--txt2);margin-bottom:6px">Nenhum recado ainda</div>
-      <div style="font-size:12px;color:var(--txt3)">${isProf ? 'Clique em "Novo recado" para começar.' : 'Aguarde avisos do professor.'}</div>
-    </div>`
-    return
-  }
-
-  const MESES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ']
-
-  $('mural-list').innerHTML = recs.map(r => {
-    const d = new Date(r.criado_em)
-    const dia = d.getDate()
-    const mes = MESES[d.getMonth()]
-    const tempo = tempoAtras(r.criado_em)
-    return `<div class="mural-card ${r.fixado ? 'fixed' : ''}" onclick="openRecadoDetail('${r.id}')" style="cursor:pointer">
-      <div class="mural-date">
-        <div class="mural-dia">${dia}</div>
-        <div class="mural-mes">${mes}</div>
-      </div>
-      <div class="mural-info">
-        <div class="mural-tit">${escapeHtml(r.titulo)}</div>
-        <div class="mural-meta">
-          ${r.fixado ? '<i class="ti ti-pin-filled" style="font-size:11px"></i> Fixado · ' : ''}
-          ${tempo}
-        </div>
-        <div class="mural-txt">${escapeHtml(r.texto)}</div>
-      </div>
-      ${isProf ? `<div class="mural-acts" onclick="event.stopPropagation()">
-        <button class="ibtn" onclick="event.stopPropagation();openRecadoModal('${r.id}')" aria-label="Editar"><i class="ti ti-edit"></i></button>
-        <button class="dbtn" onclick="event.stopPropagation();deleteRecado('${r.id}')" aria-label="Excluir"><i class="ti ti-trash"></i></button>
-      </div>` : ''}
-    </div>`
-  }).join('')
-}
-
-
-function openRecadoModal(id){
-  state_mural.editing = id
-  if(id){
-    const r = state_mural.recados.find(x => x.id === id)
-    if(!r) return
-    $('rec-title').textContent = 'Editar Recado'
-    $('rec-titulo').value = r.titulo
-    $('rec-texto').value = r.texto
-    $('rec-switch').classList.toggle('on', !!r.fixado)
-  } else {
-    $('rec-title').textContent = 'Novo Recado'
-    $('rec-titulo').value = ''
-    $('rec-texto').value = ''
-    $('rec-switch').classList.remove('on')
-  }
-  $('modal-recado').style.display = 'flex'
-}
-
-async function saveRecado(){
-  const titulo = $('rec-titulo').value.trim()
-  const texto = $('rec-texto').value.trim()
-  const fixado = $('rec-switch').classList.contains('on')
-  if(!titulo || !texto){ toast('Preencha título e mensagem.', true); return }
-  try {
-    if(state_mural.editing){
-      await DB.updateRecado(state_mural.editing, { titulo, texto, fixado })
-      toast('Recado atualizado!')
-    } else {
-      await DB.createRecado(titulo, texto, fixado)
-      toast('Recado publicado!')
-    }
-    closeModal('modal-recado')
-    await renderComunicacao()
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  }
-}
-
-async function deleteRecado(id){
-  if(!confirm('Excluir este recado?')) return
-  try {
-    await DB.deleteRecado(id)
-    toast('Recado excluído.')
-    await renderComunicacao()
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  }
-}
-
-
-async function deleteGraduacao(id){
-  if(!confirm('Excluir esta graduação do histórico?')) return
-  try {
-    await DB.deleteGraduacao(id)
-    toast('Graduação removida.')
-    await openPerfilAluno(perfilAlunoId)
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  }
-}
-
-// ════════════════════════════════════════════════════════════════════════
-// FASE 3.5: TERMO DE ACEITE (gestão pelo professor)
-// ════════════════════════════════════════════════════════════════════════
-
-const state_termo = { ativo: false, texto: null, pdf_url: null }
-
-async function loadTermoConfig(){
-  if(!Auth.isProfessor()) return
-  try {
-    const cfg = await DB.getTermoConfig()
-    state_termo.ativo = cfg.termo_ativo || false
-    state_termo.texto = cfg.termo_texto || null
-    state_termo.pdf_url = cfg.termo_pdf_url || null
-
-    // Atualiza UI
-    const sw = $('termo-switch')
-    if(sw) sw.classList.toggle('on', state_termo.ativo)
-    const txt = $('termo-texto')
-    if(txt) txt.value = state_termo.texto || ''
-    updateTermoPdfUI()
-  } catch(err){
-    console.error('[termo config]', err)
-  }
-}
-
-function updateTermoPdfUI(){
-  const info = $('termo-pdf-info')
-  const rm = $('termo-pdf-remove')
-  if(!info) return
-  if(state_termo.pdf_url){
-    const name = state_termo.pdf_url.split('/').pop()
-    info.innerHTML = `<strong style="color:var(--txt)">${escapeHtml(name)}</strong> · <a href="${safeUrl(state_termo.pdf_url) || '#'}" target="_blank" rel="noopener noreferrer" style="color:var(--txt2);text-decoration:underline">Ver</a>`
-    if(rm) rm.style.display = 'inline-flex'
-  } else {
-    info.textContent = 'Nenhum PDF anexado.'
-    if(rm) rm.style.display = 'none'
-  }
-}
-
-async function toggleTermoAtivo(){
-  const sw = $('termo-switch')
-  const novoEstado = !sw.classList.contains('on')
-  sw.classList.toggle('on', novoEstado)
-  try {
-    await DB.saveTermoConfig({ termo_ativo: novoEstado })
-    state_termo.ativo = novoEstado
-    toast(novoEstado ? 'Termo ativado.' : 'Termo desativado.')
-  } catch(err){
-    sw.classList.toggle('on', !novoEstado)
-    toast('Erro: ' + err.message, true)
-  }
-}
-
-async function saveTermoTexto(){
-  const texto = $('termo-texto').value.trim()
-  try {
-    await DB.saveTermoConfig({ termo_texto: texto || null })
-    state_termo.texto = texto || null
-    toast('Texto do termo salvo!')
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  }
-}
-
-async function onTermoPdfSelected(event){
-  const file = event.target.files[0]
-  if(!file) return
-  if(file.type !== 'application/pdf'){ toast('Selecione um arquivo PDF.', true); return }
-  if(file.size > 5 * 1024 * 1024){ toast('PDF muito grande (máx 5MB).', true); return }
-  toast('Enviando PDF...')
-  try {
-    if(state_termo.pdf_url){
-      try { await DB.removeTermoPdf(state_termo.pdf_url) } catch(e){ /* ignora */ }
-    }
-    const url = await DB.uploadTermoPdf(file)
-    await DB.saveTermoConfig({ termo_pdf_url: url })
-    state_termo.pdf_url = url
-    updateTermoPdfUI()
-    toast('PDF do termo enviado!')
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  } finally {
-    event.target.value = ''
-  }
-}
-
-async function removerTermoPdf(){
-  if(!confirm('Remover o PDF do termo?')) return
-  try {
-    if(state_termo.pdf_url){
-      try { await DB.removeTermoPdf(state_termo.pdf_url) } catch(e){ /* ignora */ }
-    }
-    await DB.saveTermoConfig({ termo_pdf_url: null })
-    state_termo.pdf_url = null
-    updateTermoPdfUI()
-    toast('PDF removido.')
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  }
-}
-
-// ════════════════════════════════════════════════════════════════════════
-// FINANCEIRO / MENSALIDADES
-// ════════════════════════════════════════════════════════════════════════
-
-const state_fin = { ano: new Date().getFullYear(), mes: new Date().getMonth() + 1, configMens: { mensalidade_valor: 150, mensalidade_dia_vencimento: 10 } }
-
-const MESES_FULL = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
-
-function fmtBRL(v){ return 'R$ ' + (Number(v) || 0).toFixed(2).replace('.', ',') }
-
-async function carregarConfigMensalidade(){
-  if(!Auth.isProfessor()) return
-  try {
-    const cfg = await DB.getConfigMensalidade()
-    state_fin.configMens = cfg
-    if($('cfg-mens-valor')) $('cfg-mens-valor').value = cfg.mensalidade_valor || 150
-    if($('cfg-mens-dia')) $('cfg-mens-dia').value = cfg.mensalidade_dia_vencimento || 10
-  } catch(err) { console.warn('[mens config]', err) }
-}
-
-async function salvarConfigMensalidade(){
-  const valor = parseFloat($('cfg-mens-valor').value) || 0
-  const dia = parseInt($('cfg-mens-dia').value) || 10
-  if(valor <= 0){ toast('Valor inválido.', true); return }
-  if(dia < 1 || dia > 28){ toast('Dia entre 1 e 28.', true); return }
-  try {
-    await DB.saveConfigMensalidade(valor, dia)
-    state_fin.configMens = { mensalidade_valor: valor, mensalidade_dia_vencimento: dia }
-    toast('Mensalidade padrão salva!')
-  } catch(err){ toast('Erro: ' + err.message, true) }
-}
-
-function fin_mudaMes(delta){
-  state_fin.mes += delta
-  if(state_fin.mes < 1){ state_fin.mes = 12; state_fin.ano-- }
-  if(state_fin.mes > 12){ state_fin.mes = 1; state_fin.ano++ }
-  renderFinanceiro()
-}
-
-async function renderFinanceiro(){
-  $('fin-mes-label').textContent = `${MESES_FULL[state_fin.mes - 1]} ${state_fin.ano}`
-  try {
-    const rows = await DB.getTodosPagamentosMes(state_fin.ano, state_fin.mes)
-    const pagos = rows.filter(r => r.pago)
-    const pendentes = rows.filter(r => !r.pago)
-    const receita = pagos.reduce((s, r) => s + Number(r.valor || 0), 0)
-
-    $('fin-total-alunos').textContent = rows.length
-    $('fin-pagos').textContent = pagos.length
-    $('fin-pendentes').textContent = pendentes.length
-    $('fin-receita').textContent = fmtBRL(receita)
-
-    if(rows.length === 0){
-      $('fin-body').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--txt3)">Nenhuma cobrança neste mês.<br><span style="font-size:11px">Clique em "Gerar cobranças do mês" pra criar.</span></td></tr>`
-      return
-    }
-
-    $('fin-body').innerHTML = rows.map(p => {
-      const venc = new Date(p.data_vencimento + 'T00:00:00')
-      const hoje = new Date(); hoje.setHours(0,0,0,0)
-      const atrasado = !p.pago && venc < hoje
-      const statusClass = p.pago ? 'pago' : atrasado ? 'atrasado' : 'pendente'
-      const statusTxt = p.pago ? '✓ Pago' : atrasado ? '✕ Atrasado' : '○ Pendente'
-      const statusColor = p.pago ? 'var(--accent)' : atrasado ? '#e05050' : 'var(--txt3)'
-      return `<tr>
-        <td style="font-weight:500">${escapeHtml(p.profiles?.nome || '?')}</td>
-        <td>${fmtBRL(p.valor)}</td>
-        <td style="font-size:11px;color:${atrasado?'#e05050':'var(--txt2)'}">${formatDate(p.data_vencimento)}</td>
-        <td><span style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:${statusColor}">${statusTxt}</span></td>
-        <td style="display:flex;gap:4px">
-          ${p.pago
-            ? `<button class="fbtn" onclick="desmarcarPago('${p.id}')"><i class="ti ti-rotate"></i> Desfazer</button>`
-            : `<button class="pbtn" onclick="marcarPago('${p.id}')"><i class="ti ti-check"></i> Pago</button>`
-          }
-          <button class="dbtn" onclick="excluirPagamento('${p.id}')"><i class="ti ti-trash"></i></button>
-        </td>
-      </tr>`
-    }).join('')
-  } catch(err){
-    $('fin-body').innerHTML = `<tr><td colspan="5" style="color:#e05050;padding:20px">Erro: ${escapeHtml(err.message)}</td></tr>`
-  }
-}
-
-async function gerarMensalidadesDoMes(){
-  if(!confirm(`Gerar cobranças de ${MESES_FULL[state_fin.mes - 1]}/${state_fin.ano} para todos os alunos?`)) return
-  try {
-    const cfg = state_fin.configMens
-    const valor = cfg.mensalidade_valor || 150
-    const dia = Math.min(cfg.mensalidade_dia_vencimento || 10, 28)
-    const dataVenc = `${state_fin.ano}-${String(state_fin.mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`
-
-    // Pega pagamentos já existentes do mês pra não duplicar
-    const existentes = await DB.getTodosPagamentosMes(state_fin.ano, state_fin.mes)
-    const jaTeve = new Set(existentes.map(p => p.aluno_id))
-
-    let criadas = 0
-    for(const aluno of state.alunos){
-      if(jaTeve.has(aluno.id)) continue
-      await DB.criarPagamento(aluno.id, valor, dataVenc)
-      criadas++
-    }
-    toast(criadas === 0 ? 'Todos os alunos já tem cobrança no mês.' : `${criadas} cobrança(s) criada(s)!`)
-    renderFinanceiro()
-  } catch(err){ toast('Erro: ' + err.message, true) }
-}
-
-async function marcarPago(id){
-  const forma = prompt('Forma de pagamento (PIX, Dinheiro, Cartão, etc):', 'PIX')
-  if(forma === null) return
-  try {
-    await DB.marcarPago(id, new Date().toISOString().slice(0,10), forma)
-    toast('Marcado como pago!')
-    renderFinanceiro()
-  } catch(err){ toast('Erro: ' + err.message, true) }
-}
-
-async function desmarcarPago(id){
-  if(!confirm('Desfazer este pagamento?')) return
-  try {
-    await DB.desmarcarPago(id)
-    toast('Pagamento desfeito.')
-    renderFinanceiro()
-  } catch(err){ toast('Erro: ' + err.message, true) }
-}
-
-async function excluirPagamento(id){
-  if(!confirm('Excluir esta cobrança? Esta ação não pode ser desfeita.')) return
-  try {
-    await DB.deletePagamento(id)
-    toast('Cobrança excluída.')
-    renderFinanceiro()
-  } catch(err){ toast('Erro: ' + err.message, true) }
-}
-
-// Mensalidade no perfil do aluno
-async function carregarMensalidadeNoPerfil(alunoId){
-  const area = $('perfil-mensalidade-area')
-  if(!area) return
-  try {
-    const pagamentos = await DB.getPagamentosAluno(alunoId)
-    const cfg = state_fin.configMens
-
-    // Caso 1: Nenhum pagamento registrado
-    if(pagamentos.length === 0){
-      area.innerHTML = `
-        <div class="mens-card">
-          <div class="mens-header">
-            <span class="mens-label">Mensalidade</span>
-            <span class="mens-badge neutral">Sem cobrança</span>
-          </div>
-          <div class="mens-body">
-            <div class="mens-value">${fmtBRL(cfg.mensalidade_valor)}</div>
-            <div class="mens-info">Vencimento padrão: dia ${cfg.mensalidade_dia_vencimento} de cada mês</div>
-          </div>
-          <div class="mens-footer">
-            <small>Aguardando o professor gerar sua cobrança.</small>
-          </div>
-        </div>
-      `
-      return
-    }
-
-    // Caso 2: tem pagamentos — mostrar próximo + histórico
-    const pendente = pagamentos.find(p => !p.pago)
-    const hoje = new Date(); hoje.setHours(0,0,0,0)
-    const ultimoPago = pagamentos.find(p => p.pago)
-
-    let cardHtml = ''
-    if(pendente){
-      const venc = new Date(pendente.data_vencimento + 'T00:00:00')
-      const diasRest = Math.ceil((venc - hoje) / 86400000)
-      const atrasado = diasRest < 0
-      const cor = atrasado ? '#e05050' : (diasRest <= 3 ? '#e8c270' : 'var(--accent)')
-      const status = atrasado ? `Atrasado há ${Math.abs(diasRest)} dia(s)` : diasRest === 0 ? 'Vence hoje' : `Vence em ${diasRest} dia(s)`
-      const badge = atrasado ? '✕ ATRASADO' : (diasRest === 0 ? '⚠ HOJE' : '○ PENDENTE')
-
-      // Mostra "Pagar agora" só pro próprio aluno (não pro professor olhando outro)
-      const ehOProprioAluno = Auth.isAluno() && Auth.currentProfile?.id === alunoId
-      const botaoPagar = ehOProprioAluno ? `
-        <div class="mens-actions">
-          <button class="pbtn mens-pay-btn" onclick="pagarMinhaMensalidade('${pendente.id}', ${pendente.valor})">
-            <i class="ti ti-credit-card" aria-hidden="true"></i> Pagar agora
-          </button>
-          <div class="mens-pay-hint">Pagamento online em breve · por ora registramos manualmente</div>
-        </div>
-      ` : ''
-
-      cardHtml = `
-        <div class="mens-card" style="border-left:3px solid ${cor}">
-          <div class="mens-header">
-            <span class="mens-label">Próximo Vencimento</span>
-            <span class="mens-badge" style="color:${cor};border-color:${cor}">${badge}</span>
-          </div>
-          <div class="mens-body">
-            <div class="mens-value">${fmtBRL(pendente.valor)}</div>
-            <div class="mens-info" style="color:${cor}">${status}  ·  ${formatDate(pendente.data_vencimento)}</div>
-          </div>
-          ${botaoPagar}
-        </div>
-      `
-    } else if(ultimoPago){
-      // Todos em dia
-      cardHtml = `
-        <div class="mens-card" style="border-left:3px solid var(--accent)">
-          <div class="mens-header">
-            <span class="mens-label">Mensalidade</span>
-            <span class="mens-badge" style="color:var(--accent);border-color:var(--accent)">✓ EM DIA</span>
-          </div>
-          <div class="mens-body">
-            <div class="mens-value">${fmtBRL(ultimoPago.valor)}</div>
-            <div class="mens-info">Último pagamento em ${formatDate(ultimoPago.data_pagamento || ultimoPago.data_vencimento)}${ultimoPago.forma_pagamento ? ' · ' + ultimoPago.forma_pagamento : ''}</div>
-          </div>
-        </div>
-      `
-    }
-
-    // Histórico (últimos 6)
-    const pagos = pagamentos.filter(p => p.pago).slice(0, 6)
-    if(pagos.length > 0){
-      cardHtml += `
-        <div class="mens-history">
-          <div class="mens-history-title">Histórico de pagamentos</div>
-          <table class="mens-tbl">
-            <thead><tr><th>Data</th><th>Valor</th><th>Forma</th></tr></thead>
-            <tbody>
-              ${pagos.map(p => `
-                <tr>
-                  <td>${formatDate(p.data_pagamento || p.data_vencimento)}</td>
-                  <td>${fmtBRL(p.valor)}</td>
-                  <td>${escapeHtml(p.forma_pagamento || '—')}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `
-    }
-    area.innerHTML = cardHtml
-  } catch(err){
-    console.warn('[mensalidade perfil]', err)
-    area.innerHTML = ''
-  }
-}
-
-// ════════════════════════════════════════════════════════════════════════
-// EVENTOS
-// ════════════════════════════════════════════════════════════════════════
-const state_eventos = { list: [] }
-
-async function renderEventos(){
-  try {
-    state_eventos.list = await DB.getEventos()
-    const list = state_eventos.list
-    $('eventos-count').textContent = list.length === 1 ? '1 evento' : list.length + ' eventos'
-    if(list.length === 0){
-      $('eventos-list').innerHTML = `<div class="empty-state"><div class="empty-text">Nenhum evento cadastrado ainda.</div></div>`
-      return
-    }
-    const hoje = new Date(); hoje.setHours(0,0,0,0)
-    $('eventos-list').innerHTML = list.map(e => {
-      const dt = new Date(e.data_evento + 'T00:00:00')
-      const passou = dt < hoje
-      return `<div class="evento-card${passou?' past':''}" onclick="openEventoDetail('${e.id}')" style="cursor:pointer">
-        <div class="evento-date">
-          <div class="evento-dia">${dt.getDate()}</div>
-          <div class="evento-mes">${['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][dt.getMonth()]}</div>
-        </div>
-        <div class="evento-info">
-          <div class="evento-titulo">${escapeHtml(e.titulo)}</div>
-          ${e.hora ? `<div class="evento-meta"><i class="ti ti-clock"></i> ${escapeHtml(e.hora)}</div>` : ''}
-          ${e.local ? `<div class="evento-meta"><i class="ti ti-map-pin"></i> ${escapeHtml(e.local)}</div>` : ''}
-          ${e.descricao ? `<div class="evento-desc">${escapeHtml(e.descricao)}</div>` : ''}
-        </div>
-        ${Auth.isProfessor() ? `<div class="evento-actions" onclick="event.stopPropagation()">
-          <button class="ibtn" onclick="event.stopPropagation();openEventoModal('${e.id}')"><i class="ti ti-edit"></i></button>
-          <button class="dbtn" onclick="event.stopPropagation();deleteEvento('${e.id}')"><i class="ti ti-trash"></i></button>
-        </div>` : ''}
-      </div>`
-    }).join('')
-  } catch(err) {
-    $('eventos-list').innerHTML = `<div class="empty-state"><div class="empty-text" style="color:#e05050">Erro: ${escapeHtml(err.message)}</div></div>`
-  }
-}
-
-function openEventoModal(id){
-  const ev = id ? state_eventos.list.find(e => e.id === id) : null
-  const old = $('modal-evento'); if(old) old.remove()
-  document.body.insertAdjacentHTML('beforeend', `
-    <div class="mlay" id="modal-evento" style="display:flex">
-      <div class="mbox">
-        <div class="mhead">
-          <span class="mtitle">${id ? 'Editar Evento' : 'Novo Evento'}</span>
-          <button class="mclose" onclick="document.getElementById('modal-evento').remove()">✕</button>
-        </div>
-        <div class="mbody">
-          <div class="mrow">
-            <label class="mlabel">Título</label>
-            <input class="sinput" id="ev-titulo" style="width:100%" value="${ev ? escapeHtml(ev.titulo) : ''}" placeholder="Ex: Campeonato Regional">
-          </div>
-          <div class="mrow">
-            <label class="mlabel">Data</label>
-            <input class="sinput" type="date" id="ev-data" style="width:100%" value="${ev ? ev.data_evento : new Date().toISOString().slice(0,10)}">
-          </div>
-          <div class="mrow">
-            <label class="mlabel">Hora (opcional)</label>
-            <input class="sinput" id="ev-hora" style="width:100%" value="${ev ? escapeHtml(ev.hora || '') : ''}" placeholder="Ex: 09:00">
-          </div>
-          <div class="mrow">
-            <label class="mlabel">Local (opcional)</label>
-            <input class="sinput" id="ev-local" style="width:100%" value="${ev ? escapeHtml(ev.local || '') : ''}" placeholder="Ex: Ginásio Municipal">
-          </div>
-          <div class="mrow">
-            <label class="mlabel">Descrição (opcional)</label>
-            <textarea class="sinput" id="ev-desc" style="width:100%;min-height:80px;resize:vertical;font-family:'DM Sans',sans-serif" placeholder="Detalhes do evento...">${ev ? escapeHtml(ev.descricao || '') : ''}</textarea>
-          </div>
-        </div>
-        <div class="mfoot">
-          <button class="fbtn" onclick="document.getElementById('modal-evento').remove()">Cancelar</button>
-          <button class="pbtn" onclick="salvarEvento('${id || ''}')"><i class="ti ti-check"></i> Salvar</button>
-        </div>
-      </div>
-    </div>
-  `)
-}
-
-async function salvarEvento(id){
-  const titulo = $('ev-titulo').value.trim()
-  const data_evento = $('ev-data').value
-  const hora = $('ev-hora').value.trim() || null
-  const local = $('ev-local').value.trim() || null
-  const descricao = $('ev-desc').value.trim() || null
-  if(!titulo || !data_evento){ toast('Título e data são obrigatórios.', true); return }
-  try {
-    if(id){
-      await DB.updateEvento(id, { titulo, data_evento, hora, local, descricao })
-    } else {
-      await DB.createEvento({ titulo, data_evento, hora, local, descricao })
-    }
-    toast(id ? 'Evento atualizado!' : 'Evento criado!')
-    document.getElementById('modal-evento').remove()
-    renderEventos()
-  } catch(err){ toast('Erro: ' + err.message, true) }
-}
-
-async function deleteEvento(id){
-  if(!confirm('Excluir este evento?')) return
-  try {
-    await DB.deleteEvento(id)
-    toast('Evento excluído.')
-    renderEventos()
-  } catch(err){ toast('Erro: ' + err.message, true) }
-}
-
-function switchComTab(tab){
-  document.querySelectorAll('.com-tab').forEach(t => t.classList.toggle('active', t.dataset.com === tab))
-  document.querySelectorAll('.com-pane').forEach(p => p.classList.toggle('on', p.id === 'com-pane-' + tab))
-  if(tab === 'eventos') renderEventos()
-  if(tab === 'mural') renderComunicacao()
-}
-
-// ════════════════════════════════════════════════════════════════════════
-// NOTIFICAÇÕES (sino + dropdown)
-// ════════════════════════════════════════════════════════════════════════
-const state_notif = { list: [], naoLidas: 0, aberto: false }
-
-async function carregarNotificacoes(){
-  if(!Auth.currentProfile) return
-  try {
-    const [list, count] = await Promise.all([
-      DB.getMinhasNotificacoes(Auth.currentProfile.id).catch(() => []),
-      DB.contarNaoLidas(Auth.currentProfile.id).catch(() => 0)
-    ])
-    state_notif.list = list
-    state_notif.naoLidas = count
-    atualizarBadge()
-  } catch(err) {
-    console.warn('[notif]', err)
-  }
-}
-
-function atualizarBadge(){
-  const badge = $('bell-badge')
-  if(!badge) return
-  if(state_notif.naoLidas > 0){
-    badge.textContent = state_notif.naoLidas > 9 ? '9+' : state_notif.naoLidas
-    badge.style.display = 'inline-block'
-  } else {
-    badge.style.display = 'none'
-  }
-}
-
-function toggleSinoNotif(){
-  state_notif.aberto = !state_notif.aberto
-  const dd = $('notif-dropdown')
-  if(state_notif.aberto){
-    renderDropdownNotif()
-    dd.style.display = 'block'
-  } else {
-    dd.style.display = 'none'
-  }
-}
-
-function renderDropdownNotif(){
-  const list = state_notif.list
-  if(list.length === 0){
-    $('notif-list').innerHTML = `<div style="padding:30px 20px;text-align:center;color:var(--txt3);font-size:12px">Nenhuma notificação ainda.</div>`
-    return
-  }
-  $('notif-list').innerHTML = list.map(n => `
-    <div class="notif-item${n.lida ? '' : ' unread'}" onclick="openNotifDetail('${n.id}')">
-      <div class="notif-titulo">${escapeHtml(n.titulo)}</div>
-      ${n.texto ? `<div class="notif-texto">${escapeHtml(n.texto)}</div>` : ''}
-      <div class="notif-time">${tempoAtras(n.criado_em)}</div>
-    </div>
-  `).join('')
-}
-
-function tempoAtras(timestamp){
-  const diff = (Date.now() - new Date(timestamp).getTime()) / 1000
-  if(diff < 60) return 'agora'
-  if(diff < 3600) return Math.floor(diff/60) + 'min'
-  if(diff < 86400) return Math.floor(diff/3600) + 'h'
-  if(diff < 604800) return Math.floor(diff/86400) + 'd'
-  return new Date(timestamp).toLocaleDateString('pt-BR')
-}
-
-async function marcarNotifLida(id){
-  try {
-    await DB.marcarNotifLida(id)
-    const n = state_notif.list.find(x => x.id === id)
-    if(n && !n.lida){
-      n.lida = true
-      state_notif.naoLidas = Math.max(0, state_notif.naoLidas - 1)
-    }
-    renderDropdownNotif()
-    atualizarBadge()
-  } catch(err){ console.warn('[marcar lida]', err) }
-}
-
-async function marcarTodasLidas(){
-  try {
-    await DB.marcarTodasLidas(Auth.currentProfile.id)
-    state_notif.list.forEach(n => n.lida = true)
-    state_notif.naoLidas = 0
-    renderDropdownNotif()
-    atualizarBadge()
-    toast('Marcadas como lidas.')
-  } catch(err){ toast('Erro: ' + err.message, true) }
-}
-
-// Fechar dropdown ao clicar fora
-document.addEventListener('click', (e) => {
-  if(!state_notif.aberto) return
-  const dd = $('notif-dropdown'); const bell = $('bell-btn')
-  if(dd && !dd.contains(e.target) && bell && !bell.contains(e.target)){
-    state_notif.aberto = false
-    dd.style.display = 'none'
-  }
-})
-
-// ═══════════════════════════════════════════════════════════════════════
-//   AVATAR (foto de perfil)
-// ═══════════════════════════════════════════════════════════════════════
-
-// Abre um pequeno modal com opções: trocar foto / remover
-function openAvatarSheet(alunoId){
-  // Verificação de permissão (defesa em profundidade)
-  const isSelf = Auth.currentProfile?.id === alunoId
-  if(!isSelf && !Auth.isProfessor()){
-    toast('Você não tem permissão pra trocar essa foto.', true)
-    return
-  }
-
-  // Acha o aluno na memória pra saber se já tem foto
-  let aluno = state.alunos.find(a => a.id === alunoId)
-  if(!aluno && Auth.currentProfile?.id === alunoId) aluno = Auth.currentProfile
-  const temFoto = !!(aluno && aluno.avatar_url)
-
-  // Cria modal sob demanda
-  let sheet = $('avatar-sheet')
-  if(!sheet){
-    sheet = document.createElement('div')
-    sheet.id = 'avatar-sheet'
-    sheet.className = 'mlay'
-    sheet.innerHTML = `
-      <div class="mbox" style="max-width:360px">
-        <div class="mhead">
-          <span class="mtitle">Foto de Perfil</span>
-          <button class="mclose" onclick="closeModal('avatar-sheet')">✕</button>
-        </div>
-        <div class="mbody" id="avatar-sheet-body"></div>
-      </div>
-    `
-    document.body.appendChild(sheet)
-  }
-  // Conteúdo dinâmico
-  $('avatar-sheet-body').innerHTML = `
-    <input type="file" id="avatar-file-input" accept="image/jpeg,image/png,image/webp" style="display:none">
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <button class="fbtn avatar-action-btn" onclick="document.getElementById('avatar-file-input').click()">
-        <i class="ti ti-upload" aria-hidden="true"></i>
-        ${temFoto ? 'Trocar foto' : 'Enviar foto'}
+    <div class="user-area">
+      <span class="user-name" id="user-name"></span>
+      <span class="user-role" id="user-role"></span>
+      <button class="logout-btn" id="bell-btn" aria-label="Notificações" onclick="toggleSinoNotif()" style="position:relative">
+        <i class="ti ti-bell" aria-hidden="true"></i>
+        <span id="bell-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:var(--accent);color:var(--b);font-size:9px;font-weight:600;padding:1px 5px;border-radius:8px;min-width:14px;text-align:center">0</span>
       </button>
-      ${temFoto ? `<button class="dbtn avatar-action-btn" onclick="removerAvatar('${alunoId}')">
-        <i class="ti ti-trash" aria-hidden="true"></i>
-        Remover foto
-      </button>` : ''}
+      <button class="logout-btn" id="logout-btn" aria-label="Sair">
+        <i class="ti ti-logout" aria-hidden="true"></i>
+      </button>
     </div>
-    <p style="font-size:10px;color:var(--txt3);margin-top:14px;text-align:center;line-height:1.5">
-      JPG, PNG ou WEBP até 2 MB.<br>Imagem quadrada funciona melhor.
-    </p>
-  `
-  // Conecta o input file ao handler
-  $('avatar-file-input').onchange = (e) => handleAvatarFile(e, alunoId)
-  sheet.style.display = 'flex'
-}
+  </div>
 
-// Redimensiona a imagem pra 400×400 antes de enviar (economiza banda + storage)
-async function _redimensionarAvatar(file, maxSize = 400){
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    const reader = new FileReader()
-    reader.onload = (e) => { img.src = e.target.result }
-    reader.onerror = reject
-    img.onload = () => {
-      // Crop quadrado central + resize
-      const minSide = Math.min(img.width, img.height)
-      const sx = (img.width - minSide) / 2
-      const sy = (img.height - minSide) / 2
-      const canvas = document.createElement('canvas')
-      canvas.width = maxSize
-      canvas.height = maxSize
-      const ctx = canvas.getContext('2d')
-      ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, maxSize, maxSize)
-      canvas.toBlob(
-        (blob) => blob ? resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' })) : reject(new Error('Falha ao processar imagem')),
-        'image/jpeg',
-        0.88
-      )
-    }
-    img.onerror = () => reject(new Error('Imagem inválida'))
-    reader.readAsDataURL(file)
-  })
-}
+  <!-- Dropdown de notificações -->
+  <div id="notif-dropdown" style="display:none;position:fixed;top:60px;right:20px;width:340px;max-height:480px;background:var(--b);border:0.5px solid var(--border2);border-radius:var(--r-md);box-shadow:var(--shadow-lg);z-index:200;overflow:hidden;animation:modalIn 0.2s var(--ease)">
+    <div style="padding:14px 16px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px">NOTIFICAÇÕES</div>
+      <button class="fbtn" style="padding:4px 8px;font-size:9px" onclick="marcarTodasLidas()">Marcar todas</button>
+    </div>
+    <div id="notif-list" style="max-height:400px;overflow-y:auto"></div>
+  </div>
 
-async function handleAvatarFile(event, alunoId){
-  const file = event.target.files?.[0]
-  if(!file) return
+  <div class="nav-bar" id="nav-bar"></div>
 
-  // Limite de tamanho original (proteção)
-  if(file.size > 8 * 1024 * 1024){
-    toast('Imagem muito grande (máx 8MB original).', true)
-    return
-  }
+  <!-- Páginas -->
+  <div class="page on" id="page-schedule">
+    <div class="slabel">Semana atual</div>
+    <div class="stitle" id="sch-title">Grade de Aulas</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="leg">
+        <div class="li"><div class="ld" style="background:var(--txt)"></div>Gi</div>
+        <div class="li"><div class="ld" style="background:var(--txt3)"></div>No-Gi</div>
+        <div class="li"><div class="ld" style="background:var(--txt2)"></div>Kids</div>
+      </div>
+      <button class="fbtn prof-only" id="toggle-edit-btn" onclick="toggleScheduleEdit()">
+        <i class="ti ti-edit" aria-hidden="true"></i> Editar grade
+      </button>
+    </div>
+    <div id="view-mode">
+      <div class="wgrid" id="wgrid"></div>
+      <div class="slabel" style="margin-top:8px">Aulas de hoje</div>
+      <div id="today-classes"></div>
+    </div>
+    <div id="edit-mode" style="display:none">
+      <div class="info-banner">
+        <i class="ti ti-info-circle" aria-hidden="true"></i>
+        Adicione ou remova aulas por dia. As alterações são salvas automaticamente.
+      </div>
+      <div class="grade-editor" id="grade-editor"></div>
+    </div>
+  </div>
 
-  closeModal('avatar-sheet')
-  toast('Enviando foto...')
+  <div class="page" id="page-presences">
+    <div class="slabel" id="pres-date-label">Hoje</div>
+    <div class="stitle" id="pres-title">Controle de Presenças</div>
+    <div class="dnav">
+      <button class="darrow" id="prev-day">‹</button>
+      <span class="ddate" id="cur-date-label"></span>
+      <button class="darrow" id="next-day">›</button>
+    </div>
+    <div class="scards" id="pres-stats"></div>
+    <div class="ctrl prof-only">
+      <input class="sinput" id="pres-search" placeholder="Buscar aluno...">
+      <button class="fbtn active" data-belt="all">Todos</button>
+      <button class="fbtn" data-belt="white">Branca</button>
+      <button class="fbtn" data-belt="blue">Azul</button>
+      <button class="fbtn" data-belt="purple">Roxa</button>
+      <button class="fbtn" data-belt="brown">Marrom</button>
+      <button class="fbtn" data-belt="black">Preta</button>
+    </div>
+    <div id="pres-content"></div>
+  </div>
 
-  try {
-    const fileResized = await _redimensionarAvatar(file)
-    const url = await DB.uploadAvatar(fileResized, alunoId)
+  <div class="page" id="page-comunicacao">
+    <div class="slabel">Avisos da academia</div>
+    <div class="stitle">Comunicação</div>
+    <div class="com-tabs">
+      <button class="com-tab active" data-com="mural" onclick="switchComTab('mural')"><i class="ti ti-pin" aria-hidden="true"></i> Mural</button>
+      <button class="com-tab" data-com="eventos" onclick="switchComTab('eventos')"><i class="ti ti-trophy" aria-hidden="true"></i> Eventos</button>
+    </div>
 
-    // Atualizar estado local
-    if(Auth.currentProfile?.id === alunoId) Auth.currentProfile.avatar_url = url
-    const alunoNoState = state.alunos.find(a => a.id === alunoId)
-    if(alunoNoState) alunoNoState.avatar_url = url
+    <!-- Aba Mural -->
+    <div class="com-pane on" id="com-pane-mural">
+      <div class="mural-header">
+        <div class="mural-count" id="mural-count">—</div>
+        <button class="pbtn prof-only" onclick="openRecadoModal(null)"><i class="ti ti-plus" aria-hidden="true"></i> Novo recado</button>
+      </div>
+      <div id="mural-list" class="recado-list"></div>
+    </div>
 
-    // Re-renderiza o perfil atual
-    await openPerfilAluno(alunoId, alunoId !== Auth.currentProfile?.id)
-    toast('Foto atualizada!')
-  } catch(err){
-    console.error('[avatar upload]', err)
-    toast('Erro ao enviar: ' + err.message, true)
-  }
-}
+    <!-- Aba Eventos -->
+    <div class="com-pane" id="com-pane-eventos">
+      <div class="mural-header">
+        <div class="mural-count" id="eventos-count">—</div>
+        <button class="pbtn prof-only" onclick="openEventoModal(null)"><i class="ti ti-plus" aria-hidden="true"></i> Novo evento</button>
+      </div>
+      <div id="eventos-list" class="evento-list"></div>
+    </div>
+  </div>
 
-async function removerAvatar(alunoId){
-  if(!confirm('Remover a foto de perfil?')) return
-  closeModal('avatar-sheet')
-  try {
-    let urlAtual = null
-    if(Auth.currentProfile?.id === alunoId) urlAtual = Auth.currentProfile.avatar_url
-    const alunoNoState = state.alunos.find(a => a.id === alunoId)
-    if(alunoNoState && !urlAtual) urlAtual = alunoNoState.avatar_url
+  <div class="page" id="page-perfil">
+    <button class="back-btn" id="perfil-back" style="display:none" onclick="voltarParaAlunos()"><i class="ti ti-arrow-left" aria-hidden="true"></i> Voltar para lista</button>
+    <div class="slabel" id="perfil-label">Meu Perfil</div>
+    <div id="perfil-content"></div>
+  </div>
 
-    await DB.removeAvatar(alunoId, urlAtual)
+  <div class="page" id="page-videos">
+    <div class="slabel">Biblioteca técnica</div>
+    <div class="stitle">Vídeos Instrutivos</div>
+    <div class="ctrl" id="vid-filters">
+      <button class="fbtn active" data-cat="all">Todos</button>
+      <button class="fbtn" data-cat="guard">Guarda</button>
+      <button class="fbtn" data-cat="pass">Passagem</button>
+      <button class="fbtn" data-cat="sub">Finalização</button>
+      <button class="fbtn" data-cat="sweep">Raspagem</button>
+      <button class="fbtn" data-cat="position">Posição</button>
+      <button class="pbtn prof-only" onclick="openVidModal(null)"><i class="ti ti-plus" aria-hidden="true"></i> Adicionar</button>
+    </div>
+    <div class="vgrid" id="vgrid"></div>
+  </div>
 
-    if(Auth.currentProfile?.id === alunoId) Auth.currentProfile.avatar_url = null
-    if(alunoNoState) alunoNoState.avatar_url = null
+  <div class="page prof-only" id="page-students">
+    <div class="slabel">Gestão</div>
+    <div class="stitle">Alunos</div>
+    <div class="ctrl">
+      <input class="sinput" id="stu-search" placeholder="Buscar aluno...">
+      <button class="fbtn active" data-belt="all">Todos</button>
+      <button class="fbtn" data-belt="white">Branca</button>
+      <button class="fbtn" data-belt="blue">Azul</button>
+      <button class="fbtn" data-belt="purple">Roxa</button>
+      <button class="fbtn" data-belt="brown">Marrom</button>
+      <button class="fbtn" data-belt="black">Preta</button>
+      <button class="pbtn" onclick="openInviteModal()"><i class="ti ti-share" aria-hidden="true"></i> Compartilhar Link</button>
+    </div>
+    <table class="tbl" id="stu-tbl">
+      <thead><tr><th>Nome</th><th>E-mail</th><th>Faixa</th><th>Presenças</th><th>Ações</th></tr></thead>
+      <tbody id="stu-body"></tbody>
+    </table>
+  </div>
 
-    await openPerfilAluno(alunoId, alunoId !== Auth.currentProfile?.id)
-    toast('Foto removida.')
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  }
-}
+  <div class="page prof-only" id="page-financeiro">
+    <div class="slabel">Gestão</div>
+    <div class="stitle">Financeiro</div>
+    <div class="dnav" style="margin-bottom:var(--sp-4)">
+      <button class="darrow" onclick="fin_mudaMes(-1)">‹</button>
+      <span class="ddate" id="fin-mes-label">—</span>
+      <button class="darrow" onclick="fin_mudaMes(1)">›</button>
+    </div>
+    <div class="scards" style="margin-bottom:var(--sp-5)">
+      <div class="sc"><div class="scv" id="fin-total-alunos">—</div><div class="scl">Alunos</div></div>
+      <div class="sc"><div class="scv" id="fin-pagos">—</div><div class="scl">Pagos</div></div>
+      <div class="sc"><div class="scv" id="fin-pendentes">—</div><div class="scl">Pendentes</div></div>
+      <div class="sc"><div class="scv" id="fin-receita">—</div><div class="scl">Receita</div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:var(--sp-4);flex-wrap:wrap">
+      <button class="pbtn" onclick="gerarMensalidadesDoMes()"><i class="ti ti-plus" aria-hidden="true"></i> Gerar cobranças do mês</button>
+    </div>
+    <table class="tbl">
+      <thead><tr><th>Aluno</th><th>Valor</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr></thead>
+      <tbody id="fin-body"></tbody>
+    </table>
+  </div>
 
-// ═══════════════════════════════════════════════════════════════════════
-//   ALUNO PAGA A PRÓPRIA MENSALIDADE (base, sem gateway ainda)
-// ═══════════════════════════════════════════════════════════════════════
-
-async function pagarMinhaMensalidade(pagamentoId, valor){
-  if(!Auth.isAluno()){
-    toast('Apenas o próprio aluno paga a mensalidade aqui.', true)
-    return
-  }
-  const forma = prompt(
-    `Confirmar pagamento de ${fmtBRL(valor)}?\n\n` +
-    `Por enquanto registramos manualmente.\n` +
-    `(PIX, cartão e boleto entram em breve.)\n\n` +
-    `Forma de pagamento:`,
-    'PIX'
-  )
-  if(forma === null) return
-  try {
-    await DB.marcarPago(pagamentoId, new Date().toISOString().slice(0,10), forma || 'PIX')
-    toast('Pagamento registrado!')
-    if(Auth.currentProfile?.id) await carregarMensalidadeNoPerfil(Auth.currentProfile.id)
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-//   ALTERAR E-MAIL (próprio aluno)
-// ═══════════════════════════════════════════════════════════════════════
-
-function openEditarEmailModal(){
-  if(!Auth.isAluno()){
-    toast('Apenas o próprio aluno pode alterar o e-mail aqui.', true)
-    return
-  }
-  const emailAtual = Auth.currentProfile?.email || ''
-  const old = $('modal-editar-email'); if(old) old.remove()
-
-  document.body.insertAdjacentHTML('beforeend', `
-    <div class="mlay" id="modal-editar-email" style="display:flex">
-      <div class="mbox" style="max-width:420px">
-        <div class="mhead">
-          <span class="mtitle">Alterar E-mail</span>
-          <button class="mclose" onclick="document.getElementById('modal-editar-email').remove()">✕</button>
+  <div class="page" id="page-settings">
+    <div class="slabel">Preferências</div>
+    <div class="stitle">Configurações</div>
+    <div class="scard prof-only">
+      <div class="scard-title">Nome da Academia</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="sinput" id="cfg-name" style="flex:1">
+        <button class="pbtn" onclick="saveName()">Salvar</button>
+      </div>
+    </div>
+    <div class="scard prof-only">
+      <div class="scard-title">Logo da Academia</div>
+      <div id="logo-preview-area" style="display:flex;align-items:center;gap:14px;margin-bottom:12px">
+        <div id="logo-preview" style="width:80px;height:80px;background:var(--surf2);border:0.5px solid var(--border);border-radius:3px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+          <i class="ti ti-photo" style="font-size:24px;color:var(--txt3)" aria-hidden="true"></i>
         </div>
-        <div class="mbody">
-          <div class="mrow">
-            <label class="mlabel">E-mail atual</label>
-            <div class="email-atual-box">${escapeHtml(emailAtual)}</div>
-          </div>
-          <div class="mrow">
-            <label class="mlabel">Novo e-mail</label>
-            <input class="sinput" type="email" id="novo-email" style="width:100%" placeholder="novo@email.com">
-          </div>
-          <div class="email-warn">
-            <strong>Atenção:</strong> vai chegar um link no <strong>novo</strong> e-mail. Você precisa clicar pra confirmar. Após enviar, você será deslogado.
-          </div>
+        <div style="font-size:11px;color:var(--txt3);line-height:1.5">
+          Faça upload de PNG ou JPG.<br>
+          Será usada no topo do app e na tela de login.<br>
+          Imagem quadrada funciona melhor.
         </div>
-        <div class="mfoot">
-          <button class="fbtn" onclick="document.getElementById('modal-editar-email').remove()">Cancelar</button>
-          <button class="pbtn" onclick="confirmarAlterarEmail()">
-            <i class="ti ti-mail" aria-hidden="true"></i> Enviar confirmação
-          </button>
+      </div>
+      <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="onLogoFileSelected(event)">
+      <div style="display:flex;gap:6px">
+        <button class="pbtn" onclick="document.getElementById('logo-file-input').click()"><i class="ti ti-upload" aria-hidden="true"></i> Enviar logo</button>
+        <button class="fbtn" id="logo-remove-btn" onclick="removeLogo()" style="display:none"><i class="ti ti-trash" aria-hidden="true"></i> Remover</button>
+      </div>
+    </div>
+    <div class="scard">
+      <div class="scard-title">Tema</div>
+      <div class="theme-opts">
+        <div class="theme-opt" id="opt-dark" onclick="setTheme('dark')">
+          <div style="font-size:22px"><i class="ti ti-moon" aria-hidden="true"></i></div>
+          <div class="theme-opt-lbl">Escuro</div>
+        </div>
+        <div class="theme-opt" id="opt-light" onclick="setTheme('light')">
+          <div style="font-size:22px"><i class="ti ti-sun" aria-hidden="true"></i></div>
+          <div class="theme-opt-lbl">Claro</div>
         </div>
       </div>
     </div>
-  `)
-  setTimeout(() => $('novo-email')?.focus(), 100)
-}
-
-async function confirmarAlterarEmail(){
-  const novo = $('novo-email')?.value.trim().toLowerCase()
-  if(!novo){ toast('Digite o novo e-mail.', true); return }
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(novo)){ toast('E-mail inválido.', true); return }
-  if(novo === (Auth.currentProfile?.email || '').toLowerCase()){
-    toast('Esse já é o seu e-mail atual.', true); return
-  }
-
-  try {
-    await DB.updateMyEmail(novo)
-    document.getElementById('modal-editar-email')?.remove()
-    toast('Link enviado pra ' + novo + '. Saindo...')
-    // Desloga depois de 2s pra dar tempo de ler o toast
-    setTimeout(() => Auth.logout(), 2000)
-  } catch(err){
-    toast('Erro: ' + (err.message || 'tente novamente'), true)
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-//   POPUP: Detalhe do RECADO (Mural)
-// ═══════════════════════════════════════════════════════════════════════
-
-function openRecadoDetail(id){
-  const r = state_mural.recados.find(x => x.id === id)
-  if(!r) return
-  const MESES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ']
-  const d = new Date(r.criado_em)
-  const dia = d.getDate()
-  const mes = MESES[d.getMonth()]
-  const ano = d.getFullYear()
-  const old = $('modal-recado-detail'); if(old) old.remove()
-
-  document.body.insertAdjacentHTML('beforeend', `
-    <div class="mlay" id="modal-recado-detail" style="display:flex" onclick="if(event.target===this) this.remove()">
-      <div class="mbox" style="max-width:500px">
-        <div class="mhead">
-          <span class="mtitle">Recado</span>
-          <button class="mclose" onclick="document.getElementById('modal-recado-detail').remove()">✕</button>
+    <div class="scard prof-only">
+      <div class="scard-title">Termo de Aceite</div>
+      <div style="display:flex;align-items:center;gap:12px;padding:11px 13px;background:var(--surf2);border:0.5px solid var(--border);border-radius:2px;margin-bottom:12px">
+        <div style="flex:1">
+          <div style="font-size:12px;color:var(--txt);font-weight:500">Exigir aceite no cadastro</div>
+          <div style="font-size:10px;color:var(--txt3);margin-top:1px">Aluno precisa concordar pra criar conta</div>
         </div>
-        <div class="mbody">
-          <div class="detail-header">
-            <div class="detail-date-box">
-              <div class="detail-date-dia">${dia}</div>
-              <div class="detail-date-mes">${mes}</div>
-            </div>
-            <div class="detail-header-info">
-              <h2 class="detail-titulo">${escapeHtml(r.titulo)}</h2>
-              <p class="detail-meta">${r.fixado ? '<i class="ti ti-pin-filled"></i> Fixado · ' : ''}${tempoAtras(r.criado_em)} · ${dia}/${String(d.getMonth()+1).padStart(2,'0')}/${ano}</p>
-            </div>
-          </div>
-          <div class="detail-body-text">${escapeHtml(r.texto)}</div>
+        <div class="switch" id="termo-switch" onclick="toggleTermoAtivo()"></div>
+      </div>
+      <div id="termo-config-area">
+        <label class="slabel">Texto do termo</label>
+        <textarea class="sinput" id="termo-texto" style="width:100%;min-height:120px;resize:vertical;font-family:'DM Sans',sans-serif;margin-bottom:10px" placeholder="Ex: Declaro estar ciente dos riscos inerentes à prática do jiu-jitsu..."></textarea>
+        <div style="display:flex;gap:6px;margin-bottom:14px">
+          <button class="pbtn" onclick="saveTermoTexto()"><i class="ti ti-check" aria-hidden="true"></i> Salvar texto</button>
         </div>
-        <div class="mfoot">
-          <button class="fbtn" onclick="document.getElementById('modal-recado-detail').remove()">Fechar</button>
+        <label class="slabel">Ou anexe um PDF</label>
+        <div id="termo-pdf-area" style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--surf2);border:0.5px solid var(--border);border-radius:2px;margin-bottom:10px">
+          <i class="ti ti-file-text" style="font-size:22px;color:var(--txt3)"></i>
+          <div style="flex:1;font-size:11px;color:var(--txt3)" id="termo-pdf-info">Nenhum PDF anexado.</div>
+        </div>
+        <input type="file" id="termo-pdf-input" accept="application/pdf" style="display:none" onchange="onTermoPdfSelected(event)">
+        <div style="display:flex;gap:6px">
+          <button class="pbtn" onclick="document.getElementById('termo-pdf-input').click()"><i class="ti ti-upload" aria-hidden="true"></i> Enviar PDF</button>
+          <button class="fbtn" id="termo-pdf-remove" onclick="removerTermoPdf()" style="display:none"><i class="ti ti-trash" aria-hidden="true"></i> Remover</button>
         </div>
       </div>
     </div>
-  `)
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-//   POPUP: Detalhe do EVENTO
-// ═══════════════════════════════════════════════════════════════════════
-
-function openEventoDetail(id){
-  const e = state_eventos.list.find(x => x.id === id)
-  if(!e) return
-  const MESES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ']
-  const SEMANA = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado']
-  const dt = new Date(e.data_evento + 'T00:00:00')
-  const dia = dt.getDate()
-  const mes = MESES[dt.getMonth()]
-  const ano = dt.getFullYear()
-  const diaSem = SEMANA[dt.getDay()]
-  const hoje = new Date(); hoje.setHours(0,0,0,0)
-  const passou = dt < hoje
-  const old = $('modal-evento-detail'); if(old) old.remove()
-
-  document.body.insertAdjacentHTML('beforeend', `
-    <div class="mlay" id="modal-evento-detail" style="display:flex" onclick="if(event.target===this) this.remove()">
-      <div class="mbox" style="max-width:500px">
-        <div class="mhead">
-          <span class="mtitle">${passou ? 'Evento (passado)' : 'Evento'}</span>
-          <button class="mclose" onclick="document.getElementById('modal-evento-detail').remove()">✕</button>
+    <div class="scard prof-only">
+      <div class="scard-title">Mensalidade Padrão</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <div style="flex:1">
+          <label class="aula-info-lbl" style="margin-bottom:4px;display:block">Valor (R$)</label>
+          <input class="sinput" type="number" id="cfg-mens-valor" step="0.01" style="width:100%">
         </div>
-        <div class="mbody">
-          <div class="detail-header">
-            <div class="detail-date-box${passou ? ' past' : ''}">
-              <div class="detail-date-dia">${dia}</div>
-              <div class="detail-date-mes">${mes}</div>
-            </div>
-            <div class="detail-header-info">
-              <h2 class="detail-titulo">${escapeHtml(e.titulo)}</h2>
-              <p class="detail-meta">${diaSem} · ${dia}/${String(dt.getMonth()+1).padStart(2,'0')}/${ano}</p>
-            </div>
-          </div>
-          <div class="detail-fields">
-            ${e.hora ? `<div class="detail-field">
-              <i class="ti ti-clock" aria-hidden="true"></i>
-              <div>
-                <div class="detail-field-label">Horário</div>
-                <div class="detail-field-value">${escapeHtml(e.hora)}</div>
-              </div>
-            </div>` : ''}
-            ${e.local ? `<div class="detail-field">
-              <i class="ti ti-map-pin" aria-hidden="true"></i>
-              <div>
-                <div class="detail-field-label">Local</div>
-                <div class="detail-field-value">${escapeHtml(e.local)}</div>
-              </div>
-            </div>` : ''}
-          </div>
-          ${e.descricao ? `<div class="detail-section">
-            <div class="detail-section-label">Descrição</div>
-            <div class="detail-body-text">${escapeHtml(e.descricao)}</div>
-          </div>` : ''}
+        <div style="flex:1">
+          <label class="aula-info-lbl" style="margin-bottom:4px;display:block">Dia de vencimento</label>
+          <input class="sinput" type="number" id="cfg-mens-dia" min="1" max="28" style="width:100%">
         </div>
-        <div class="mfoot">
-          <button class="fbtn" onclick="document.getElementById('modal-evento-detail').remove()">Fechar</button>
+      </div>
+      <button class="pbtn" onclick="salvarConfigMensalidade()"><i class="ti ti-check" aria-hidden="true"></i> Salvar</button>
+    </div>
+    <div class="scard prof-only">
+      <div class="scard-title">Regras de Graduação</div>
+      <div style="font-size:11px;color:var(--txt3);margin-bottom:12px;line-height:1.5">
+        Configure o mínimo de aulas e tempo (meses) para cada faixa. Serve como referência visual no perfil do aluno.
+      </div>
+      <div id="regras-list" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+    <div class="scard">
+      <div class="scard-title">Conta</div>
+      <div style="font-size:12px;color:var(--txt2);margin-bottom:10px" id="account-info"></div>
+      <button class="fbtn" onclick="Auth.logout()"><i class="ti ti-logout" aria-hidden="true"></i> Sair</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modais -->
+<!-- Modal: Detalhe da aula (clicado da grade) -->
+<div class="mlay" id="modal-aula-detail" style="display:none">
+  <div class="mbox">
+    <div class="mhead">
+      <span class="mtitle" id="aula-detail-title">Aula</span>
+      <button class="mclose" onclick="closeModal('modal-aula-detail')">✕</button>
+    </div>
+    <div class="mbody" id="aula-detail-body">
+      <!-- Conteúdo preenchido dinamicamente -->
+    </div>
+    <div class="mfoot" id="aula-detail-foot">
+      <!-- Botões preenchidos dinamicamente -->
+    </div>
+  </div>
+</div>
+
+<div class="mlay" id="modal-aula" style="display:none">
+  <div class="mbox">
+    <div class="mhead">
+      <span class="mtitle">Nova Aula</span>
+      <button class="mclose" onclick="closeModal('modal-aula')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="mrow"><label class="mlabel">Dia da semana</label>
+        <select class="mselect" id="aula-day">
+          <option value="1">Segunda-feira</option><option value="2">Terça-feira</option>
+          <option value="3">Quarta-feira</option><option value="4">Quinta-feira</option>
+          <option value="5">Sexta-feira</option><option value="6">Sábado</option>
+          <option value="0">Domingo</option>
+        </select>
+      </div>
+      <div class="mrow"><label class="mlabel">Horário</label>
+        <input class="sinput" id="aula-time" type="time" style="width:100%">
+      </div>
+      <div class="mrow"><label class="mlabel">Nome da aula</label>
+        <input class="sinput" id="aula-name" placeholder="Ex: Fundamentos Gi" style="width:100%">
+      </div>
+      <div class="mrow"><label class="mlabel">Tipo</label>
+        <select class="mselect" id="aula-type">
+          <option value="gi">Gi (Kimono)</option><option value="nogi">No-Gi</option><option value="kids">Kids</option>
+        </select>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="fbtn" onclick="closeModal('modal-aula')">Cancelar</button>
+      <button class="pbtn" onclick="saveAula()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="mlay" id="modal-invite" style="display:none">
+  <div class="mbox">
+    <div class="mhead">
+      <span class="mtitle">Compartilhar Link de Cadastro</span>
+      <button class="mclose" onclick="closeModal('modal-invite')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="info-banner" style="margin-bottom:14px">
+        <i class="ti ti-info-circle" aria-hidden="true"></i>
+        Compartilhe este link com seus alunos. Eles se cadastram sozinhos e aparecem aqui automaticamente.
+      </div>
+
+      <div class="mrow">
+        <label class="mlabel">Link de cadastro</label>
+        <div style="display:flex;gap:6px">
+          <input class="sinput" id="invite-link" readonly style="flex:1;font-family:'JetBrains Mono',monospace;font-size:11px" value="">
+          <button class="pbtn" onclick="copyInviteLink()" id="copy-btn"><i class="ti ti-copy" aria-hidden="true"></i> Copiar</button>
+        </div>
+      </div>
+
+      <div class="mrow" style="margin-top:14px">
+        <label class="mlabel">Compartilhar via</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="fbtn" onclick="shareWhatsApp()" style="flex:1;min-width:120px"><i class="ti ti-brand-whatsapp" aria-hidden="true"></i> WhatsApp</button>
+          <button class="fbtn" onclick="shareNative()" style="flex:1;min-width:120px"><i class="ti ti-share" aria-hidden="true"></i> Compartilhar</button>
         </div>
       </div>
     </div>
-  `)
-}
+    <div class="mfoot">
+      <button class="fbtn" onclick="closeModal('modal-invite')">Fechar</button>
+    </div>
+  </div>
+</div>
 
-// ═══════════════════════════════════════════════════════════════════════
-//   POPUP: Detalhe da NOTIFICAÇÃO
-// ═══════════════════════════════════════════════════════════════════════
+<div class="mlay" id="modal-vid" style="display:none">
+  <div class="mbox">
+    <div class="mhead">
+      <span class="mtitle" id="vid-modal-title">Vídeo</span>
+      <button class="mclose" onclick="closeModal('modal-vid')">✕</button>
+    </div>
+    <div id="vid-modal-content"></div>
+  </div>
+</div>
 
-function openNotifDetail(id){
-  const n = state_notif.list.find(x => x.id === id)
-  if(!n) return
-
-  // Marca como lida ao abrir
-  if(!n.lida) marcarNotifLida(id)
-
-  // Fecha dropdown
-  state_notif.aberto = false
-  const dd = $('notif-dropdown'); if(dd) dd.style.display = 'none'
-
-  const dt = new Date(n.criado_em)
-  const old = $('modal-notif-detail'); if(old) old.remove()
-
-  document.body.insertAdjacentHTML('beforeend', `
-    <div class="mlay" id="modal-notif-detail" style="display:flex" onclick="if(event.target===this) this.remove()">
-      <div class="mbox" style="max-width:480px">
-        <div class="mhead">
-          <span class="mtitle">Notificação</span>
-          <button class="mclose" onclick="document.getElementById('modal-notif-detail').remove()">✕</button>
+<!-- Modal: Recado -->
+<div class="mlay" id="modal-recado" style="display:none">
+  <div class="mbox">
+    <div class="mhead">
+      <span class="mtitle" id="rec-title">Novo Recado</span>
+      <button class="mclose" onclick="closeModal('modal-recado')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="mrow">
+        <label class="mlabel">Título</label>
+        <input class="sinput" id="rec-titulo" style="width:100%" placeholder="Ex: Seminário Out/2026">
+      </div>
+      <div class="mrow">
+        <label class="mlabel">Mensagem</label>
+        <textarea class="sinput" id="rec-texto" style="width:100%;min-height:110px;resize:vertical;font-family:'DM Sans',sans-serif"></textarea>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-pin">
+          <i class="ti ti-pin-filled toggle-pin-icon" aria-hidden="true"></i>
+          <div>
+            <div class="toggle-pin-title">Fixar no topo</div>
+            <div class="toggle-pin-desc">Recado aparece destacado para todos</div>
+          </div>
         </div>
-        <div class="mbody">
-          <h2 class="detail-titulo" style="margin-bottom:8px">${escapeHtml(n.titulo)}</h2>
-          <p class="detail-meta" style="margin-bottom:16px">Recebido ${tempoAtras(n.criado_em)} · ${dt.toLocaleDateString('pt-BR')} ${dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</p>
-          ${n.texto ? `<div class="detail-body-text">${escapeHtml(n.texto)}</div>` : '<p style="color:var(--txt3);font-size:13px">Sem detalhes adicionais.</p>'}
-        </div>
-        <div class="mfoot">
-          <button class="fbtn" onclick="document.getElementById('modal-notif-detail').remove()">Fechar</button>
-        </div>
+        <div class="switch" id="rec-switch" onclick="this.classList.toggle('on')"></div>
       </div>
     </div>
-  `)
+    <div class="mfoot">
+      <button class="fbtn" onclick="closeModal('modal-recado')">Cancelar</button>
+      <button class="pbtn" onclick="saveRecado()"><i class="ti ti-check" aria-hidden="true"></i> Salvar recado</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script src="db.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PATCH v13 — Garage Training
+   Inclui: alinhamentos, iOS optimizations, foto perfil, login renovado
+   Cole no FINAL do app.css. CSS é cascata → vence o que vem por último.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   1. iOS OPTIMIZATIONS — Apple HIG / Mobile-first
+   ═══════════════════════════════════════════════════════════════════════ */
+
+* {
+  /* Remove highlight cinza ao tocar (Safari iOS) */
+  -webkit-tap-highlight-color: transparent;
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-//   PWA · MODAL DE INSTALAÇÃO (aparece UMA vez no primeiro acesso)
-// ═══════════════════════════════════════════════════════════════════════
-
-// Detecta se já está rodando como PWA instalado
-function isPWAInstalled(){
-  // iOS: navigator.standalone
-  if(window.navigator.standalone === true) return true
-  // Outros: media query
-  if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true
-  if(window.matchMedia && window.matchMedia('(display-mode: fullscreen)').matches) return true
-  return false
+html, body {
+  /* Scroll suave nativo no iOS */
+  -webkit-overflow-scrolling: touch;
+  /* Previne scroll horizontal acidental */
+  overflow-x: hidden;
 }
 
-// Detecta plataforma
-function detectPlatform(){
-  const ua = navigator.userAgent || ''
-  const isIOS = /iPhone|iPad|iPod/i.test(ua) && !window.MSStream
-  const isAndroid = /Android/i.test(ua)
-  return { isIOS, isAndroid, isMobile: isIOS || isAndroid }
+body {
+  /* Padding bottom pra área segura do home indicator do iPhone */
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-// Mostra o modal se: 1) é mobile, 2) NÃO está instalado, 3) NUNCA foi visto/dispensado antes
-function maybeShowInstallModal(){
-  try {
-    const { isIOS, isAndroid, isMobile } = detectPlatform()
-    if(!isMobile) return                    // desktop: não mostra
-    if(isPWAInstalled()) return             // já tá rodando como app
-    if(localStorage.getItem('garage:install-modal') === 'dismissed') return  // já dispensou
+button, .pbtn, .fbtn, .ibtn, .dbtn {
+  /* Touch target mínimo Apple HIG: 44x44pt */
+  min-height: 44px;
+  /* Feedback visual ao pressionar (sensação tátil) */
+  transition: opacity 0.15s ease, transform 0.1s ease, background-color 0.15s ease;
+}
+button:active, .pbtn:active, .fbtn:active, .ibtn:active {
+  opacity: 0.6;
+  transform: scale(0.98);
+}
 
-    // Aparece após 1.5s (dá tempo do app carregar visualmente)
-    setTimeout(() => {
-      const modal = $('modal-install-pwa')
-      if(!modal) return
-      // Mostra a instrução certa pela plataforma
-      const iosBox = $('install-ios')
-      const androidBox = $('install-android')
-      if(isIOS){
-        if(iosBox) iosBox.style.display = ''
-        if(androidBox) androidBox.style.display = 'none'
-      } else {
-        if(iosBox) iosBox.style.display = 'none'
-        if(androidBox) androidBox.style.display = ''
-      }
-      modal.style.display = 'flex'
-    }, 1500)
-  } catch(e){
-    console.warn('[install-modal]', e)
+/* Inputs: 16px mínimo no mobile pra evitar zoom auto do Safari */
+@media (max-width: 720px) {
+  .sinput, .form-input, .mselect, .lg2-input,
+  input[type="text"], input[type="email"], input[type="password"],
+  input[type="number"], input[type="date"], input[type="time"],
+  textarea, select {
+    font-size: 16px !important;
   }
 }
 
-// Dispensa o modal (e nunca mais mostra)
-function dismissInstallModal(reason){
-  try {
-    localStorage.setItem('garage:install-modal', 'dismissed')
-    if(reason) localStorage.setItem('garage:install-modal-reason', reason)
-  } catch(e){}
-  const modal = $('modal-install-pwa')
-  if(modal) modal.style.display = 'none'
+/* Top bar e nav respeitam safe area do notch */
+.topbar {
+  padding-top: env(safe-area-inset-top);
+  min-height: calc(56px + env(safe-area-inset-top));
 }
 
-// Roda no boot
-window.addEventListener('load', () => {
-  // Espera o app carregar primeiro
-  setTimeout(maybeShowInstallModal, 2000)
-})
+/* ═══════════════════════════════════════════════════════════════════════
+   2. PAGE LAYOUT — Container full-width com padding consistente
+   ═══════════════════════════════════════════════════════════════════════ */
 
-// ─── BOOT ───────────────────────────────────────────────────────────────
-boot()
+.page {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 720px) {
+  .page { padding: 18px 14px; }
+}
+
+@media (min-width: 720px) {
+  .page {
+    padding: 24px 16px;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+}
+
+/* Containers sempre ocupam toda a largura disponível */
+.wgrid, .scards, .evento-list, .mural-list, .recado-list, .timeline,
+.tbl, .vgrid, #today-classes, #grade-editor, #pres-content,
+#mural-list, #eventos-list, #perfil-content, #stu-tbl, #fin-body,
+.pres-list, .stat-grid {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.dcol, .evento-card, .mural-card, .recado, .scard, .mens-card,
+.mens-history, .timeline, .perfil-header, .info-banner,
+.grade-editor, .grade-day-block, .pres-row {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   3. STATS CARDS — Sempre 3 colunas no mobile (sem 2+1 quebrado)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#pres-stats.scards,
+.scards#pres-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+@media (max-width: 380px) {
+  #pres-stats.scards { gap: 4px; }
+}
+
+/* Stat grid do perfil: 3 colunas sempre */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   4. GRADE — Filtros e botão Editar Grade em linhas próprias
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#page-schedule .leg {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+#page-schedule .leg::-webkit-scrollbar { display: none; }
+
+#page-schedule .leg .li {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+#page-schedule .leg .li .ld {
+  width: 8px; height: 8px; min-height: 0;
+  padding: 0; border: 0;
+  border-radius: 50%;
+  display: inline-block;
+}
+.li.gi .ld { background: var(--type-gi); }
+.li.nogi .ld { background: var(--type-nogi); }
+.li.kids .ld { background: var(--type-kids); }
+
+/* Botão Editar Grade: full-width em linha própria */
+.edit-grade-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   5. CARDS DE AULA (cpill) — Quase full-width dentro do dcol
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.dcol {
+  padding: 10px;
+}
+.dcol .dhead {
+  padding: 4px 6px 8px;
+  margin: 0;
+}
+.cpill {
+  margin: 6px 0 0;
+  padding: 11px 10px;
+}
+.cpill:first-of-type {
+  margin-top: 8px;
+}
+
+@media (max-width: 720px) {
+  .dcol { padding: 10px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   6. PRESENÇAS — Lista com avatar
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.pres-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+
+.pres-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 0.5px solid var(--border);
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease);
+}
+.pres-row:last-child { border-bottom: 0; }
+.pres-row:hover { background: var(--surf2); }
+
+/* Avatar com imagem OU iniciais */
+.pres-avatar-img,
+.pres-avatar-initials {
+  width: 40px; height: 40px;
+  min-width: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 0.5px solid var(--border);
+}
+.pres-avatar-img {
+  object-fit: cover;
+  background: var(--surf2);
+}
+.pres-avatar-initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surf2);
+  color: var(--txt2);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.pres-info { flex: 1; min-width: 0; }
+.pres-nome {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--txt);
+  margin-bottom: 3px;
+}
+.pres-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 10px;
+  color: var(--txt3);
+  letter-spacing: 0.3px;
+}
+
+.pres-confirmed-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 8.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+  border-radius: 3px;
+}
+
+.pres-ck {
+  width: 44px; height: 44px;
+  min-width: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--txt3);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+}
+.pres-ck:hover {
+  border-color: var(--border2);
+  color: var(--txt);
+}
+.pres-ck.on {
+  background: rgba(74, 222, 128, 0.15);
+  border-color: #4ade80;
+  color: #4ade80;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   7. AVATAR DO PERFIL — Com botão flutuante de câmera
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.perfil-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 80px; height: 80px;
+}
+.perfil-avatar {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: var(--surf2);
+  border: 1px solid var(--border2);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.perfil-avatar-img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.perfil-avatar-initials {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px;
+  letter-spacing: 2px;
+  color: var(--txt);
+}
+
+.perfil-avatar-btn {
+  position: absolute;
+  bottom: -2px; right: -2px;
+  width: 30px; height: 30px;
+  min-height: 30px;
+  border-radius: 50%;
+  background: var(--txt);
+  color: var(--b);
+  border: 2px solid var(--b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  font-size: 12px;
+  padding: 0;
+}
+.perfil-avatar-btn:hover { transform: scale(1.05); }
+.perfil-avatar-btn:active { transform: scale(0.95); opacity: 0.85; }
+.perfil-avatar-btn i { font-size: 14px; }
+
+@media (max-width: 720px) {
+  .perfil-avatar-wrap, .perfil-avatar { width: 64px; height: 64px; }
+  .perfil-avatar-initials { font-size: 22px; }
+  .perfil-avatar-btn { width: 26px; height: 26px; min-height: 26px; }
+  .perfil-avatar-btn i { font-size: 12px; }
+}
+
+.avatar-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: none;
+  justify-content: flex-start;
+  width: 100%;
+  text-align: left;
+  border-radius: var(--r-sm);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   8. GRADE EDITOR — Botão Editar pequeno ao lado do remover
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.grade-aula-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px; height: 34px;
+  min-height: 34px;
+  color: var(--txt2);
+  background: transparent;
+  border: 0.5px solid var(--border2);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  margin-right: 6px;
+  padding: 0;
+}
+.grade-aula-edit:hover {
+  color: var(--txt);
+  border-color: var(--accent);
+  background: var(--surf2);
+}
+.grade-aula-edit i { font-size: 13px; }
+
+.grade-aula-row .grade-aula-del {
+  width: 34px; height: 34px;
+  min-height: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.grade-aula-row .grade-aula-del i { font-size: 13px; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   9. MENSALIDADE — Botão "Pagar agora"
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.mens-actions {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 0.5px solid var(--border);
+}
+.mens-pay-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  font-weight: 600;
+}
+.mens-pay-btn i { font-size: 16px; }
+.mens-pay-hint {
+  text-align: center;
+  font-size: 10px;
+  color: var(--txt3);
+  margin-top: 8px;
+  line-height: 1.4;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   10. LOGIN PAGE v13 — Identidade preservada + Google em PB
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.login-logo-fallback {
+  width: 64px; height: 64px;
+  margin: 0 auto 14px;
+  background: var(--txt);
+  color: var(--b);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 2px;
+  font-weight: 700;
+}
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 14px;
+}
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  height: 0.5px;
+  background: var(--border);
+}
+.login-divider span {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--txt3);
+}
+
+.login-google-btn {
+  width: 100%;
+  background: transparent;
+  color: #fff;
+  border: 0.5px solid var(--border2);
+  border-radius: var(--r-sm);
+  padding: 13px;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+.login-google-btn:hover:not(:disabled) {
+  background: var(--surf);
+  border-color: var(--accent);
+}
+.login-google-btn:disabled { opacity: 0.5; cursor: wait; }
+.login-google-btn svg { flex-shrink: 0; }
+
+/* Tema claro: Google fica com texto e G pretos (contraste) */
+:root[data-theme="light"] .login-google-btn { color: var(--txt); }
+:root[data-theme="light"] .login-google-btn svg path { fill: var(--txt) !important; }
+
+.login-link-btn {
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--txt3);
+  font-size: 12px;
+  padding: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+  margin-top: 4px;
+  min-height: 40px;
+}
+.login-link-btn:hover { color: var(--txt); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   11. CADASTRO — Etapa de foto opcional
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#photo-step {
+  display: flex;
+  flex-direction: column;
+}
+
+.photo-upload-area {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto 22px;
+  position: relative;
+  width: 130px; height: 130px;
+}
+
+.photo-preview {
+  width: 130px; height: 130px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+  border: 1.5px dashed rgba(255,255,255,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.photo-preview i {
+  font-size: 48px;
+  color: rgba(255,255,255,0.3);
+}
+.photo-preview.with-image {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--surf2);
+}
+.photo-preview img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.photo-camera-btn {
+  position: absolute;
+  bottom: 0; right: 0;
+  width: 40px; height: 40px;
+  min-height: 40px;
+  border-radius: 50%;
+  background: var(--txt);
+  color: var(--b);
+  border: 3px solid var(--surf);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  padding: 0;
+}
+.photo-camera-btn:hover { transform: scale(1.05); }
+.photo-camera-btn:active { transform: scale(0.95); }
+.photo-camera-btn i { font-size: 16px; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   12. POLISH FINAL — Detalhes que valem
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Modal sheet mobile: ocupa toda largura */
+@media (max-width: 720px) {
+  .mbox { max-width: 100%; }
+  .mlay { padding: 0; align-items: flex-end; }
+}
+
+/* Vídeos: 1 coluna no mobile */
+@media (max-width: 720px) {
+  .vgrid { grid-template-columns: 1fr; gap: 12px; }
+}
+
+/* Botão de check da presença: highlight melhor */
+.pres-ck:active { transform: scale(0.92); }
+
+/* Image inside avatar: garantir crop bonito */
+.pres-avatar-img, .perfil-avatar-img { object-position: center; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PATCH v14 — Garage Training
+   Cole no FINAL do app.css (depois do patch v13).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   1. NOVA GRADE — Lista contínua (estilo "Apple Calendar")
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Sobrescrever padding do dcol pra lista usar borda direta */
+.dcol {
+  padding: 0;
+  overflow: hidden;
+}
+
+.dcol .dhead {
+  padding: 12px 14px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 0.5px solid var(--border);
+  margin: 0;
+}
+
+:root[data-theme="light"] .dcol .dhead {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.aulas-lista {
+  display: flex;
+  flex-direction: column;
+}
+
+.aula-linha {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 14px;
+  border-bottom: 0.5px solid var(--border);
+  border-left: 3px solid var(--txt3);
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease);
+}
+.aula-linha:last-child { border-bottom: 0; }
+.aula-linha:hover { background: var(--surf2); }
+
+.aula-linha.gi { border-left-color: var(--type-gi); }
+.aula-linha.nogi { border-left-color: var(--type-nogi); }
+.aula-linha.kids { border-left-color: var(--type-kids); }
+
+.aula-linha.confirmed {
+  background: rgba(122, 200, 144, 0.06);
+}
+
+.aula-linha-time {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 17px;
+  letter-spacing: 1px;
+  color: var(--txt);
+  min-width: 54px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.aula-linha-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.aula-linha-nome {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--txt);
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aula-linha-sub {
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--txt3);
+}
+
+.aulas-vazio {
+  padding: 18px 14px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--txt3);
+  font-style: italic;
+}
+
+@media (max-width: 720px) {
+  .aula-linha { padding: 12px 12px; gap: 12px; }
+  .aula-linha-time { font-size: 16px; min-width: 50px; }
+  .aula-linha-nome { font-size: 13px; white-space: normal; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   2. EDITAR E-MAIL — Lápis no perfil
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.perfil-email {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.perfil-email-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--txt3);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 3px;
+  min-height: auto;
+}
+.perfil-email-edit:hover {
+  color: var(--txt);
+  background: var(--surf2);
+}
+.perfil-email-edit i { font-size: 13px; }
+
+.email-atual-box {
+  background: var(--b);
+  border: 0.5px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 12px;
+  color: var(--txt3);
+  font-size: 13px;
+}
+
+.email-warn {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: rgba(232, 194, 112, 0.08);
+  border: 0.5px solid rgba(232, 194, 112, 0.3);
+  border-left: 2px solid #e8c270;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #e8c270;
+  line-height: 1.5;
+}
+
+:root[data-theme="light"] .email-warn {
+  background: rgba(200, 130, 40, 0.08);
+  color: #a55a00;
+  border-color: rgba(200, 130, 40, 0.4);
+  border-left-color: #c87b1f;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   3. POPUPS DE DETALHE — Eventos, Recados, Notificações
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.detail-header {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.detail-date-box {
+  background: var(--b);
+  border: 0.5px solid var(--accent);
+  border-radius: 6px;
+  padding: 8px 12px;
+  text-align: center;
+  min-width: 64px;
+  flex-shrink: 0;
+}
+.detail-date-box.past {
+  border-color: var(--border);
+  opacity: 0.6;
+}
+
+.detail-date-dia {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 30px;
+  color: var(--accent);
+  line-height: 1;
+  letter-spacing: 1px;
+}
+.detail-date-box.past .detail-date-dia { color: var(--txt2); }
+
+.detail-date-mes {
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--txt3);
+  margin-top: 2px;
+}
+
+.detail-header-info {
+  flex: 1;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.detail-titulo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  letter-spacing: 1.5px;
+  color: var(--txt);
+  margin: 0 0 4px;
+  line-height: 1.15;
+  word-break: break-word;
+}
+
+.detail-meta {
+  font-size: 11px;
+  color: var(--txt3);
+  margin: 0;
+  letter-spacing: 0.3px;
+}
+
+.detail-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.detail-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--b);
+  border-radius: 4px;
+}
+.detail-field i {
+  font-size: 16px;
+  color: var(--txt3);
+  flex-shrink: 0;
+}
+
+.detail-field-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--txt3);
+}
+
+.detail-field-value {
+  font-size: 13px;
+  color: var(--txt);
+  margin-top: 2px;
+}
+
+.detail-section {
+  margin-top: 4px;
+}
+
+.detail-section-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--txt3);
+  margin-bottom: 6px;
+}
+
+.detail-body-text {
+  font-size: 13px;
+  color: var(--txt2);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 720px) {
+  .detail-header { gap: 12px; }
+  .detail-date-box { min-width: 56px; padding: 6px 10px; }
+  .detail-date-dia { font-size: 24px; }
+  .detail-titulo { font-size: 18px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PATCH v15 — Padronização Login/Cadastro
+   Cole no FINAL do app.css. Vence regras anteriores por cascata.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── 1. LOGO com moldura branca arredondada ─────────────────────────── */
+
+.login-logo-img {
+  display: block;
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 18px;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 6px;
+  box-sizing: border-box;
+  object-fit: contain;
+}
+
+/* Fallback (iniciais) mantém o mesmo formato */
+.login-logo-fallback {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 18px;
+  background: #ffffff;
+  color: #000000;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 26px;
+  letter-spacing: 3px;
+  font-weight: 700;
+}
+
+/* ─── 2. TIPOGRAFIA — letter-spacing forte em TODOS os elementos ─────── */
+
+.login-logo {
+  font-family: 'Bebas Neue', sans-serif !important;
+  font-size: 32px !important;
+  letter-spacing: 4px !important;
+  text-align: center !important;
+  color: var(--txt) !important;
+  line-height: 1 !important;
+  margin: 0 0 12px !important;
+  font-weight: 500 !important;
+}
+.login-logo em {
+  color: var(--txt3) !important;
+  font-style: normal !important;
+}
+
+.login-sub {
+  text-align: center !important;
+  font-size: 10px !important;
+  letter-spacing: 3px !important;
+  font-weight: 500 !important;
+  text-transform: uppercase !important;
+  color: var(--txt3) !important;
+  margin: 0 0 28px !important;
+}
+
+/* Labels dos campos com letter-spacing forte */
+.form-label {
+  font-size: 10px !important;
+  letter-spacing: 2px !important;
+  font-weight: 500 !important;
+  text-transform: uppercase !important;
+  color: var(--txt3) !important;
+  margin-bottom: 6px !important;
+  display: block;
+}
+
+/* Botão principal (Entrar/Cadastrar) — full-width + letter-spacing */
+.form-submit {
+  width: 100% !important;
+  display: block !important;
+  background: var(--txt) !important;
+  color: var(--b) !important;
+  border: none !important;
+  border-radius: var(--r-sm) !important;
+  padding: 14px !important;
+  font-size: 11px !important;
+  letter-spacing: 3px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif !important;
+  margin-top: 8px;
+  transition: opacity 0.2s, transform 0.1s;
+}
+.form-submit:hover:not(:disabled) { opacity: 0.88; }
+.form-submit:active:not(:disabled) { transform: scale(0.99); }
+.form-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Tema claro: botão de submit fica preto com texto branco */
+:root[data-theme="light"] .form-submit {
+  background: var(--txt) !important;
+  color: #ffffff !important;
+}
+
+/* ─── 3. ESPAÇAMENTO INTERNO da caixa de login ─────────────────────── */
+
+.login-box {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 32px 26px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-md);
+  animation: slideUp 0.4s var(--ease);
+}
+
+@media (max-width: 480px) {
+  .login-box { padding: 28px 22px; }
+  .login-logo { font-size: 28px !important; letter-spacing: 3px !important; }
+  .login-logo-img, .login-logo-fallback { width: 70px; height: 70px; }
+}
+
+/* ─── 4. FORM ROWS — espaçamento consistente ────────────────────────── */
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.form-row:last-of-type { margin-bottom: 0; }
+
+/* ─── 5. INPUTS — alinhamento + foco ────────────────────────────────── */
+
+.form-input {
+  width: 100%;
+  background: var(--b2);
+  color: var(--txt);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--r-sm);
+  padding: 13px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.18s var(--ease);
+}
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.form-input::placeholder { color: var(--txt3); }
+
+/* Mobile: 16px pra evitar zoom no Safari */
+@media (max-width: 720px) {
+  .form-input { font-size: 16px !important; }
+}
+
+/* ─── 6. BOTÃO GOOGLE — escrita branca, ícone branco ────────────────── */
+
+.login-google-btn {
+  width: 100%;
+  background: transparent;
+  color: #ffffff !important;
+  border: 0.5px solid var(--border2);
+  border-radius: var(--r-sm);
+  padding: 13px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.login-google-btn:hover:not(:disabled) {
+  background: var(--surf2);
+  border-color: var(--accent);
+}
+.login-google-btn:disabled { opacity: 0.5; cursor: wait; }
+.login-google-btn svg path { fill: #ffffff !important; }
+
+/* Tema claro: Google fica com escrita preta */
+:root[data-theme="light"] .login-google-btn { color: var(--txt) !important; }
+:root[data-theme="light"] .login-google-btn svg path { fill: var(--txt) !important; }
+
+/* ─── 7. DIVISOR "OU" ─────────────────────────────────────────────── */
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 16px;
+}
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  height: 0.5px;
+  background: var(--border);
+}
+.login-divider span {
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--txt3);
+}
+
+/* ─── 8. LINKS (esqueci senha, cadastre-se) ─────────────────────────── */
+
+.login-link-btn {
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--txt3);
+  font-size: 12px;
+  padding: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+  margin-top: 4px;
+  letter-spacing: 0.3px;
+}
+.login-link-btn:hover { color: var(--txt); }
+
+.login-hint {
+  text-align: center;
+  font-size: 12px;
+  color: var(--txt3);
+  margin-top: 22px;
+  letter-spacing: 0.3px;
+}
+.login-hint a {
+  color: var(--txt2);
+  text-decoration: underline;
+}
+.login-hint a:hover { color: var(--txt); }
+
+/* ─── 9. ERRO/OK MESSAGES ────────────────────────────────────────────── */
+
+.form-err {
+  font-size: 12px;
+  color: var(--danger);
+  text-align: center;
+  min-height: 16px;
+  margin: 4px 0 0;
+  letter-spacing: 0.3px;
+}
+
+.form-ok {
+  font-size: 12px;
+  color: #7ac890;
+  text-align: center;
+  min-height: 16px;
+  margin: 4px 0 0;
+  letter-spacing: 0.3px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PATCH v16 — PWA · Modal de instalação + iOS polish
+   Cole no FINAL do app.css (depois do v15).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── 1. MODAL DE INSTALAÇÃO PWA ────────────────────────────────────── */
+
+.install-mbox {
+  max-width: 360px;
+  text-align: center;
+  padding: 32px 26px 22px !important;
+}
+
+.install-icon-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.install-icon {
+  width: 88px;
+  height: 88px;
+  border-radius: 20px;
+  background: #fff;
+  padding: 6px;
+  box-sizing: border-box;
+  object-fit: contain;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+
+.install-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 3px;
+  color: var(--txt);
+  margin: 0 0 6px;
+  font-weight: 500;
+}
+
+.install-sub {
+  font-size: 12px;
+  color: var(--txt3);
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+
+.install-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.install-step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.install-step-num {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--txt);
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 0;
+}
+
+.install-step-txt {
+  flex: 1;
+  font-size: 13px;
+  color: var(--txt2);
+  line-height: 1.5;
+}
+
+.install-step-txt strong {
+  color: var(--txt);
+  font-weight: 600;
+}
+
+.install-step-txt i {
+  font-size: 14px;
+  vertical-align: -2px;
+  color: var(--txt2);
+  margin-left: 2px;
+}
+
+.install-btn-done {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px !important;
+  font-size: 11px !important;
+  letter-spacing: 3px !important;
+  margin-bottom: 4px;
+}
+
+.install-btn-skip {
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--txt3);
+  font-size: 12px;
+  padding: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  margin-top: 6px;
+  min-height: 40px;
+}
+.install-btn-skip:hover { color: var(--txt); }
+
+/* Backdrop mais escuro (foco no modal) */
+#modal-install-pwa.mlay {
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ─── 2. iOS · POLIMENTO ──────────────────────────────────────────── */
+
+/* Quando o PWA tá instalado, evita gestures problemáticos */
+@media (display-mode: standalone) {
+  body {
+    /* Sem bounce na borda */
+    overscroll-behavior: none;
+    /* Sem selecionar texto por longo toque (parece "app de verdade") */
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  /* Mas inputs e textareas continuam permitindo seleção */
+  input, textarea, [contenteditable] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
+/* iOS: status-bar translucida ocupa o topo */
+@supports (-webkit-touch-callout: none) {
+  body {
+    /* Garante que o conteúdo não fica embaixo da status bar */
+    padding-top: env(safe-area-inset-top);
+  }
+  .topbar {
+    /* Já tem isso no v13, garantia extra */
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* Evita zoom acidental por duplo toque (iOS) */
+body, button, a, input[type="submit"], input[type="button"] {
+  touch-action: manipulation;
+}
+
+/* Tap target mínimo em links de navegação que ficaram pequenos */
+.nav-bar .nb {
+  min-height: 38px;
+}
+
+/* ─── 3. SPLASH SCREEN (quando abrir como PWA) ────────────────────── */
+
+/* O #boot-loader já existe — só polir um pouco pra parecer mais "app" */
+.boot-loader {
+  /* Já existe — adicionando refinamentos */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.boot-logo {
+  /* Maior e mais "respirado" */
+  font-size: 36px !important;
+  letter-spacing: 6px !important;
+  margin-bottom: 24px;
+}
+
+/* ─── 4. EVITAR FLASH BRANCO no carregamento (iOS) ─────────────────── */
+
+html, body {
+  background-color: #0a0a0a;
+}
+
+:root[data-theme="light"] html,
+:root[data-theme="light"] body {
+  background-color: #f5f5f5;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PATCH v17 — Splash screen suave (abertura do PWA, ~800ms)
+   Cole no FINAL do app.css (depois do v16).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── BOOT LOADER — sobrescreve o antigo ──────────────────────────── */
+
+.boot-loader {
+  /* Sobrescreve qualquer estilo anterior */
+  position: fixed !important;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 99999;
+  background: #0a0a0a !important;
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  /* Safe area iOS */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  /* Fade-out quando boot acabar (controlado via JS adicionando .fade-out) */
+  transition: opacity 0.35s ease;
+  opacity: 1;
+}
+
+.boot-loader.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ─── Logo (fade-in 0→200ms) ─────────────────────────────────────── */
+
+.boot-logo-wrap {
+  width: 110px;
+  height: 110px;
+  margin-bottom: 28px;
+  position: relative;
+  opacity: 0;
+  transform: translateY(8px);
+  animation: bootLogoIn 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) 0.12s forwards;
+}
+
+.boot-logo-img {
+  display: none;
+  width: 110px;
+  height: 110px;
+  background: #fff;
+  border-radius: 22px;
+  padding: 8px;
+  box-sizing: border-box;
+  object-fit: contain;
+}
+.boot-logo-img.loaded { display: block; }
+
+.boot-logo-fallback {
+  width: 110px;
+  height: 110px;
+  background: #fff;
+  color: #000;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 38px;
+  letter-spacing: 4px;
+  font-weight: 700;
+}
+.boot-logo-img.loaded + .boot-logo-fallback,
+.boot-logo-img.loaded ~ .boot-logo-fallback {
+  display: none;
+}
+
+/* ─── Nome da academia (fade-in 200→500ms) ───────────────────────── */
+
+.boot-name {
+  font-family: 'Bebas Neue', sans-serif !important;
+  font-size: 26px !important;
+  letter-spacing: 4px !important;
+  color: #fff !important;
+  margin: 0 0 36px !important;
+  font-weight: 500;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(6px);
+  animation: bootNameIn 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) 0.32s forwards;
+}
+
+/* ─── 3 pontinhos (aparece após nome) ─────────────────────────────── */
+
+.boot-dots {
+  display: flex;
+  gap: 10px;
+  opacity: 0;
+  animation: bootDotsIn 0.3s ease 0.45s forwards;
+}
+
+.boot-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  animation: bootDotPulse 1.4s ease-in-out infinite;
+}
+.boot-dots span:nth-child(2) { animation-delay: 0.18s; }
+.boot-dots span:nth-child(3) { animation-delay: 0.36s; }
+
+/* ─── Keyframes ───────────────────────────────────────────────────── */
+
+@keyframes bootLogoIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bootNameIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bootDotsIn {
+  to { opacity: 1; }
+}
+
+@keyframes bootDotPulse {
+  0%, 80%, 100% { transform: scale(0.7); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+/* Acessibilidade: respeita preferência de reduzir animações */
+@media (prefers-reduced-motion: reduce) {
+  .boot-logo-wrap, .boot-name, .boot-dots,
+  .boot-dots span {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Esconder elementos antigos que não usamos mais */
+.boot-logo, .boot-status { display: none !important; }
