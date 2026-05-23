@@ -1,18 +1,54 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <script>/* PWA-KILL-SWITCH */ try { if ("serviceWorker" in navigator) { navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => { try { r.unregister(); } catch(e){} })).catch(()=>{}); } if (window.caches) { caches.keys().then(ks => ks.forEach(k => caches.delete(k))).catch(()=>{}); } } catch(e){}</script>
+
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#080808">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0a0a0a">
+  <meta name="color-scheme" content="dark">
   <title>Carregando...</title>
 
-  <link rel="icon" href="/icon-192.png">
-  <link rel="apple-touch-icon" href="/icon-192.png">
+  <!-- ─── PWA · iOS ───────────────────────────────────────────────── -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Garage">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="format-detection" content="telephone=no">
+
+  <link rel="manifest" href="/manifest.json">
+
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=15">
+  <link rel="stylesheet" href="app.css?v=16">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => {
+            // Detecta update disponível
+            reg.addEventListener('updatefound', () => {
+              const w = reg.installing;
+              if (!w) return;
+              w.addEventListener('statechange', () => {
+                if (w.state === 'installed' && navigator.serviceWorker.controller) {
+                  console.log('[sw] Nova versão disponível');
+                  // Pode mostrar toast aqui depois ("Recarregue pra atualizar")
+                }
+              });
+            });
+          })
+          .catch(()=>{});
+      });
+    }
+  </script>
 </head>
 <body>
 
@@ -411,6 +447,52 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ─── Modal: Instalar como app (PWA) ─────────────────────────────── -->
+<div class="mlay" id="modal-install-pwa" style="display:none">
+  <div class="mbox install-mbox">
+    <div class="install-icon-wrap">
+      <img src="/apple-touch-icon.png" alt="" class="install-icon">
+    </div>
+    <h2 class="install-title">INSTALE NO SEU CELULAR</h2>
+    <p class="install-sub">Tenha acesso rápido pelo ícone na sua home</p>
+
+    <!-- Instruções iOS -->
+    <div id="install-ios" class="install-steps">
+      <div class="install-step">
+        <div class="install-step-num">1</div>
+        <div class="install-step-txt">Toque em <strong>Compartilhar</strong> <i class="ti ti-upload" aria-hidden="true"></i></div>
+      </div>
+      <div class="install-step">
+        <div class="install-step-num">2</div>
+        <div class="install-step-txt">Role e escolha <strong>"Tela de Início"</strong></div>
+      </div>
+      <div class="install-step">
+        <div class="install-step-num">3</div>
+        <div class="install-step-txt">Toque em <strong>"Adicionar"</strong> no canto superior</div>
+      </div>
+    </div>
+
+    <!-- Instruções Android -->
+    <div id="install-android" class="install-steps" style="display:none">
+      <div class="install-step">
+        <div class="install-step-num">1</div>
+        <div class="install-step-txt">Toque no <strong>menu</strong> (⋮) do Chrome</div>
+      </div>
+      <div class="install-step">
+        <div class="install-step-num">2</div>
+        <div class="install-step-txt">Escolha <strong>"Instalar aplicativo"</strong></div>
+      </div>
+    </div>
+
+    <button class="pbtn install-btn-done" onclick="dismissInstallModal('installed')">
+      <i class="ti ti-check" aria-hidden="true"></i> Já instalei
+    </button>
+    <button class="install-btn-skip" onclick="dismissInstallModal('skip')">
+      Não quero instalar
+    </button>
+  </div>
+</div>
 
 <script src="config.js"></script>
 <script src="auth.js"></script>
