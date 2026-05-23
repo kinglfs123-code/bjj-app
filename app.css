@@ -3785,3 +3785,198 @@ button:active, .pbtn:active, .fbtn:active, .ibtn:active {
   margin: 4px 0 0;
   letter-spacing: 0.3px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PATCH v16 — PWA · Modal de instalação + iOS polish
+   Cole no FINAL do app.css (depois do v15).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── 1. MODAL DE INSTALAÇÃO PWA ────────────────────────────────────── */
+
+.install-mbox {
+  max-width: 360px;
+  text-align: center;
+  padding: 32px 26px 22px !important;
+}
+
+.install-icon-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.install-icon {
+  width: 88px;
+  height: 88px;
+  border-radius: 20px;
+  background: #fff;
+  padding: 6px;
+  box-sizing: border-box;
+  object-fit: contain;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+
+.install-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 3px;
+  color: var(--txt);
+  margin: 0 0 6px;
+  font-weight: 500;
+}
+
+.install-sub {
+  font-size: 12px;
+  color: var(--txt3);
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+
+.install-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.install-step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.install-step-num {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--txt);
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 0;
+}
+
+.install-step-txt {
+  flex: 1;
+  font-size: 13px;
+  color: var(--txt2);
+  line-height: 1.5;
+}
+
+.install-step-txt strong {
+  color: var(--txt);
+  font-weight: 600;
+}
+
+.install-step-txt i {
+  font-size: 14px;
+  vertical-align: -2px;
+  color: var(--txt2);
+  margin-left: 2px;
+}
+
+.install-btn-done {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px !important;
+  font-size: 11px !important;
+  letter-spacing: 3px !important;
+  margin-bottom: 4px;
+}
+
+.install-btn-skip {
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--txt3);
+  font-size: 12px;
+  padding: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  margin-top: 6px;
+  min-height: 40px;
+}
+.install-btn-skip:hover { color: var(--txt); }
+
+/* Backdrop mais escuro (foco no modal) */
+#modal-install-pwa.mlay {
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ─── 2. iOS · POLIMENTO ──────────────────────────────────────────── */
+
+/* Quando o PWA tá instalado, evita gestures problemáticos */
+@media (display-mode: standalone) {
+  body {
+    /* Sem bounce na borda */
+    overscroll-behavior: none;
+    /* Sem selecionar texto por longo toque (parece "app de verdade") */
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  /* Mas inputs e textareas continuam permitindo seleção */
+  input, textarea, [contenteditable] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
+/* iOS: status-bar translucida ocupa o topo */
+@supports (-webkit-touch-callout: none) {
+  body {
+    /* Garante que o conteúdo não fica embaixo da status bar */
+    padding-top: env(safe-area-inset-top);
+  }
+  .topbar {
+    /* Já tem isso no v13, garantia extra */
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* Evita zoom acidental por duplo toque (iOS) */
+body, button, a, input[type="submit"], input[type="button"] {
+  touch-action: manipulation;
+}
+
+/* Tap target mínimo em links de navegação que ficaram pequenos */
+.nav-bar .nb {
+  min-height: 38px;
+}
+
+/* ─── 3. SPLASH SCREEN (quando abrir como PWA) ────────────────────── */
+
+/* O #boot-loader já existe — só polir um pouco pra parecer mais "app" */
+.boot-loader {
+  /* Já existe — adicionando refinamentos */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.boot-logo {
+  /* Maior e mais "respirado" */
+  font-size: 36px !important;
+  letter-spacing: 6px !important;
+  margin-bottom: 24px;
+}
+
+/* ─── 4. EVITAR FLASH BRANCO no carregamento (iOS) ─────────────────── */
+
+html, body {
+  background-color: #0a0a0a;
+}
+
+:root[data-theme="light"] html,
+:root[data-theme="light"] body {
+  background-color: #f5f5f5;
+}
