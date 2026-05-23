@@ -1,13 +1,18 @@
 {
+  "id": "/",
   "name": "Garage Training",
   "short_name": "Garage",
-  "description": "Aplicativo de gestão para academia de Jiu-Jitsu",
-  "start_url": "/index.html",
+  "description": "App de gestão para academias de jiu-jitsu",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "categories": ["sports", "fitness", "lifestyle"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192.png",
@@ -26,6 +31,22 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Grade de aulas",
+      "short_name": "Grade",
+      "description": "Ver horários da semana",
+      "url": "/app.html?tab=schedule",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Confirmar presença",
+      "short_name": "Presenças",
+      "description": "Marcar presença na aula",
+      "url": "/app.html?tab=presences",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }
