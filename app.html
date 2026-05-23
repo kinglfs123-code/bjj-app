@@ -25,7 +25,7 @@
 
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=16">
+  <link rel="stylesheet" href="app.css?v=17">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
@@ -52,10 +52,16 @@
 </head>
 <body>
 
-<!-- Loading inicial -->
+<!-- Splash screen — aparece na abertura do PWA (~800ms) -->
 <div id="boot-loader" class="boot-loader">
-  <div class="boot-logo">·</div>
-  <div class="boot-status">Carregando...</div>
+  <div class="boot-logo-wrap">
+    <img id="boot-logo-img" class="boot-logo-img" src="" alt="">
+    <div id="boot-logo-fallback" class="boot-logo-fallback">·</div>
+  </div>
+  <div id="boot-name" class="boot-name">·</div>
+  <div class="boot-dots" aria-hidden="true">
+    <span></span><span></span><span></span>
+  </div>
 </div>
 
 <!-- App -->
