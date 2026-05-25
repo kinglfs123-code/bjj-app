@@ -7,9 +7,16 @@ const DB = {
   // ── ALUNOS ──────────────────────────────────────────────────────────────
 
   async getAlunos() {
+    // Professor/founder precisa de email (gerenciar alunos).
+    // Aluno comum vê só nome/faixa/foto pra renderizar listas e cards.
+    const isProf = (typeof Auth !== 'undefined') &&
+                   (Auth.isProfessor && Auth.isProfessor())
+    const campos = isProf
+      ? '*'
+      : 'id, nome, faixa, grau, avatar_url, role, created_at'
     const { data, error } = await sb
       .from('profiles')
-      .select('*')
+      .select(campos)
       .eq('role', 'aluno')
       .order('nome')
     if (error) throw error
@@ -277,14 +284,17 @@ const DB = {
   async uploadAvatar(file, userId) {
     if (!file || !userId) throw new Error('Arquivo e userId obrigatórios')
 
-    // Nome do arquivo: {userId}-{timestamp}.{ext} (timestamp p/ evitar cache)
+    // Caminho: {userId}/avatar-{timestamp}.{ext}
+    // Subpasta por usuário = RLS mais simples, organização melhor.
+    // Timestamp evita cache de URL antiga.
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
-    const filename = `${userId}-${Date.now()}.${ext}`
+    const safeExt = ['jpg','jpeg','png','webp'].includes(ext) ? ext : 'jpg'
+    const path = `${userId}/avatar-${Date.now()}.${safeExt}`
 
     // Upload pro bucket "avatars"
     const { error: upErr } = await sb.storage
       .from('avatars')
-      .upload(filename, file, {
+      .upload(path, file, {
         cacheControl: '3600',
         upsert: false,
         contentType: file.type
@@ -292,7 +302,7 @@ const DB = {
     if (upErr) throw upErr
 
     // URL pública
-    const { data } = sb.storage.from('avatars').getPublicUrl(filename)
+    const { data } = sb.storage.from('avatars').getPublicUrl(path)
     const publicUrl = data.publicUrl
 
     // Atualizar profiles.avatar_url
@@ -308,11 +318,14 @@ const DB = {
   async removeAvatar(userId, currentUrl) {
     if (!userId) throw new Error('userId obrigatório')
 
-    // Remove arquivo do storage (se URL existe)
+    // Remove arquivo do storage (se URL existe).
+    // Suporta tanto o novo formato ({userId}/avatar-xxx.jpg) quanto o antigo ({userId}-xxx.jpg).
     if (currentUrl) {
       try {
-        const filename = currentUrl.split('/').pop()
-        if (filename) await sb.storage.from('avatars').remove([filename])
+        // Tudo após /avatars/ na URL pública é o path
+        const m = currentUrl.match(/\/avatars\/(.+?)(\?|$)/)
+        const path = m ? m[1] : currentUrl.split('/').pop()
+        if (path) await sb.storage.from('avatars').remove([path])
       } catch(e) { /* segue mesmo que falhe, o que importa é zerar do DB */ }
     }
 
