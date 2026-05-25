@@ -359,7 +359,7 @@ function applyLogo(){
     }
     // Preview na config
     if(previewEl){
-      previewEl.innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:contain">`
+      previewEl.innerHTML = `<img src="${safeUrl(url)}" alt="" style="width:100%;height:100%;object-fit:contain">`
     }
     // Botão remover
     if(removeBtn) removeBtn.style.display = 'inline-flex'
@@ -1035,11 +1035,11 @@ function renderVidSrcArea(v){
   if(!area) return
   if(state.vidSrcTab === 'youtube'){
     const val = v && v.src_type === 'youtube' ? v.src_url : ''
-    area.innerHTML = `<input class="sinput" id="vid-yt-url" value="${val}" placeholder="https://youtube.com/watch?v=..." style="width:100%;margin-top:7px">
+    area.innerHTML = `<input class="sinput" id="vid-yt-url" value="${escapeHtml(val)}" placeholder="https://youtube.com/watch?v=..." style="width:100%;margin-top:7px">
       <div style="font-size:10px;color:var(--txt3);margin-top:5px">Cole a URL do YouTube — o player é incorporado automaticamente.</div>`
   } else {
     const val = v && v.src_type === 'file' ? v.src_url : ''
-    area.innerHTML = `<input class="sinput" id="vid-file-url" value="${val}" placeholder="https://exemplo.com/video.mp4" style="width:100%;margin-top:7px">
+    area.innerHTML = `<input class="sinput" id="vid-file-url" value="${escapeHtml(val)}" placeholder="https://exemplo.com/video.mp4" style="width:100%;margin-top:7px">
       <div style="font-size:10px;color:var(--txt3);margin-top:5px">Cole a URL direta de um arquivo MP4/WebM.</div>`
   }
 }
@@ -2485,7 +2485,10 @@ async function removerAvatar(alunoId){
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-//   ALUNO PAGA A PRÓPRIA MENSALIDADE (base, sem gateway ainda)
+//   ALUNO PAGA A PRÓPRIA MENSALIDADE
+//   Por segurança, aluno NÃO marca pagamento como pago diretamente.
+//   O fluxo real será via Stripe Checkout + webhook (próxima sprint).
+//   Por enquanto, exibe mensagem orientando contato com o professor.
 // ═══════════════════════════════════════════════════════════════════════
 
 async function pagarMinhaMensalidade(pagamentoId, valor){
@@ -2493,21 +2496,14 @@ async function pagarMinhaMensalidade(pagamentoId, valor){
     toast('Apenas o próprio aluno paga a mensalidade aqui.', true)
     return
   }
-  const forma = prompt(
-    `Confirmar pagamento de ${fmtBRL(valor)}?\n\n` +
-    `Por enquanto registramos manualmente.\n` +
-    `(PIX, cartão e boleto entram em breve.)\n\n` +
-    `Forma de pagamento:`,
-    'PIX'
+  // Aluno NÃO pode marcar pagamento como pago manualmente.
+  // O botão continua existindo (UX), mas só informa que pagamento online vem em breve.
+  alert(
+    `Pagamento online em breve.\n\n` +
+    `Valor: ${fmtBRL(valor)}\n\n` +
+    `Por enquanto, fale com o professor para registrar seu pagamento.\n` +
+    `Em breve você poderá pagar direto pelo app via PIX, cartão e boleto.`
   )
-  if(forma === null) return
-  try {
-    await DB.marcarPago(pagamentoId, new Date().toISOString().slice(0,10), forma || 'PIX')
-    toast('Pagamento registrado!')
-    if(Auth.currentProfile?.id) await carregarMensalidadeNoPerfil(Auth.currentProfile.id)
-  } catch(err){
-    toast('Erro: ' + err.message, true)
-  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
