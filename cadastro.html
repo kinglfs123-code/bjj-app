@@ -253,7 +253,7 @@
           try {
             const { data, error } = await sb.auth.signUp({
               email, password,
-              options: { data: { nome, faixa: 'white', role: 'aluno' } }
+              options: { data: { nome } }
             });
             if (error) throw error;
 
