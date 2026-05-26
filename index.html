@@ -28,7 +28,7 @@
 
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="app.css?v=17">
+  <link rel="stylesheet" href="app.css?v=18">
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -62,7 +62,12 @@
         </div>
         <div class="form-row">
           <label class="form-label" for="password">Senha</label>
-          <input class="form-input" type="password" id="password" required autocomplete="current-password" placeholder="••••••••">
+          <div class="pwd-wrap">
+            <input class="form-input" type="password" id="password" required autocomplete="current-password" placeholder="••••••••">
+            <button type="button" class="pwd-toggle" id="pwd-toggle" aria-label="Mostrar senha" tabindex="-1">
+              <i class="ti ti-eye" aria-hidden="true"></i>
+            </button>
+          </div>
         </div>
         <div class="form-err" id="err-msg"></div>
         <button class="form-submit" type="submit" id="submit-btn">Entrar</button>
@@ -95,6 +100,18 @@
     const googleBtn = document.getElementById('google-btn');
     const forgotBtn = document.getElementById('forgot-btn');
     const form = document.getElementById('login-form');
+
+    // Mostrar/esconder senha
+    const pwdToggle = document.getElementById('pwd-toggle');
+    const pwdInput = document.getElementById('password');
+    if (pwdToggle && pwdInput) {
+      pwdToggle.addEventListener('click', () => {
+        const isPwd = pwdInput.type === 'password';
+        pwdInput.type = isPwd ? 'text' : 'password';
+        pwdToggle.querySelector('i').className = isPwd ? 'ti ti-eye-off' : 'ti ti-eye';
+        pwdToggle.setAttribute('aria-label', isPwd ? 'Esconder senha' : 'Mostrar senha');
+      });
+    }
 
     function waitForSb(maxTries = 50) {
       return new Promise((resolve, reject) => {
