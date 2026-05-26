@@ -455,7 +455,7 @@ async function onLogoFileSelected(event){
 }
 
 async function removeLogo(){
-  if(!confirm('Remover a logo da academia?')) return
+  if(!(await confirmModal({ title: 'Remover logo?', message: 'A logo atual será apagada da academia.', danger: true }))) return
   try {
     if(state.config.logo_url){
       try { await DB.removeLogoFile(state.config.logo_url) } catch(e){ /* ignora se falhar */ }
@@ -1093,7 +1093,7 @@ async function saveVideo(){
 }
 
 async function deleteVideo(id){
-  if(!confirm('Remover este vídeo?')) return
+  if(!(await confirmModal({ title: 'Remover vídeo?', message: 'Este vídeo será apagado da biblioteca.', danger: true }))) return
   try {
     await DB.deleteVideo(id)
     state.videos = state.videos.filter(v => v.id !== id)
@@ -1182,7 +1182,7 @@ async function shareNative(){
 }
 
 async function deleteStudent(id){
-  if(!confirm('Remover este aluno? Esta ação não pode ser desfeita.')) return
+  if(!(await confirmModal({ title: 'Remover aluno?', message: 'O aluno será apagado e perderá acesso ao app. Esta ação não pode ser desfeita.', danger: true }))) return
   try {
     await DB.deleteAluno(id)
     state.alunos = state.alunos.filter(s => s.id !== id)
@@ -1615,6 +1615,111 @@ function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+//   MODAIS NATIVOS · substituem window.confirm e window.prompt
+//   Retornam Promise: await confirmModal(...) → true/false
+//                     await promptModal(...) → string ou null
+// ═══════════════════════════════════════════════════════════════════════
+
+// confirmModal({ title, message, danger?, confirmText?, cancelText? })
+// Uso: if(!(await confirmModal({ title: 'Remover', message: '...', danger: true }))) return
+function confirmModal(opts){
+  return new Promise(resolve => {
+    const o = opts || {}
+    const title = o.title || 'Confirmar'
+    const message = o.message || ''
+    const danger = !!o.danger
+    const confirmText = o.confirmText || (danger ? 'REMOVER' : 'CONFIRMAR')
+    const cancelText = o.cancelText || 'Cancelar'
+    const iconClass = danger ? 'danger' : 'warn'
+    const iconChar = danger ? '!' : '?'
+
+    const el = document.createElement('div')
+    el.className = 'mlay'
+    el.style.display = 'flex'
+    el.innerHTML = `
+      <div class="mbox confirm-modal-box">
+        <div class="confirm-modal-icon ${iconClass}">${iconChar}</div>
+        <h3 class="confirm-modal-title">${escapeHtml(title)}</h3>
+        <p class="confirm-modal-msg">${escapeHtml(message)}</p>
+        <div class="confirm-modal-actions">
+          <button class="confirm-modal-btn-primary ${danger ? 'confirm-modal-btn-danger' : ''}" data-confirm>${escapeHtml(confirmText)}</button>
+          <button class="confirm-modal-btn-cancel" data-cancel>${escapeHtml(cancelText)}</button>
+        </div>
+      </div>
+    `
+    document.body.appendChild(el)
+
+    const close = (result) => {
+      try { document.body.removeChild(el) } catch(e){}
+      resolve(result)
+    }
+    el.querySelector('[data-confirm]').addEventListener('click', () => close(true))
+    el.querySelector('[data-cancel]').addEventListener('click', () => close(false))
+    // Click no backdrop = cancela
+    el.addEventListener('click', (ev) => {
+      if(ev.target === el) close(false)
+    })
+    // ESC fecha
+    const onEsc = (ev) => {
+      if(ev.key === 'Escape'){
+        document.removeEventListener('keydown', onEsc)
+        close(false)
+      }
+    }
+    document.addEventListener('keydown', onEsc)
+    // Foco no botão de cancelar (mais seguro pro usuário)
+    setTimeout(() => el.querySelector('[data-cancel]')?.focus(), 50)
+  })
+}
+
+// promptModal({ title, message?, defaultValue?, placeholder?, confirmText? })
+// Retorna string com o valor ou null se cancelado.
+function promptModal(opts){
+  return new Promise(resolve => {
+    const o = opts || {}
+    const title = o.title || 'Digite'
+    const message = o.message || ''
+    const defaultValue = o.defaultValue || ''
+    const placeholder = o.placeholder || ''
+    const confirmText = o.confirmText || 'OK'
+
+    const el = document.createElement('div')
+    el.className = 'mlay'
+    el.style.display = 'flex'
+    el.innerHTML = `
+      <div class="mbox prompt-modal-box">
+        <h3 class="prompt-modal-title">${escapeHtml(title)}</h3>
+        ${message ? `<p class="prompt-modal-msg">${escapeHtml(message)}</p>` : ''}
+        <input type="text" class="prompt-modal-input" value="${escapeHtml(defaultValue)}" placeholder="${escapeHtml(placeholder)}" data-input>
+        <div class="confirm-modal-actions">
+          <button class="confirm-modal-btn-primary" data-confirm>${escapeHtml(confirmText)}</button>
+          <button class="confirm-modal-btn-cancel" data-cancel>Cancelar</button>
+        </div>
+      </div>
+    `
+    document.body.appendChild(el)
+    const input = el.querySelector('[data-input]')
+
+    const close = (result) => {
+      try { document.body.removeChild(el) } catch(e){}
+      resolve(result)
+    }
+    el.querySelector('[data-confirm]').addEventListener('click', () => close(input.value))
+    el.querySelector('[data-cancel]').addEventListener('click', () => close(null))
+    el.addEventListener('click', (ev) => {
+      if(ev.target === el) close(null)
+    })
+    // Enter confirma, ESC cancela
+    input.addEventListener('keydown', (ev) => {
+      if(ev.key === 'Enter'){ ev.preventDefault(); close(input.value) }
+      if(ev.key === 'Escape'){ ev.preventDefault(); close(null) }
+    })
+    setTimeout(() => { input.focus(); input.select() }, 50)
+  })
+}
+
+
 // Valida URL pra usar em <a href>, <img src>, <source src>, etc.
 // Bloqueia javascript:, data:, vbscript: e outros protocolos perigosos.
 // Retorna a URL sanitizada (com aspas escapadas) ou string vazia se inválida.
@@ -1764,7 +1869,7 @@ async function saveRecado(){
 }
 
 async function deleteRecado(id){
-  if(!confirm('Excluir este recado?')) return
+  if(!(await confirmModal({ title: 'Excluir recado?', message: 'O recado será removido do mural.', danger: true }))) return
   try {
     await DB.deleteRecado(id)
     toast('Recado excluído.')
@@ -1776,7 +1881,7 @@ async function deleteRecado(id){
 
 
 async function deleteGraduacao(id){
-  if(!confirm('Excluir esta graduação do histórico?')) return
+  if(!(await confirmModal({ title: 'Excluir graduação?', message: 'Este registro será removido do histórico de graduações.', danger: true }))) return
   try {
     await DB.deleteGraduacao(id)
     toast('Graduação removida.')
@@ -1873,7 +1978,7 @@ async function onTermoPdfSelected(event){
 }
 
 async function removerTermoPdf(){
-  if(!confirm('Remover o PDF do termo?')) return
+  if(!(await confirmModal({ title: 'Remover PDF?', message: 'O PDF do termo será apagado.', danger: true }))) return
   try {
     if(state_termo.pdf_url){
       try { await DB.removeTermoPdf(state_termo.pdf_url) } catch(e){ /* ignora */ }
@@ -1971,7 +2076,7 @@ async function renderFinanceiro(){
 }
 
 async function gerarMensalidadesDoMes(){
-  if(!confirm(`Gerar cobranças de ${MESES_FULL[state_fin.mes - 1]}/${state_fin.ano} para todos os alunos?`)) return
+  if(!(await confirmModal({ title: 'Gerar cobranças?', message: `Será criada uma cobrança para cada aluno em ${MESES_FULL[state_fin.mes - 1]}/${state_fin.ano}.`, confirmText: 'GERAR' }))) return
   try {
     const cfg = state_fin.configMens
     const valor = cfg.mensalidade_valor || 150
@@ -1994,17 +2099,23 @@ async function gerarMensalidadesDoMes(){
 }
 
 async function marcarPago(id){
-  const forma = prompt('Forma de pagamento (PIX, Dinheiro, Cartão, etc):', 'PIX')
+  const forma = await promptModal({
+    title: 'Marcar como pago',
+    message: 'Qual foi a forma de pagamento?',
+    defaultValue: 'PIX',
+    placeholder: 'PIX, Dinheiro, Cartão...',
+    confirmText: 'CONFIRMAR'
+  })
   if(forma === null) return
   try {
-    await DB.marcarPago(id, new Date().toISOString().slice(0,10), forma)
+    await DB.marcarPago(id, new Date().toISOString().slice(0,10), forma || 'PIX')
     toast('Marcado como pago!')
     renderFinanceiro()
   } catch(err){ toast('Erro: ' + err.message, true) }
 }
 
 async function desmarcarPago(id){
-  if(!confirm('Desfazer este pagamento?')) return
+  if(!(await confirmModal({ title: 'Desfazer pagamento?', message: 'A cobrança voltará para "em aberto".' }))) return
   try {
     await DB.desmarcarPago(id)
     toast('Pagamento desfeito.')
@@ -2013,7 +2124,7 @@ async function desmarcarPago(id){
 }
 
 async function excluirPagamento(id){
-  if(!confirm('Excluir esta cobrança? Esta ação não pode ser desfeita.')) return
+  if(!(await confirmModal({ title: 'Excluir cobrança?', message: 'Esta cobrança será apagada. Esta ação não pode ser desfeita.', danger: true }))) return
   try {
     await DB.deletePagamento(id)
     toast('Cobrança excluída.')
@@ -2232,7 +2343,7 @@ async function salvarEvento(id){
 }
 
 async function deleteEvento(id){
-  if(!confirm('Excluir este evento?')) return
+  if(!(await confirmModal({ title: 'Excluir evento?', message: 'O evento será removido do calendário.', danger: true }))) return
   try {
     await DB.deleteEvento(id)
     toast('Evento excluído.')
@@ -2464,7 +2575,7 @@ async function handleAvatarFile(event, alunoId){
 }
 
 async function removerAvatar(alunoId){
-  if(!confirm('Remover a foto de perfil?')) return
+  if(!(await confirmModal({ title: 'Remover foto?', message: 'A foto de perfil será apagada.', danger: true }))) return
   closeModal('avatar-sheet')
   try {
     let urlAtual = null
