@@ -3980,3 +3980,308 @@ html, body {
 :root[data-theme="light"] body {
   background-color: #f5f5f5;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PATCH v18 — UX refinements
+   1. Modais SEMPRE centralizados (desktop E mobile)
+   2. Login com mais respiro + olho-senha + Google secundário
+   3. Estilos pra confirmModal e promptModal nativos
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── 1. MODAIS CENTRALIZADOS NO MOBILE ───────────────────────────── */
+
+/* Sobrescreve o bottom-sheet do v13 / v15. Modal SEMPRE no centro. */
+@media (max-width: 720px) {
+  .mlay {
+    padding: 16px !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .mbox {
+    max-width: 92vw !important;
+    max-height: 88vh !important;
+    border-radius: 14px !important;
+    margin: 0 auto !important;
+    animation: modalIn 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  }
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Backdrop um pouco mais escuro pra dar destaque */
+.mlay {
+  background: rgba(0, 0, 0, 0.78) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+
+/* ─── 2. LOGIN — mais respiro + ícone olho-senha + Google secundário ──── */
+
+/* Mais espaço entre logo e formulário */
+.login-box {
+  padding: 36px 28px 28px !important;
+}
+.login-logo-img, .login-logo-fallback {
+  width: 90px !important;
+  height: 90px !important;
+  margin-bottom: 14px !important;
+}
+.login-logo {
+  font-size: 24px !important;
+  letter-spacing: 5px !important;
+  margin-bottom: 6px !important;
+}
+.login-sub {
+  font-size: 10px !important;
+  letter-spacing: 3px !important;
+  margin-bottom: 32px !important;
+  color: var(--txt3) !important;
+}
+
+/* Inputs maiores e mais arredondados (touch-friendly) */
+.login-box .form-input {
+  padding: 14px 14px !important;
+  font-size: 14px !important;
+  border-radius: 6px !important;
+  min-height: 48px;
+}
+
+/* Wrapper pro input com olho de senha */
+.pwd-wrap {
+  position: relative;
+}
+.pwd-wrap .form-input {
+  padding-right: 44px !important;
+}
+.pwd-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--txt3);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 0.15s ease;
+}
+.pwd-toggle:hover, .pwd-toggle:focus {
+  color: var(--txt);
+}
+.pwd-toggle i {
+  font-size: 18px;
+}
+
+/* Botão "Entrar" MAIS destacado */
+.login-box .form-submit {
+  padding: 15px !important;
+  font-size: 12px !important;
+  letter-spacing: 4px !important;
+  border-radius: 8px !important;
+  min-height: 50px;
+  margin-top: 4px !important;
+}
+
+/* "Esqueceu a senha" — link simples acima do botão */
+.login-forgot {
+  display: block;
+  text-align: right;
+  font-size: 11px;
+  color: var(--txt3);
+  margin: -8px 0 14px;
+  text-decoration: none;
+  padding: 4px 2px;
+}
+.login-forgot:hover { color: var(--txt2); }
+
+/* Divisor "OU" mais sutil */
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 22px 0 16px;
+  color: var(--txt3);
+  font-size: 9px;
+  letter-spacing: 3px;
+  font-weight: 600;
+}
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Google MENOR (visual secundário) */
+.login-google-btn {
+  padding: 12px !important;
+  font-size: 10px !important;
+  letter-spacing: 2px !important;
+  background: transparent !important;
+  border: 1px solid var(--border) !important;
+  color: var(--txt2) !important;
+  min-height: 44px;
+  opacity: 0.85;
+}
+.login-google-btn:hover {
+  opacity: 1;
+  border-color: var(--border2) !important;
+  color: var(--txt) !important;
+}
+.login-google-btn svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* Link cadastro mais visível */
+.login-signup {
+  margin-top: 24px !important;
+  text-align: center;
+  font-size: 12px;
+  color: var(--txt3);
+}
+.login-signup a {
+  color: var(--txt) !important;
+  font-weight: 600;
+  margin-left: 4px;
+  text-decoration: none;
+}
+.login-signup a:hover {
+  text-decoration: underline;
+}
+
+
+/* ─── 3. CONFIRM MODAL NATIVO (substitui window.confirm) ──────────── */
+
+.confirm-modal-box {
+  max-width: 380px;
+  padding: 32px 26px 22px;
+  text-align: center;
+}
+
+.confirm-modal-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  margin: 0 auto 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  color: #0a0a0a;
+}
+.confirm-modal-icon.warn { background: #e8c270; }
+.confirm-modal-icon.danger { background: var(--danger); color: #fff; }
+.confirm-modal-icon.info { background: var(--accent); }
+
+.confirm-modal-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 3px;
+  color: var(--txt);
+  margin: 0 0 10px;
+  font-weight: 500;
+}
+
+.confirm-modal-msg {
+  font-size: 13px;
+  color: var(--txt2);
+  margin: 0 0 24px;
+  line-height: 1.55;
+}
+
+.confirm-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.confirm-modal-btn-primary {
+  width: 100%;
+  padding: 13px;
+  background: var(--txt);
+  color: var(--b);
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 46px;
+  transition: opacity 0.15s ease;
+}
+.confirm-modal-btn-primary:hover { opacity: 0.85; }
+
+.confirm-modal-btn-danger {
+  background: var(--danger) !important;
+  color: #fff !important;
+}
+
+.confirm-modal-btn-cancel {
+  width: 100%;
+  padding: 11px;
+  background: none;
+  border: none;
+  color: var(--txt3);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 40px;
+}
+.confirm-modal-btn-cancel:hover { color: var(--txt); }
+
+
+/* ─── 4. PROMPT MODAL NATIVO (substitui window.prompt) ────────────── */
+
+.prompt-modal-box {
+  max-width: 380px;
+  padding: 28px 26px 22px;
+}
+
+.prompt-modal-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  letter-spacing: 3px;
+  color: var(--txt);
+  margin: 0 0 8px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.prompt-modal-msg {
+  font-size: 12px;
+  color: var(--txt3);
+  margin: 0 0 20px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.prompt-modal-input {
+  width: 100%;
+  padding: 13px 14px;
+  background: var(--b);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--txt);
+  font-size: 14px;
+  font-family: inherit;
+  margin-bottom: 18px;
+  box-sizing: border-box;
+  min-height: 46px;
+}
+.prompt-modal-input:focus {
+  outline: none;
+  border-color: var(--txt);
+}
