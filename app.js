@@ -2,6 +2,21 @@
 // APP PRINCIPAL — Lógica do app conectada ao Supabase
 // ════════════════════════════════════════════════════════════════════════
 
+// ─── LOGGER CONDICIONAL ─────────────────────────────────────────────────
+// dlog e dwarn só logam em dev (localhost ou ?debug=1 na URL).
+// Em produção, ficam silenciosos pra não poluir o console do cliente.
+// console.error é mantido pra erros graves serem rastreáveis sempre.
+const IS_DEV = (function(){
+  try {
+    const h = location.hostname
+    if(h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local')) return true
+    if(new URLSearchParams(location.search).has('debug')) return true
+    return false
+  } catch(e){ return false }
+})()
+const dlog = IS_DEV ? console.log.bind(console) : () => {}
+const dwarn = IS_DEV ? console.warn.bind(console) : () => {}
+
 // ─── CONSTANTES ─────────────────────────────────────────────────────────
 const DAYS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
 const DAYS_FULL = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado']
@@ -60,7 +75,7 @@ async function boot(){
   const BOOT_MIN_MS = 800  // splash mínima de 800ms (não atrasa nada, só dá sensação de "app abrindo")
   const debugLog = (step, extra = '') => {
     // Log só no console em dev (não polui o splash)
-    console.log('[BOOT]', step, extra)
+    dlog('[BOOT]', step, extra)
   }
   try {
     debugLog('Iniciando...')
@@ -85,11 +100,11 @@ async function boot(){
 
     debugLog('Carregando dados')
     const [alunos, videos, schedule, config, totais] = await Promise.all([
-      DB.getAlunos().catch(e => { console.warn('[boot] alunos:', e); return [] }),
-      DB.getVideos().catch(e => { console.warn('[boot] videos:', e); return [] }),
-      DB.getSchedule().catch(e => { console.warn('[boot] schedule:', e); return {} }),
-      DB.getConfig().catch(e => { console.warn('[boot] config:', e); return { nome_academia: 'Garage Training', tema: 'dark' } }),
-      DB.getTotaisPresenca().catch(e => { console.warn('[boot] totais:', e); return {} })
+      DB.getAlunos().catch(e => { dwarn('[boot] alunos:', e); return [] }),
+      DB.getVideos().catch(e => { dwarn('[boot] videos:', e); return [] }),
+      DB.getSchedule().catch(e => { dwarn('[boot] schedule:', e); return {} }),
+      DB.getConfig().catch(e => { dwarn('[boot] config:', e); return { nome_academia: 'Garage Training', tema: 'dark' } }),
+      DB.getTotaisPresenca().catch(e => { dwarn('[boot] totais:', e); return {} })
     ])
     state.alunos = alunos || []
     state.videos = videos || []
@@ -113,10 +128,10 @@ async function boot(){
       if(bootName && state.config.nome_academia){
         bootName.textContent = state.config.nome_academia.toUpperCase()
       }
-    } catch(e){ console.warn('[boot] splash update:', e) }
+    } catch(e){ dwarn('[boot] splash update:', e) }
 
-    try { await loadPresences(state.curDate) } catch(e){ console.warn('[boot] presences:', e) }
-    try { await loadConfirmacoes() } catch(e){ console.warn('[boot] confirmacoes:', e) }
+    try { await loadPresences(state.curDate) } catch(e){ dwarn('[boot] presences:', e) }
+    try { await loadConfirmacoes() } catch(e){ dwarn('[boot] confirmacoes:', e) }
 
     debugLog('Montando nav')
     setupNav()
@@ -327,7 +342,7 @@ function applyName(){
     const schEl = $('sch-title')
     if(schEl) schEl.textContent = 'Grade — ' + n
     document.title = n
-  } catch(err){ console.warn('[applyName]', err) }
+  } catch(err){ dwarn('[applyName]', err) }
 }
 
 async function saveName(){
@@ -1234,8 +1249,8 @@ async function openPerfilAluno(alunoId){
 
     // Carrega histórico e total de aulas em paralelo — com fallback se algo falhar
     const [historico, totalAulas] = await Promise.all([
-      DB.getHistoricoAluno(alunoId).catch(e => { console.warn('[perfil] histórico:', e); return [] }),
-      DB.getTotalAulasAluno(alunoId).catch(e => { console.warn('[perfil] total aulas:', e); return 0 })
+      DB.getHistoricoAluno(alunoId).catch(e => { dwarn('[perfil] histórico:', e); return [] }),
+      DB.getTotalAulasAluno(alunoId).catch(e => { dwarn('[perfil] total aulas:', e); return 0 })
     ])
 
     const isProf = Auth.isProfessor()
@@ -2009,7 +2024,7 @@ async function carregarConfigMensalidade(){
     state_fin.configMens = cfg
     if($('cfg-mens-valor')) $('cfg-mens-valor').value = cfg.mensalidade_valor || 150
     if($('cfg-mens-dia')) $('cfg-mens-dia').value = cfg.mensalidade_dia_vencimento || 10
-  } catch(err) { console.warn('[mens config]', err) }
+  } catch(err) { dwarn('[mens config]', err) }
 }
 
 async function salvarConfigMensalidade(){
@@ -2237,7 +2252,7 @@ async function carregarMensalidadeNoPerfil(alunoId){
     }
     area.innerHTML = cardHtml
   } catch(err){
-    console.warn('[mensalidade perfil]', err)
+    dwarn('[mensalidade perfil]', err)
     area.innerHTML = ''
   }
 }
@@ -2374,7 +2389,7 @@ async function carregarNotificacoes(){
     state_notif.naoLidas = count
     atualizarBadge()
   } catch(err) {
-    console.warn('[notif]', err)
+    dwarn('[notif]', err)
   }
 }
 
@@ -2434,7 +2449,7 @@ async function marcarNotifLida(id){
     }
     renderDropdownNotif()
     atualizarBadge()
-  } catch(err){ console.warn('[marcar lida]', err) }
+  } catch(err){ dwarn('[marcar lida]', err) }
 }
 
 async function marcarTodasLidas(){
@@ -2872,7 +2887,7 @@ function maybeShowInstallModal(){
       modal.style.display = 'flex'
     }, 1500)
   } catch(e){
-    console.warn('[install-modal]', e)
+    dwarn('[install-modal]', e)
   }
 }
 
