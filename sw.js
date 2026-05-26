@@ -9,7 +9,7 @@
 //   Bump VERSION quando quiser invalidar todos os caches.
 // ═══════════════════════════════════════════════════════════════════════
 
-const VERSION = 'v1.0.0';
+const VERSION = 'v1.0.1';
 const CACHE_STATIC = `garage-static-${VERSION}`;
 const CACHE_PAGES  = `garage-pages-${VERSION}`;
 const CACHE_IMG    = `garage-img-${VERSION}`;
