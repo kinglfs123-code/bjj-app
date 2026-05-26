@@ -13,5 +13,8 @@
   }
 
   window.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  console.log('[config.js] Cliente Supabase inicializado:', !!window.sb);
+  // Log apenas em dev (localhost), silencioso em produção
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    console.log('[config.js] Cliente Supabase inicializado:', !!window.sb);
+  }
 })();
